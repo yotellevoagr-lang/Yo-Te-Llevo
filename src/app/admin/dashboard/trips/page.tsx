@@ -1,0 +1,330 @@
+
+"use client"
+
+import { useState, useMemo, useEffect } from "react"
+import {
+  Card,
+  CardContent,
+} from "@/components/ui/card"
+import {
+  Table,
+  TableHeader,
+  TableRow,
+  TableHead,
+  TableBody,
+  TableCell,
+} from "@/components/ui/table"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { PlusCircle, MoreHorizontal, Edit, Trash2, FileText, ShieldAlert } from "lucide-react"
+import type { Tour, Reservation, LayoutCategory, TransportUnit, BoardingPoint, GeneralSettings } from "@/lib/types"
+import { TripForm } from "@/components/admin/trip-form"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog"
+import { Textarea } from "@/components/ui/textarea"
+import { Label } from "@/components/ui/label"
+import { useToast } from "@/hooks/use-toast"
+import { getAllFromCollection_client, getDocumentById, saveTour, deleteDocument, saveDocument } from "@/lib/firestore-services"
+import { Switch } from "@/components/ui/switch"
+import { cn } from "@/lib/utils"
+
+
+type GlobalTextType = 'observations' | 'cancellationPolicy' | null;
+
+export default function TripsPage() {
+  const [tours, setTours] = useState<Tour[]>([])
+  const [reservations, setReservations] = useState<Reservation[]>([])
+  const [boardingPoints, setBoardingPoints] = useState<BoardingPoint[]>([]);
+  const [isFormOpen, setIsFormOpen] = useState(false)
+  const [selectedTour, setSelectedTour] = useState<Tour | null>(null)
+  
+  const [globalTextType, setGlobalTextType] = useState<GlobalTextType>(null);
+  const [generalSettings, setGeneralSettings] = useState<GeneralSettings | null>(null);
+  const [globalText, setGlobalText] = useState("");
+  const { toast } = useToast();
+
+  const fetchData = async () => {
+    const [toursData, reservationsData, boardingPointsData, settingsData] = await Promise.all([
+      getAllFromCollection_client<Tour>('tours'),
+      getAllFromCollection_client<Reservation>('reservations'),
+      getAllFromCollection_client<BoardingPoint>('boarding_points'),
+      getDocumentById<GeneralSettings>('settings', 'general'),
+    ]);
+
+    const processedTours = toursData.map(t => {
+      // Firestore Timestamps need to be converted to JS Date objects
+      const date = (t.date as any)?.toDate ? (t.date as any).toDate() : new Date(t.date);
+      return { ...t, date };
+    });
+
+    setTours(processedTours);
+    setReservations(reservationsData);
+    setBoardingPoints(boardingPointsData);
+    if(settingsData) {
+      setGeneralSettings(settingsData);
+    }
+  }
+
+  useEffect(() => {
+    fetchData();
+  }, [])
+  
+  useEffect(() => {
+    if (globalTextType === 'observations' && generalSettings) {
+      setGlobalText(generalSettings.observations || "");
+    } else if (globalTextType === 'cancellationPolicy' && generalSettings) {
+      setGlobalText(generalSettings.cancellationPolicy || "");
+    }
+  }, [globalTextType, generalSettings]);
+
+  const activeTours = useMemo(() => tours.filter(tour => tour.date && new Date(tour.date) >= new Date()), [tours]);
+  
+  const getOccupiedCount = (tourId: string) => {
+    return reservations
+        .filter(r => r.tripId === tourId)
+        .reduce((acc, r) => acc + ((r.assignedSeats?.length || 0) + (r.assignedCabins?.length || 0)) , 0);
+  }
+
+  const getTourCapacity = async (tour: Tour) => {
+    if (!tour.transportUnits) return 0;
+
+    let totalCapacity = 0;
+    for (const unit of tour.transportUnits) {
+        const layoutConfig = await getDocumentById<any>('settings', 'layouts');
+        if (layoutConfig) {
+            const config = layoutConfig[unit.category]?.[unit.type];
+            totalCapacity += config?.capacity || 0;
+        }
+    }
+    return totalCapacity;
+  };
+
+  const getTransportUnitsByType = (tour: Tour): Partial<Record<LayoutCategory, number>> => {
+    if (!tour.transportUnits) return {};
+    return tour.transportUnits.reduce((acc, unit) => {
+      acc[unit.category] = (acc[unit.category] || 0) + 1;
+      return acc;
+    }, {} as Partial<Record<LayoutCategory, number>>);
+  };
+
+  const activeTransportTypes = useMemo(() => {
+    const types = new Set<LayoutCategory>();
+    activeTours.forEach(tour => {
+      if (tour.transportUnits) {
+        tour.transportUnits.forEach(unit => types.add(unit.category));
+      }
+    });
+    return Array.from(types);
+  }, [activeTours]);
+
+  const handleCreate = () => {
+    setSelectedTour(null)
+    setIsFormOpen(true)
+  }
+
+  const handleEdit = (tour: Tour) => {
+    setSelectedTour(tour)
+    setIsFormOpen(true)
+  }
+
+  const handleSave = async (tourData: Tour) => {
+    let tourToSave = {...tourData};
+    if (!tourToSave.id) { // This is how we detect a new tour in the form
+        // Ensure global texts are added on creation
+        const globalSettings = await getDocumentById<GeneralSettings>('settings', 'general');
+        tourToSave.observations = globalSettings?.observations || "";
+        tourToSave.cancellationPolicy = globalSettings?.cancellationPolicy || "";
+    }
+    
+    await saveTour(tourToSave, tourToSave.id);
+    await fetchData();
+
+    setIsFormOpen(false);
+    setSelectedTour(null);
+    toast({title: "Viaje Guardado", description: "Los datos del viaje han sido actualizados."})
+  };
+
+  const handleDelete = async (tourId: string) => {
+    // We should also delete associated reservations, etc. This is a simplified delete.
+    await deleteDocument('tours', tourId);
+    await fetchData();
+    toast({title: "Viaje Eliminado", variant: "destructive"})
+  }
+  
+  const handleSaveGlobalText = async () => {
+    if (!globalTextType) return;
+
+    // Fetch the latest settings before updating
+    const currentSettings = await getDocumentById<GeneralSettings>('settings', 'general') || {};
+    let updatedSettings: GeneralSettings = {
+        ...currentSettings,
+        [globalTextType]: globalText
+    };
+
+    await saveDocument('settings', updatedSettings, 'general');
+    await fetchData(); // Refetch all data to update the state
+    toast({ title: `Texto global de "${globalTextType === 'observations' ? 'Observaciones' : 'Política de Cancelación'}" guardado.` });
+    setGlobalTextType(null);
+  }
+
+  const handleVisibilityChange = async (tour: Tour, isPublic: boolean) => {
+    const updatedTour = { ...tour, isPublic };
+    await saveTour(updatedTour, tour.id);
+    setTours(prevTours => prevTours.map(t => t.id === tour.id ? updatedTour : t));
+    toast({ title: "Visibilidad actualizada", description: `El viaje a ${tour.destination} ahora es ${isPublic ? 'público' : 'privado'}.`});
+  }
+  
+  const isDialogForObservations = globalTextType === 'observations';
+
+  return (
+    <div className="space-y-6">
+      <Dialog open={!!globalTextType} onOpenChange={(open) => !open && setGlobalTextType(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {isDialogForObservations ? "Observaciones Globales" : "Política de Cancelación Global"}
+            </DialogTitle>
+            <DialogDescription>
+              {isDialogForObservations 
+                ? "Este texto se añadirá a todos los viajes nuevos y existentes. Ideal para información importante y recurrente."
+                : "Define la política de cancelación que se aplicará a todos los viajes."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-2">
+              <Label htmlFor="global-textarea">{isDialogForObservations ? "Observaciones" : "Política de Cancelación"}</Label>
+              <Textarea 
+                id="global-textarea"
+                value={globalText}
+                onChange={(e) => setGlobalText(e.target.value)}
+                className="h-48"
+              />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setGlobalTextType(null)}>Cancelar</Button>
+            <Button onClick={handleSaveGlobalText}>Guardar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+
+      <TripForm
+        isOpen={isFormOpen}
+        onOpenChange={setIsFormOpen}
+        onSave={handleSave}
+        tour={selectedTour}
+        boardingPoints={boardingPoints}
+      />
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-2xl font-bold">Gestión de Viajes</h2>
+          <p className="text-muted-foreground">
+            Aquí podrás crear, editar y eliminar los viajes. Los viajes pasados se ocultan automáticamente.
+          </p>
+        </div>
+        <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setGlobalTextType('observations')}>
+              <FileText className="mr-2 h-4 w-4" /> Observaciones
+            </Button>
+            <Button variant="outline" onClick={() => setGlobalTextType('cancellationPolicy')}>
+              <ShieldAlert className="mr-2 h-4 w-4" /> Política Cancelación
+            </Button>
+            <Button onClick={handleCreate}>
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Crear Nuevo Viaje
+            </Button>
+        </div>
+      </div>
+      <Card>
+        <CardContent className="pt-6">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Público</TableHead>
+                <TableHead>Destino</TableHead>
+                <TableHead>Fecha</TableHead>
+                <TableHead>Precio</TableHead>
+                <TableHead>Asientos Ocupados</TableHead>
+                {activeTransportTypes.includes('vehicles') && <TableHead>Vehículos</TableHead>}
+                {activeTransportTypes.includes('airplanes') && <TableHead>Aviones</TableHead>}
+                {activeTransportTypes.includes('cruises') && <TableHead>Cruceros</TableHead>}
+                <TableHead className="text-right">Acciones</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {activeTours.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={10} className="h-24 text-center">
+                    No hay viajes activos.
+                  </TableCell>
+                </TableRow>
+              ) : activeTours.map((tour) => {
+                const occupiedCount = getOccupiedCount(tour.id);
+                const unitsByType = getTransportUnitsByType(tour);
+                const currencySymbol = tour.currency === 'USD' ? 'U$S' : '$';
+
+                return (
+                  <TableRow key={tour.id} className={cn(!tour.isPublic && "bg-pink-100/50 hover:bg-pink-100/70")}>
+                    <TableCell>
+                        <Switch
+                            checked={tour.isPublic}
+                            onCheckedChange={(checked) => handleVisibilityChange(tour, checked)}
+                            aria-label="Publicar viaje"
+                        />
+                    </TableCell>
+                    <TableCell className="font-medium">{tour.destination}</TableCell>
+                    <TableCell>
+                      {new Date(tour.date).toLocaleDateString("es-AR", {
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                      })}
+                    </TableCell>
+                    <TableCell>{currencySymbol}{tour.price.toLocaleString("es-AR")}</TableCell>
+                    <TableCell>
+                       <Badge variant={occupiedCount > 0 ? "secondary" : "outline"}>{occupiedCount}</Badge>
+                    </TableCell>
+                    {activeTransportTypes.includes('vehicles') && <TableCell>{unitsByType.vehicles || 0}</TableCell>}
+                    {activeTransportTypes.includes('airplanes') && <TableCell>{unitsByType.airplanes || 0}</TableCell>}
+                    {activeTransportTypes.includes('cruises') && <TableCell>{unitsByType.cruises || 0}</TableCell>}
+                    <TableCell className="text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0">
+                            <span className="sr-only">Abrir menú</span>
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleEdit(tour)}>
+                            <Edit className="mr-2 h-4 w-4" />
+                            Editar
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleDelete(tour.id)} className="text-destructive">
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Eliminar
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}

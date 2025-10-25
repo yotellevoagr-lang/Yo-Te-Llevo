@@ -1,0 +1,15 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Permite la lectura de cualquier archivo a cualquier usuario.
+    // Esto es necesario para que las imágenes se puedan mostrar en tu sitio web.
+    match /{allPaths=**} {
+      allow read;
+      
+      // Permite la escritura (subir, actualizar, borrar) solo si el usuario
+      // ha iniciado sesión en la aplicación.
+      allow write: if request.auth != null;
+    }
+  }
+}

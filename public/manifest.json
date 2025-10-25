@@ -1,0 +1,21 @@
+{
+  "name": "YO TE LLEVO",
+  "short_name": "YoTeLlevo",
+  "description": "Tu próxima aventura te espera",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#E95289",
+  "theme_color": "#E95289",
+  "icons": [
+    {
+      "src": "/api/image-proxy?url=https://firebasestorage.googleapis.com/v0/b/yo-te-llevo-1021c.appspot.com/o/logos%2Flogo.png?alt=media&token=e312b9d9-1c25-4221-a3f2-1823795c65f0&w=192",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/api/image-proxy?url=https://firebasestorage.googleapis.com/v0/b/yo-te-llevo-1021c.appspot.com/o/logos%2Flogo.png?alt=media&token=e312b9d9-1c25-4221-a3f2-1823795c65f0&w=512",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

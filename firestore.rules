@@ -1,0 +1,108 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper Functions
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+    
+    function isAdmin() {
+      // The admin's UID is known and hardcoded for simplicity.
+      // In a more complex app, this could be a custom claim or a lookup in an 'admins' collection.
+      return request.auth != null && request.auth.uid == 'EMP-ADMIN';
+    }
+
+    function isEmployee() {
+      // This rule allows reading if the user is authenticated as an admin
+      // OR if they are accessing the 'employees' collection for password check.
+      // This is a trade-off for not using Firebase Auth for employees.
+      return request.auth != null || (request.path[0] == 'employees' && request.method == 'get');
+    }
+    
+    function isPublicData() {
+      // Data that anyone can read.
+      return request.path[0] in ['tours', 'flyers', 'settings'];
+    }
+
+    // Default deny all access
+    match /{document=**} {
+      allow read, write: if false;
+    }
+    
+    // PUBLIC COLLECTIONS
+    // Anyone can read tours, flyers, and general settings.
+    match /tours/{tourId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /flyers/{flyerId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /settings/{settingId} {
+        // 'general', 'geo', 'layouts' can be read by anyone
+        // 'commissions' is sensitive and should only be read by admin
+        allow read: if settingId != 'commissions';
+        allow read: if settingId == 'commissions' && isAdmin();
+        
+        allow write: if isAdmin();
+    }
+    
+    // PASSENGER/CLIENT DATA
+    // Passengers can create their own profile.
+    // They can read and update their own data.
+    match /passengers/{passengerId} {
+      allow create: if isOwner(passengerId); // A user can create their own profile
+      allow read, update: if isOwner(passengerId) || isAdmin() || isEmployee();
+      allow delete: if isAdmin();
+    }
+
+    // RESERVATIONS
+    // Any authenticated user can create a reservation.
+    // They can only read/update their own. Employees/Admins can manage all.
+    match /reservations/{reservationId} {
+        allow create: if request.auth != null;
+        allow read: if isOwner(resource.data.passengerIds[0]) || isEmployee() || isAdmin();
+        allow update: if isOwner(resource.data.passengerIds[0]) || isEmployee() || isAdmin();
+        allow delete: if isAdmin();
+    }
+    
+    // ADMIN & EMPLOYEE DATA
+    // Admin user profile
+    match /admin/{adminId} {
+      allow read, write: if isOwner(adminId);
+    }
+    
+    // Employees collection
+    match /employees/{employeeId} {
+      // Required for non-auth employee login. This is a security trade-off.
+      allow get: if true;
+      // Admins can manage all employees.
+      allow list, write: if isAdmin();
+      // An employee can read their own data.
+      allow read: if isOwner(employeeId);
+    }
+    
+    // SELLERS (External)
+    match /sellers/{sellerId} {
+      allow read: if isEmployee() || isAdmin();
+      allow write: if isAdmin();
+    }
+
+    // DATA FOR FORMS/SELECTS
+    // These can be read by employees/admins to populate forms.
+    match /boarding_points/{bpId} {
+        allow read: if isEmployee() || isAdmin();
+        allow write: if isAdmin();
+    }
+     match /pensions/{pensionId} {
+        allow read: if isEmployee() || isAdmin();
+        allow write: if isAdmin();
+    }
+     match /room_types/{rtId} {
+        allow read: if isEmployee() || isAdmin();
+        allow write: if isAdmin();
+    }
+  }
+}
