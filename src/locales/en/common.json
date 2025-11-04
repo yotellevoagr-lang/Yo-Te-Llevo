@@ -1,0 +1,65 @@
+
+{
+    "nav": {
+        "home": "Home",
+        "trips": "Trips",
+        "flyers": "Flyers",
+        "contact": "Contact"
+    },
+    "hero": {
+        "title": "Your Next Adventure Starts Here",
+        "subtitle": "Explore the most incredible destinations. Find your dream trip with YO TE LLEVO.",
+        "destination_placeholder": "Choose your next destination..."
+    },
+    "featured": {
+        "badge": "UNMISSABLE DEALS",
+        "title": "Featured Trips",
+        "subtitle": "Discover our most popular offers and get ready for an unforgettable experience.",
+        "view_all": "View all trips"
+    },
+    "about": {
+        "badge": "ABOUT US",
+        "title": "Group trips, unique experiences",
+        "p1": "At 'YO TE LLEVO', we believe that traveling is more than visiting a place, it's living it. We specialize in creating affordable group trips, full of good vibes and moments you'll remember forever.",
+        "p2": "With us, you don't just discover a destination, you join a community of travelers. Adventure awaits!",
+        "feature1": "Permanent Coordination",
+        "feature2": "The Best Vibe"
+    },
+    "my_account": "My Account",
+    "admin_panel": "Admin Panel",
+    "employee_panel": "Employee Panel",
+    "my_profile": "My Data",
+    "my_trips": "My Trips",
+    "loading": "Loading",
+    "auth": {
+        "login": "Log In",
+        "register": "Register",
+        "logout": "Log Out"
+    },
+    "admin_nav": {
+        "dashboard": "Dashboard",
+        "trips": "Trips",
+        "flyers": "Flyers",
+        "reservations": "Reservations",
+        "passengers": "Passengers",
+        "employees": "Employees",
+        "sellers": "Sellers",
+        "tickets": "Tickets",
+        "receipts": "Receipts",
+        "reports": "Reports",
+        "calendar": "Calendar",
+        "settings": "Settings",
+        "view_site": "View Website",
+        "logout": "Log Out"
+    },
+    "employee_nav": {
+        "dashboard": "Dashboard",
+        "trips": "Trips",
+        "reservations": "Reservations",
+        "passengers": "Passengers",
+        "tickets": "Tickets",
+        "receipts": "Receipts",
+        "settings": "My Profile",
+        "logout": "Log Out"
+    }
+}

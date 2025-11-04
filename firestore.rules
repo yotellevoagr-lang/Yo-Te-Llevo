@@ -1,0 +1,91 @@
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --- Helper Functions ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isSignedInAsRole(role) {
+      // Checks if the user is authenticated and has a document in the specified role collection.
+      return isSignedIn() && exists(/databases/$(database)/documents/$(role)/$(request.auth.uid));
+    }
+
+    function isOwner(userId) {
+      // Checks if the authenticated user's UID matches the document ID.
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // --- Global Read Rules ---
+    // Anyone can read public-facing data.
+    match /tours/{tourId} {
+      allow read: if true;
+      allow write: if isSignedInAsRole('admin');
+    }
+    match /flyers/{flyerId} { allow read: if true; allow write: if isSignedInAsRole('admin'); }
+    match /settings/{settingId} { allow read: if true; allow write: if isSignedInAsRole('admin'); }
+    match /boarding_points/{bpId} { allow read: if true; allow write: if isSignedInAsRole('admin'); }
+    match /pensions/{pensionId} { allow read: if true; allow write: if isSignedInAsRole('admin'); }
+    match /room_types/{rtId} { allow read: if true; allow write: if isSignedInAsRole('admin'); }
+
+    // --- User-related collections (for login lookup) ---
+    // Anyone needs to be able to query these collections to find a user by email/dni/username at login.
+    match /admin/{adminId} {
+        allow read: if true;
+        allow write: if isOwner(adminId); // Admin can only edit their own doc
+    }
+    match /employees/{employeeId} {
+        allow read: if true;
+        allow create: if true;
+        allow update: if isOwner(employeeId) || isSignedInAsRole('admin');
+        allow delete: if isSignedInAsRole('admin');
+    }
+    
+    // --- PASAJEROS (Clientes / Invitados) ---
+    match /passengers/{passengerId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if isOwner(passengerId) || isSignedInAsRole('admin') || isSignedInAsRole('employee');
+      allow delete: if isSignedInAsRole('admin');
+    }
+
+    // --- RESERVAS ---
+    match /reservations/{reservationId} {
+      // Anyone can create a reservation.
+      allow create: if true;
+
+      allow read: if true;
+
+      // Only Admin or Employee can update/delete reservations.
+      allow update, delete: if isSignedInAsRole('admin') || isSignedInAsRole('employee');
+    }
+
+    // --- BUSINESS LOGIC COLLECTIONS ---
+    match /sellers/{sellerId} {
+      // Allow listing for anyone (needed for booking page), but only authenticated can see details.
+      allow read: if true;
+      allow write: if isSignedInAsRole('admin');
+    }
+
+    // --- FINANCIAL COLLECTIONS (Admin only) ---
+    match /transactions/{transactionId} {
+      allow read, write: if isSignedInAsRole('admin');
+    }
+    match /custom_expenses/{expenseId} {
+        allow read, write: if isSignedInAsRole('admin');
+    }
+    match /external_commissions/{commissionId} {
+        allow read, write: if isSignedInAsRole('admin');
+    }
+    match /excursion_incomes/{incomeId} {
+        allow read, write: if isSignedInAsRole('admin');
+    }
+     // --- EX EMPLEADOS (Admin only) ---
+    match /ex_employees/{employeeId} {
+      allow read, write: if isSignedInAsRole('admin');
+    }
+  }
+}

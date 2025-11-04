@@ -1,0 +1,346 @@
+{
+  "entities": [
+    {
+      "name": "Passenger",
+      "description": "Represents a single passenger or client.",
+      "fields": [
+        {
+          "name": "username",
+          "description": "Unique username for login.",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "fullName",
+          "type": "string"
+        },
+        {
+          "name": "email",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "password",
+          "type": "string",
+          "description": "Hashed password for client accounts.",
+          "optional": true
+        },
+        {
+          "name": "dni",
+          "type": "string",
+          "description": "National Identity Document number."
+        },
+        {
+          "name": "dob",
+          "description": "Date of birth.",
+          "type": "timestamp",
+          "optional": true
+        },
+        {
+          "name": "phone",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "family",
+          "description": "Name of the family or group the passenger belongs to.",
+          "type": "string",
+          "optional": true
+        },
+        {
+            "name": "nationality",
+            "type": "string"
+        },
+        {
+            "name": "tierId",
+            "description": "ID of the pricing tier that applies (e.g., adult, child).",
+            "type": "string"
+        },
+        {
+            "name": "boardingPointId",
+            "description": "The default or chosen boarding point for this passenger. References a BoardingPoint.",
+            "type": "string",
+            "optional": true
+        }
+      ]
+    },
+    {
+        "name": "Employee",
+        "description": "Represents an employee of the company.",
+        "fields": [
+            { "name": "name", "type": "string" },
+            { "name": "username", "type": "string", "optional": true },
+            { "name": "dni", "type": "string"},
+            { "name": "phone", "type": "string"},
+            { "name": "password", "type": "string", "optional": true},
+            { "name": "fixedSalary", "type": "number", "optional": true},
+            { "name": "email", "type": "string", "optional": true}
+        ]
+    },
+    {
+        "name": "Seller",
+        "description": "Represents an external seller or agency.",
+        "fields": [
+            { "name": "name", "type": "string" },
+            { "name": "username", "type": "string", "optional": true },
+            { "name": "dni", "type": "string"},
+            { "name": "phone", "type": "string"},
+            { "name": "useFixedCommission", "type": "boolean" },
+            { "name": "fixedCommissionRate", "type": "number", "optional": true }
+        ]
+    },
+    {
+        "name": "CommissionRule",
+        "description": "A single rule for calculating sales commissions.",
+        "fields": [
+            { "name": "from", "type": "number", "description": "Start of the sales range (inclusive)." },
+            { "name": "to", "type": "any", "description": "End of the sales range (inclusive) or 'infinite'."},
+            { "name": "rate", "type": "number", "description": "Commission percentage rate."}
+        ]
+    },
+    {
+      "name": "Tour",
+      "description": "Represents a single trip or tour package.",
+      "fields": [
+        {
+          "name": "destination",
+          "type": "string"
+        },
+        {
+          "name": "date",
+          "type": "timestamp"
+        },
+        {
+            "name": "price",
+            "type": "number",
+            "description": "Base price for an adult."
+        },
+        {
+            "name": "currency",
+            "description": "The currency of the price.",
+            "type": "string",
+            "optional": true
+        },
+        {
+            "name": "isPublic",
+            "description": "Whether the tour is visible to the public.",
+            "type": "boolean",
+            "optional": true
+        },
+        {
+            "name": "isFeatured",
+            "description": "If true, this tour will be highlighted on the homepage.",
+            "type": "boolean",
+            "optional": true
+        },
+        {
+            "name": "tags",
+            "description": "A list of tags for categorization (e.g., 'Playa', 'Aventura').",
+            "type": "array",
+            "arrayType": "string",
+            "optional": true
+        },
+        {
+            "name": "backgroundImage",
+            "description": "URL of the main background or cover image for the tour.",
+            "type": "string",
+            "optional": true
+        },
+        {
+            "name": "gallery",
+            "description": "A list of image/video URLs for the tour gallery.",
+            "type": "array",
+            "arrayType": "GalleryItem",
+            "optional": true
+        },
+        {
+            "name": "description",
+            "description": "A paragraph describing the tour.",
+            "type": "string",
+            "optional": true
+        },
+        { "name": "origin", "type": "string", "optional": true },
+        { "name": "days", "type": "number", "optional": true },
+        { "name": "nights", "type": "number", "optional": true },
+        { "name": "departurePoint", "type": "string", "optional": true },
+        { "name": "platform", "type": "string", "optional": true },
+        { "name": "presentationTime", "type": "string", "optional": true },
+        { "name": "departureTime", "type": "string", "optional": true },
+        { "name": "bus", "type": "string", "optional": true },
+        {
+            "name": "insurance",
+            "type": "Insurance",
+            "optional": true
+        },
+        {
+            "name": "pricingTiers",
+            "description": "Array of different price levels (e.g., for children, seniors).",
+            "type": "array",
+            "arrayType": "PricingTier",
+            "optional": true
+        },
+        {
+            "name": "costs",
+            "description": "Costs associated with the tour for financial reporting.",
+            "type": "TourCosts",
+            "optional": true
+        },
+        { "name": "observations", "type": "string", "optional": true },
+        { "name": "cancellationPolicy", "type": "string", "optional": true },
+        {
+            "name": "transportUnits",
+            "type": "array",
+            "arrayType": "TransportUnit",
+            "optional": true
+        }
+      ]
+    },
+    {
+        "name": "GalleryItem",
+        "fields": [
+            { "name": "id", "type": "string" },
+            { "name": "url", "type": "string" },
+            { "name": "type", "type": "string", "description": "'image' or 'video'"}
+        ]
+    },
+    {
+        "name": "Reservation",
+        "description": "A booking made by a passenger for a tour.",
+        "fields": [
+            { "name": "tripId", "type": "string", "description": "ID of the booked Tour."},
+            { "name": "passenger", "type": "string", "description": "Full name of the main passenger."},
+            { "name": "passengerIds", "type": "array", "arrayType": "string" },
+            { "name": "insuredPassengerIds", "type": "array", "arrayType": "string", "optional": true },
+            { "name": "releasedPassengerIds", "type": "array", "arrayType": "string", "optional": true },
+            { "name": "paxCount", "type": "number", "description": "Number of passengers in the reservation."},
+            { "name": "assignedSeats", "type": "array", "arrayType": "AssignedSeat" },
+            { "name": "assignedCabins", "type": "array", "arrayType": "AssignedCabin", "optional": true },
+            { "name": "status", "type": "string", "description": "e.g., 'Confirmado', 'Pendiente'"},
+            { "name": "paymentStatus", "type": "string", "description": "e.g., 'Pagado', 'Parcial', 'Pendiente'"},
+            { "name": "sellerId", "type": "string", "description": "ID of the seller who made the reservation."},
+            { "name": "finalPrice", "type": "number"},
+            { "name": "boardingPointId", "type": "string", "optional": true },
+            { "name": "roomTypeId", "type": "string", "optional": true },
+            { "name": "pensionId", "type": "string", "optional": true },
+            { "name": "installments", "type": "object", "optional": true }
+        ]
+    },
+    {
+        "name": "Flyer",
+        "fields": [
+            { "name": "name", "type": "string" },
+            { "name": "url", "type": "string" },
+            { "name": "type", "type": "string", "description": "'image' or 'video'"},
+            { "name": "tourId", "type": "string", "optional": true},
+            { "name": "isGeneralPromotion", "type": "boolean" }
+        ]
+    },
+    {
+        "name": "TransportUnit",
+        "fields": [
+            { "name": "id", "type": "number"},
+            { "name": "category", "type": "string" },
+            { "name": "type", "type": "string" },
+            { "name": "count", "type": "number" },
+            { "name": "coordinator", "type": "string", "optional": true},
+            { "name": "coordinatorPhone", "type": "string", "optional": true}
+        ]
+    },
+    {
+      "name": "CustomLayoutConfig",
+      "fields": [
+        { "name": "name", "type": "string" },
+        { "name": "capacity", "type": "number"},
+        { "name": "layout", "type": "Layout"}
+      ]
+    },
+    {
+        "name": "BoardingPoint",
+        "fields": [{ "name": "name", "type": "string" }]
+    },
+    {
+        "name": "Pension",
+        "fields": [
+            { "name": "name", "type": "string" },
+            { "name": "description", "type": "string" }
+        ]
+    },
+    {
+        "name": "RoomType",
+        "fields": [{ "name": "name", "type": "string" }]
+    },
+    {
+        "name": "PricingTier",
+        "fields": [
+            { "name": "id", "type": "string" },
+            { "name": "name", "type": "string" },
+            { "name": "price", "type": "number" },
+            { "name": "currency", "type": "string", "optional": true}
+        ]
+    },
+    {
+        "name": "TourCosts",
+        "fields": [
+            { "name": "transport", "type": "array", "arrayType": "TransportCost", "optional": true},
+            { "name": "hotel", "type": "number", "optional": true},
+            { "name": "extras", "type": "array", "arrayType": "ExtraCost", "optional": true}
+        ]
+    },
+     {
+        "name": "CustomExpense",
+        "fields": [
+            { "name": "description", "type": "string"},
+            { "name": "amount", "type": "number"},
+            { "name": "date", "type": "timestamp"}
+        ]
+    },
+    {
+        "name": "ExternalCommission",
+        "fields": [
+            { "name": "description", "type": "string"},
+            { "name": "amount", "type": "number"},
+            { "name": "date", "type": "timestamp"}
+        ]
+    },
+    {
+        "name": "ExcursionIncome",
+        "fields": [
+            { "name": "description", "type": "string"},
+            { "name": "amount", "type": "number"},
+            { "name": "date", "type": "timestamp"}
+        ]
+    },
+    {
+        "name": "Transaction",
+        "description": "Represents a single financial transaction (income or expense).",
+        "fields": [
+            { "name": "amount", "type": "number" },
+            { "name": "currency", "type": "string", "description": "e.g., 'ARS', 'USD'" },
+            { "name": "date", "type": "timestamp" },
+            { "name": "description", "type": "string", "description": "Description of the transaction." },
+            { "name": "type", "type": "string", "description": "'income' or 'expense'" },
+            { "name": "category", "type": "string", "description": "e.g., 'Reservation Payment', 'Hotel Cost', 'Manual Expense'" },
+            { "name": "relatedId", "type": "string", "optional": true, "description": "ID of the related document (e.g., reservationId, tourId)." },
+            { "name": "method", "type": "string", "optional": true, "description": "Payment method if applicable (e.g., 'Efectivo', 'Tarjeta')." }
+        ]
+    }
+  ],
+  "collections": [
+    { "name": "/passengers", "entity": "Passenger" },
+    { "name": "/employees", "entity": "Employee" },
+    { "name": "/ex_employees", "entity": "Employee" },
+    { "name": "/admin", "entity": "Employee" },
+    { "name": "/tours", "entity": "Tour" },
+    { "name": "/reservations", "entity": "Reservation" },
+    { "name": "/flyers", "entity": "Flyer" },
+    { "name": "/sellers", "entity": "Seller" },
+    { "name": "/settings" },
+    { "name": "/boarding_points", "entity": "BoardingPoint" },
+    { "name": "/pensions", "entity": "Pension"},
+    { "name": "/room_types", "entity": "RoomType"},
+    { "name": "/custom_expenses", "entity": "CustomExpense" },
+    { "name": "/external_commissions", "entity": "ExternalCommission" },
+    { "name": "/excursion_incomes", "entity": "ExcursionIncome" },
+    { "name": "/transactions", "entity": "Transaction" }
+  ]
+}

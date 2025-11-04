@@ -1,0 +1,99 @@
+
+rules_version = '2';
+
+service cloud.firestore {
+    match /databases/{database}/documents {
+
+        // --- Helper Functions ---
+        function isSignedIn() {
+            return request.auth != null;
+        }
+
+        function isSignedInAsRole(role) {
+            // Checks if the user is authenticated and has a document in the specified role collection.
+            return isSignedIn() && exists(/databases/$(database)/documents/$(role)/$(request.auth.uid));
+        }
+
+        function isOwner(userId) {
+            // Checks if the authenticated user's UID matches the document ID.
+            return isSignedIn() && request.auth.uid == userId;
+        }
+        
+        function isFamilyHead(passengerId) {
+          // Allows a user to edit another passenger if they belong to the same 'family'.
+          // This relies on the 'family' field being consistent across family members.
+          let requestingUserDoc = get(/databases/$(database)/documents/passengers/$(request.auth.uid));
+          let targetUserDoc = get(/databases/$(database)/documents/passengers/$(passengerId));
+
+          return requestingUserDoc.data.family != null &&
+                 targetUserDoc.data.family != null &&
+                 requestingUserDoc.data.family == targetUserDoc.data.family;
+        }
+
+        // --- Global Read Rules ---
+        match /tours/{tourId} {
+            allow read: if true;
+            allow write: if isSignedInAsRole('admin');
+        }
+        match /flyers/{flyerId} { allow read: if true; allow write: if isSignedInAsRole('admin'); }
+        match /settings/{settingId} { allow read: if true; allow write: if isSignedInAsRole('admin'); }
+        match /boarding_points/{bpId} { allow read: if true; allow write: if isSignedInAsRole('admin'); }
+        match /pensions/{pensionId} { allow read: if true; allow write: if isSignedInAsRole('admin'); }
+        match /room_types/{rtId} { allow read: if true; allow write: if isSignedInAsRole('admin'); }
+
+        // --- USER ROLES ---
+        match /admin/{adminId} {
+            allow read: if true;
+            allow write: if isOwner(adminId);
+        }
+
+        // --- EMPLEADOS ---
+        match /employees/{employeeId} {
+            allow read: if true;
+            allow create: if true;
+            allow update: if isOwner(employeeId) || isSignedInAsRole('admin');
+            allow delete: if isSignedInAsRole('admin');
+        }
+        
+        // --- PASAJEROS (Clientes / Invitados) ---
+        match /passengers/{passengerId} {
+            allow read: if true;
+            allow create: if true;
+            // A user can update if they own the document, are an admin/employee, OR are part of the same family.
+            allow update: if isOwner(passengerId) || isSignedInAsRole('admin') || isSignedInAsRole('employee') || isFamilyHead(passengerId);
+            allow delete: if isSignedInAsRole('admin');
+        }
+
+        // --- RESERVAS ---
+        match /reservations/{reservationId} {
+            allow create: if true;
+            allow read: if true;
+            allow update, delete: if isSignedInAsRole('admin') || isSignedInAsRole('employee');
+        }
+
+        // --- VENDEDORES ---
+        match /sellers/{sellerId} {
+            allow read: if true;
+            allow write: if isSignedInAsRole('admin');
+        }
+
+        // --- COLECCIONES FINANCIERAS ---
+        match /transactions/{transactionId} {
+            allow read, write: if isSignedInAsRole('admin');
+        }
+        match /custom_expenses/{expenseId} {
+            allow read, write: if isSignedInAsRole('admin');
+        }
+        match /external_commissions/{commissionId} {
+            allow read, write: if isSignedInAsRole('admin');
+        }
+        match /excursion_incomes/{incomeId} {
+            allow read, write: if isSignedInAsRole('admin');
+        }
+
+        // --- EX EMPLEADOS ---
+        match /ex_employees/{employeeId} {
+            allow read, write: if isSignedInAsRole('admin');
+        }
+    }
+}
