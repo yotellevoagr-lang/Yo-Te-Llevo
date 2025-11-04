@@ -1,0 +1,65 @@
+
+{
+    "nav": {
+        "home": "Inicio",
+        "trips": "Viajes",
+        "flyers": "Flyers",
+        "contact": "Contacto"
+    },
+    "hero": {
+        "title": "Tu Próxima Aventura Comienza Aquí",
+        "subtitle": "Explora los destinos más increíbles. Encontrá tu viaje soñado con YO TE LLEVO.",
+        "destination_placeholder": "Elegí tu próximo destino..."
+    },
+    "featured": {
+        "badge": "OFERTAS IMPERDIBLES",
+        "title": "Viajes Destacados",
+        "subtitle": "Descubrí nuestras ofertas más populares y preparate para una experiencia inolvidable.",
+        "view_all": "Ver todos los viajes"
+    },
+    "about": {
+        "badge": "SOBRE NOSOTROS",
+        "title": "Viajes grupales, experiencias únicas",
+        "p1": "En 'YO TE LLEVO' creemos que viajar es más que visitar un lugar, es vivirlo. Nos especializamos en crear viajes grupales económicos, llenos de buena onda y momentos que recordarás para siempre.",
+        "p2": "Con nosotros, no solo descubrís un destino, te sumas a una comunidad de viajeros. ¡La aventura te espera!",
+        "feature1": "Coordinación Permanente",
+        "feature2": "La Mejor Onda"
+    },
+    "my_account": "Mi Cuenta",
+    "admin_panel": "Panel de Administración",
+    "employee_panel": "Panel de Empleado",
+    "my_profile": "Mis Datos",
+    "my_trips": "Mis Viajes",
+    "loading": "Cargando",
+    "auth": {
+        "login": "Iniciar Sesión",
+        "register": "Registro",
+        "logout": "Cerrar Sesión"
+    },
+    "admin_nav": {
+        "dashboard": "Dashboard",
+        "trips": "Viajes",
+        "flyers": "Flyers",
+        "reservations": "Reservas",
+        "passengers": "Pasajeros",
+        "employees": "Empleados",
+        "sellers": "Vendedores",
+        "tickets": "Tickets",
+        "receipts": "Recibos",
+        "reports": "Reportes",
+        "calendar": "Calendario",
+        "settings": "Configuración",
+        "view_site": "Ver Sitio Web",
+        "logout": "Salir del Panel"
+    },
+    "employee_nav": {
+        "dashboard": "Dashboard",
+        "trips": "Viajes",
+        "reservations": "Reservas",
+        "passengers": "Pasajeros",
+        "tickets": "Tickets",
+        "receipts": "Recibos",
+        "settings": "Mi Perfil",
+        "logout": "Cerrar Sesión"
+    }
+}
