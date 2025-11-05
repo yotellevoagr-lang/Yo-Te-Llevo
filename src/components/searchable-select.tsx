@@ -108,7 +108,7 @@ export function SearchableSelect({ options, value, onChange, placeholder, listHe
                                 <div
                                     key={option.value}
                                     className={cn(
-                                        "px-3 py-2 cursor-pointer hover:bg-accent",
+                                        "px-3 py-2 cursor-pointer hover:bg-accent text-foreground",
                                         value === option.value && "bg-accent"
                                     )}
                                     onMouseDown={(e) => { 
