@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
-import { Settings as SettingsIcon, Bus, Trash2, Edit, PlusCircle, Ship, Plane, Save, Pin, Contact, Utensils, BedDouble, Folder, ShieldCheck, KeyRound, Mail, Eye, EyeOff, Image as ImageIcon, Globe, AppWindow, Loader2, Tag } from "lucide-react"
+import { Settings as SettingsIcon, Bus, Trash2, Edit, PlusCircle, Ship, Plane, Save, Contact, Utensils, BedDouble, Folder, ShieldCheck, KeyRound, Mail, Eye, EyeOff, Image as ImageIcon, Globe, AppWindow, Loader2, Tag, Pin } from "lucide-react"
 import type { CustomLayoutConfig, LayoutCategory, GeneralSettings, ContactSettings, Pension, RoomType, Employee, DomainSettings } from "@/lib/types"
 import { LayoutEditor } from "@/components/admin/layout-editor"
 import { updatePassword, updateEmail, reauthenticateWithCredential, EmailAuthProvider } from "firebase/auth"
@@ -23,6 +23,12 @@ import {
   DialogTrigger,
   DialogClose
 } from "@/components/ui/dialog"
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion"
 import { useAuth } from "@/components/auth/auth-provider"
 import { getAllFromCollection_client, getDocumentById, deleteDocument, saveDocument } from "@/lib/firestore-services"
 import { getDisplayUrl } from "@/lib/utils"
@@ -458,7 +464,7 @@ export default function SettingsPage() {
     };
 
     const handleAddBoardingPoint = async () => {
-        const newId = await saveDocument('boarding_points', { name: '' });
+        await saveDocument('boarding_points', { name: '' });
         await fetchData();
     };
     const handleBoardingPointChange = (id: string, name: string) => setBoardingPoints(prev => prev.map(p => p.id === id ? { ...p, name } : p));
@@ -582,93 +588,65 @@ export default function SettingsPage() {
             </CardHeader>
         </Card>
 
-        <Card>
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Tag className="w-6 h-6"/> Etiquetas de Viajes</CardTitle>
-                <CardDescription>Gestiona las etiquetas disponibles para categorizar los viajes.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                <div className="space-y-2">
-                    {travelTags.map((tag, index) => (
-                        <div key={index} className="flex items-center gap-2">
-                            <Input 
-                                value={tag} 
-                                onChange={(e) => handleTagChange(index, e.target.value)} 
-                                placeholder="Nombre de la etiqueta..."
-                            />
-                            <Button variant="ghost" size="icon" onClick={() => handleRemoveTag(index)}>
-                                <Trash2 className="w-4 h-4 text-destructive"/>
-                            </Button>
+        <Accordion type="multiple" className="w-full space-y-6">
+            <AccordionItem value="tags" className="border-b-0">
+                <Card>
+                    <AccordionTrigger className="w-full px-6 text-left hover:no-underline">
+                        <CardHeader className="p-0">
+                            <CardTitle className="flex items-center gap-2"><Tag className="w-6 h-6"/> Etiquetas de Viajes</CardTitle>
+                        </CardHeader>
+                    </AccordionTrigger>
+                    <AccordionContent className="p-6 pt-0">
+                        <CardDescription className="mb-4">Gestiona las etiquetas disponibles para categorizar los viajes.</CardDescription>
+                        <div className="space-y-2">
+                            {travelTags.map((tag, index) => (
+                                <div key={index} className="flex items-center gap-2">
+                                    <Input value={tag} onChange={(e) => handleTagChange(index, e.target.value)} placeholder="Nombre de la etiqueta..."/>
+                                    <Button variant="ghost" size="icon" onClick={() => handleRemoveTag(index)}><Trash2 className="w-4 h-4 text-destructive"/></Button>
+                                </div>
+                            ))}
                         </div>
-                    ))}
-                </div>
-            </CardContent>
-            <CardFooter className="justify-between">
-                <Button variant="outline" onClick={handleAddTag}>
-                    <PlusCircle className="mr-2 h-4 w-4"/> Añadir Etiqueta
-                </Button>
-                <Button onClick={handleSaveTags} disabled={isSaving === 'tags'}>
-                    {isSaving === 'tags' && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
-                    Guardar Etiquetas
-                </Button>
-            </CardFooter>
-        </Card>
-
-        <Card>
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Globe className="w-6 h-6"/> Dominios Personalizados</CardTitle>
-                <CardDescription>Añade los dominios que has configurado en Firebase para el sitio de clientes.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                <div className="flex gap-2">
-                    <Input 
-                        placeholder="ejemplo.com" 
-                        value={newDomain}
-                        onChange={(e) => setNewDomain(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleAddDomain()}
-                    />
-                    <Button onClick={handleAddDomain} disabled={isSaving === 'domains'}>
-                        {isSaving === 'domains' ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <PlusCircle className="mr-2 h-4 w-4"/>}
-                        Agregar
-                    </Button>
-                </div>
-                <div className="space-y-2">
-                    {(domainSettings.domains || []).map(domain => (
-                        <div key={domain} className="flex items-center justify-between p-3 border rounded-lg bg-muted/50">
-                            <p className="font-mono">{domain}</p>
-                            <Button variant="ghost" size="icon" onClick={() => handleRemoveDomain(domain)} disabled={isSaving === 'domains'}>
-                                <Trash2 className="w-4 h-4 text-destructive"/>
-                            </Button>
+                        <CardFooter className="justify-between px-0 pt-4">
+                            <Button variant="outline" onClick={handleAddTag}><PlusCircle className="mr-2 h-4 w-4"/> Añadir Etiqueta</Button>
+                            <Button onClick={handleSaveTags} disabled={isSaving === 'tags'}>{isSaving === 'tags' && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}Guardar Etiquetas</Button>
+                        </CardFooter>
+                    </AccordionContent>
+                </Card>
+            </AccordionItem>
+            <AccordionItem value="domains" className="border-b-0">
+                <Card>
+                    <AccordionTrigger className="w-full px-6 text-left hover:no-underline">
+                        <CardHeader className="p-0">
+                             <CardTitle className="flex items-center gap-2"><Globe className="w-6 h-6"/> Dominios Personalizados</CardTitle>
+                        </CardHeader>
+                    </AccordionTrigger>
+                    <AccordionContent className="p-6 pt-0">
+                        <CardDescription className="mb-4">Añade los dominios que has configurado en Firebase para el sitio de clientes.</CardDescription>
+                         <div className="flex gap-2">
+                            <Input placeholder="ejemplo.com" value={newDomain} onChange={(e) => setNewDomain(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleAddDomain()}/>
+                            <Button onClick={handleAddDomain} disabled={isSaving === 'domains'}>{isSaving === 'domains' ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <PlusCircle className="mr-2 h-4 w-4"/>}Agregar</Button>
                         </div>
-                    ))}
-                     {(domainSettings.domains || []).length === 0 && (
-                        <p className="text-sm text-muted-foreground text-center p-4">No hay dominios personalizados.</p>
-                     )}
-                </div>
-            </CardContent>
-        </Card>
-
+                        <div className="mt-4 space-y-2">
+                            {(domainSettings.domains || []).map(domain => (
+                                <div key={domain} className="flex items-center justify-between p-3 border rounded-lg bg-muted/50">
+                                    <p className="font-mono">{domain}</p>
+                                    <Button variant="ghost" size="icon" onClick={() => handleRemoveDomain(domain)} disabled={isSaving === 'domains'}><Trash2 className="w-4 h-4 text-destructive"/></Button>
+                                </div>
+                            ))}
+                             {(domainSettings.domains || []).length === 0 && <p className="text-sm text-muted-foreground text-center p-4">No hay dominios personalizados.</p>}
+                        </div>
+                    </AccordionContent>
+                </Card>
+            </AccordionItem>
+        </Accordion>
+        
         <Card>
-            <CardHeader>
-                <CardTitle className="text-xl">Logo del Sitio Web</CardTitle>
-            </CardHeader>
+            <CardHeader><CardTitle className="text-xl">Logo del Sitio Web</CardTitle></CardHeader>
             <CardContent className="space-y-4">
                 <Input id="logoFile" type="file" accept="image/png, image/jpeg, image/gif, image/svg+xml" onChange={handleLogoFileChange} className="file:text-primary-foreground file:font-bold file:mr-4 file:px-4 file:py-2 file:rounded-full file:border-0 file:bg-primary hover:file:bg-primary/90"/>
-                {logoPreview && (
-                    <div className="space-y-2">
-                        <Label>Vista previa del logo</Label>
-                        <div className="flex items-center gap-4 p-4 border rounded-md bg-muted">
-                            <Image src={getDisplayUrl(logoPreview)} alt="Vista previa del Logo" width={64} height={64} className="rounded-full"/>
-                        </div>
-                    </div>
-                )}
+                {logoPreview && <div className="space-y-2"><Label>Vista previa del logo</Label><div className="flex items-center gap-4 p-4 border rounded-md bg-muted"><Image src={getDisplayUrl(logoPreview)} alt="Vista previa del Logo" width={64} height={64} className="rounded-full"/></div></div>}
             </CardContent>
-            <CardFooter>
-                <Button onClick={handleSaveLogo} disabled={isSaving === 'logo' || !logoFile}>
-                    {isSaving === 'logo' && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
-                    Guardar Logo
-                </Button>
-            </CardFooter>
+            <CardFooter><Button onClick={handleSaveLogo} disabled={isSaving === 'logo' || !logoFile}>{isSaving === 'logo' && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}Guardar Logo</Button></CardFooter>
         </Card>
         
         <Card>
@@ -680,109 +658,38 @@ export default function SettingsPage() {
                 <div className="space-y-2">
                     <Label htmlFor="pwaIconFile">Ícono de la App</Label>
                     <Input id="pwaIconFile" type="file" accept="image/png" onChange={handlePwaIconFileChange} className="file:text-primary-foreground file:font-bold file:mr-4 file:px-4 file:py-2 file:rounded-full file:border-0 file:bg-primary hover:file:bg-primary/90"/>
-                    {pwaIconPreview && (
-                        <div className="space-y-2">
-                            <Label>Vista previa del ícono</Label>
-                            <div className="flex items-center gap-4 p-4 border rounded-md bg-muted">
-                                <Image src={getDisplayUrl(pwaIconPreview)} alt="Vista previa del ícono PWA" width={64} height={64} className="rounded-lg"/>
-                            </div>
-                        </div>
-                    )}
-                     <Button onClick={handleSavePwaIcon} disabled={isSaving === 'pwa-icon' || !pwaIconFile} className="mt-2">
-                        {isSaving === 'pwa-icon' && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
-                        Guardar Ícono
-                    </Button>
+                    {pwaIconPreview && <div className="space-y-2"><Label>Vista previa del ícono</Label><div className="flex items-center gap-4 p-4 border rounded-md bg-muted"><Image src={getDisplayUrl(pwaIconPreview)} alt="Vista previa del ícono PWA" width={64} height={64} className="rounded-lg"/></div></div>}
+                     <Button onClick={handleSavePwaIcon} disabled={isSaving === 'pwa-icon' || !pwaIconFile} className="mt-2">{isSaving === 'pwa-icon' && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}Guardar Ícono</Button>
                 </div>
                  <div className="space-y-2 pt-4">
                     <Label htmlFor="pwaScreenshots">Capturas de Pantalla de la App</Label>
                     <Input id="pwaScreenshots" type="file" accept="image/png, image/jpeg" multiple onChange={handlePwaScreenshotsChange} className="file:text-primary-foreground file:font-bold file:mr-4 file:px-4 file:py-2 file:rounded-full file:border-0 file:bg-primary hover:file:bg-primary/90"/>
-                    {pwaScreenshotPreviews.length > 0 && (
-                        <div className="space-y-2">
-                            <Label>Vistas previas</Label>
-                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 p-4 border rounded-md bg-muted">
-                                {pwaScreenshotPreviews.map((preview, index) => (
-                                    <div key={index} className="relative group aspect-[9/16]">
-                                        <Image src={getDisplayUrl(preview)} alt={`Captura ${index + 1}`} layout="fill" objectFit="cover" className="rounded-md"/>
-                                        <Button variant="destructive" size="icon" className="absolute top-1 right-1 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => removePwaScreenshot(index)}>
-                                            <Trash2 className="w-4 h-4"/>
-                                        </Button>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-                     <Button onClick={handleSavePwaScreenshots} disabled={isSaving === 'pwa-screenshots'} className="mt-2">
-                        {isSaving === 'pwa-screenshots' && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
-                        Guardar Capturas
-                    </Button>
+                    {pwaScreenshotPreviews.length > 0 && <div className="space-y-2"><Label>Vistas previas</Label><div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 p-4 border rounded-md bg-muted">{pwaScreenshotPreviews.map((preview, index) => (<div key={index} className="relative group aspect-[9/16]"><Image src={getDisplayUrl(preview)} alt={`Captura ${index + 1}`} layout="fill" objectFit="cover" className="rounded-md"/><Button variant="destructive" size="icon" className="absolute top-1 right-1 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => removePwaScreenshot(index)}><Trash2 className="w-4 h-4"/></Button></div>))}</div></div>}
+                     <Button onClick={handleSavePwaScreenshots} disabled={isSaving === 'pwa-screenshots'} className="mt-2">{isSaving === 'pwa-screenshots' && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}Guardar Capturas</Button>
                 </div>
             </CardContent>
         </Card>
 
-        {isClient && <GeoSettingsCard />}
-
         <Card>
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-xl"><ImageIcon className="w-5 h-5"/> Imagen/Video 'Sobre Nosotros'</CardTitle>
-                <CardDescription>Este contenido aparecerá en la sección "Sobre Nosotros" de la página de inicio.</CardDescription>
-            </CardHeader>
+            <CardHeader><CardTitle className="flex items-center gap-2 text-xl"><ImageIcon className="w-5 h-5"/> Imagen/Video 'Sobre Nosotros'</CardTitle><CardDescription>Este contenido aparecerá en la sección "Sobre Nosotros" de la página de inicio.</CardDescription></CardHeader>
             <CardContent className="space-y-4">
                 <Input id="aboutUsMedia" type="file" accept="image/*,video/*" onChange={handleAboutUsMediaChange} className="file:text-primary-foreground file:font-bold file:mr-4 file:px-4 file:py-2 file:rounded-full file:border-0 file:bg-primary hover:file:bg-primary/90"/>
-                {aboutUsMediaPreview && (
-                    <div className="space-y-2">
-                        <Label>Vista previa</Label>
-                        <div className="flex items-center justify-center p-4 border rounded-md bg-muted">
-                            {aboutUsMediaPreview.type === 'video' ? (
-                                <video src={getDisplayUrl(aboutUsMediaPreview.url)} controls className="max-h-60 rounded-md" />
-                            ) : (
-                                <Image src={getDisplayUrl(aboutUsMediaPreview.url)} alt="Vista previa" width={300} height={200} className="rounded-md object-contain max-h-60"/>
-                            )}
-                        </div>
-                    </div>
-                )}
+                {aboutUsMediaPreview && <div className="space-y-2"><Label>Vista previa</Label><div className="flex items-center justify-center p-4 border rounded-md bg-muted">{aboutUsMediaPreview.type === 'video' ? <video src={getDisplayUrl(aboutUsMediaPreview.url)} controls className="max-h-60 rounded-md" /> : <Image src={getDisplayUrl(aboutUsMediaPreview.url)} alt="Vista previa" width={300} height={200} className="rounded-md object-contain max-h-60"/>}</div></div>}
             </CardContent>
-            <CardFooter>
-                <Button onClick={handleSaveAboutUsMedia} disabled={isSaving === 'about-us' || !aboutUsMediaFile}>
-                    {isSaving === 'about-us' && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
-                    Guardar Multimedia
-                </Button>
-            </CardFooter>
+            <CardFooter><Button onClick={handleSaveAboutUsMedia} disabled={isSaving === 'about-us' || !aboutUsMediaFile}>{isSaving === 'about-us' && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}Guardar Multimedia</Button></CardFooter>
         </Card>
         
         <Card>
-            <CardHeader>
-                <CardTitle className="text-xl">Ajustes Generales</CardTitle>
-            </CardHeader>
+            <CardHeader><CardTitle className="text-xl">Ajustes Generales</CardTitle></CardHeader>
             <CardContent className="space-y-4">
-                <div className="space-y-2">
-                    <Label htmlFor="main-whatsapp">Número de WhatsApp Principal</Label>
-                    <Input id="main-whatsapp" type="tel" placeholder="Ej: 5491122334455" value={generalSettings.mainWhatsappNumber || ''} onChange={(e) => handleGeneralSettingsChange('mainWhatsappNumber', e.target.value)}/>
-                    <p className="text-xs text-muted-foreground">Este número se usará si un vendedor no tiene uno asignado.</p>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="calendar-folder" className="flex items-center gap-2"><Folder/> Nombre Carpeta Calendarios</Label>
-                        <Input id="calendar-folder" value={generalSettings.calendarDownloadFolder || ''} onChange={(e) => handleGeneralSettingsChange('calendarDownloadFolder', e.target.value)} />
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="report-folder" className="flex items-center gap-2"><Folder/> Nombre Carpeta Reportes</Label>
-                        <Input id="report-folder" value={generalSettings.reportDownloadFolder || ''} onChange={(e) => handleGeneralSettingsChange('reportDownloadFolder', e.target.value)} />
-                    </div>
-                </div>
+                <div className="space-y-2"><Label htmlFor="main-whatsapp">Número de WhatsApp Principal</Label><Input id="main-whatsapp" type="tel" placeholder="Ej: 5491122334455" value={generalSettings.mainWhatsappNumber || ''} onChange={(e) => handleGeneralSettingsChange('mainWhatsappNumber', e.target.value)} /><p className="text-xs text-muted-foreground">Este número se usará si un vendedor no tiene uno asignado.</p></div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div className="space-y-2"><Label htmlFor="calendar-folder" className="flex items-center gap-2"><Folder/> Nombre Carpeta Calendarios</Label><Input id="calendar-folder" value={generalSettings.calendarDownloadFolder || ''} onChange={(e) => handleGeneralSettingsChange('calendarDownloadFolder', e.target.value)} /></div><div className="space-y-2"><Label htmlFor="report-folder" className="flex items-center gap-2"><Folder/> Nombre Carpeta Reportes</Label><Input id="report-folder" value={generalSettings.reportDownloadFolder || ''} onChange={(e) => handleGeneralSettingsChange('reportDownloadFolder', e.target.value)} /></div></div>
             </CardContent>
-            <CardFooter>
-                <Button onClick={handleSaveMainSettings} disabled={!!isSaving}>
-                     {isSaving === 'main' && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
-                    Guardar Ajustes
-                </Button>
-            </CardFooter>
+            <CardFooter><Button onClick={handleSaveMainSettings} disabled={!!isSaving}>{isSaving === 'main' && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}Guardar Ajustes</Button></CardFooter>
         </Card>
 
         <Card>
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-xl"><Contact className="w-5 h-5"/> Datos de Contacto</CardTitle>
-                <CardDescription>Esta información se mostrará en la página de contacto pública.</CardDescription>
-            </CardHeader>
+            <CardHeader><CardTitle className="flex items-center gap-2 text-xl"><Contact className="w-5 h-5"/> Datos de Contacto</CardTitle><CardDescription>Esta información se mostrará en la página de contacto pública.</CardDescription></CardHeader>
             <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2"><Label htmlFor="contact-address">Dirección (Texto)</Label><Input id="contact-address" value={contactSettings.address || ''} onChange={(e) => handleContactSettingsChange('address', e.target.value)} placeholder="Calle Falsa 123, Ciudad"/></div>
@@ -794,97 +701,86 @@ export default function SettingsPage() {
                     <div className="space-y-2"><Label htmlFor="contact-facebook">Facebook</Label><Input id="contact-facebook" value={contactSettings.facebook || ''} onChange={(e) => handleContactSettingsChange('facebook', e.target.value)} placeholder="https://facebook.com/usuario"/></div>
                 </div>
             </CardContent>
-            <CardFooter>
-                <Button onClick={handleSaveContact} disabled={!!isSaving}>
-                     {isSaving === 'contact' && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
-                    Guardar Contacto
-                </Button>
-            </CardFooter>
-        </Card>
-
-        <Card>
-          <CardHeader>
-              <CardTitle className="flex items-center gap-2"><ShieldCheck className="w-6 h-6"/> Seguridad de la Cuenta</CardTitle>
-              <CardDescription>Gestiona el correo y la contraseña de la cuenta de administrador.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="p-4 border rounded-lg bg-muted/30">
-                <div className="flex items-center justify-between">
-                     <div className="space-y-1">
-                        <h3 className="font-semibold">Credenciales</h3>
-                         <p className="text-sm text-muted-foreground">Email: {adminUser?.email || 'cargando...'}</p>
-                     </div>
-                     <Button variant="outline" onClick={() => setIsCredentialsDialogOpen(true)}><KeyRound className="mr-2 h-4 w-4" /> Cambiar</Button>
-                </div>
-            </div>
-          </CardContent>
-      </Card>
-
-        <Card>
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Pin className="w-6 h-6"/> Puntos de Embarque</CardTitle>
-                <CardDescription>Añade y gestiona las paradas o puntos de encuentro para los viajes.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                <div className="space-y-2">{boardingPoints.map((point) => (<div key={point.id} className="flex items-center gap-2"><Input value={point.name} onChange={(e) => handleBoardingPointChange(point.id, e.target.value)} placeholder="Nombre de la parada..."/><Button variant="ghost" size="icon" onClick={() => handleRemoveBoardingPoint(point.id)}><Trash2 className="w-4 h-4 text-destructive"/></Button></div>))}</div>
-                <div className="flex justify-between items-center"><Button variant="outline" onClick={handleAddBoardingPoint}><PlusCircle className="mr-2 h-4 w-4"/> Añadir Parada</Button><Button onClick={handleSaveBoardingPoints} disabled={!!isSaving}>{isSaving === 'boarding' && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}Guardar Paradas</Button></div>
-            </CardContent>
+            <CardFooter><Button onClick={handleSaveContact} disabled={!!isSaving}>{isSaving === 'contact' && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}Guardar Contacto</Button></CardFooter>
         </Card>
         
-         <Card>
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Utensils className="w-6 h-6"/> Tipos de Pensión</CardTitle>
-                <CardDescription>Gestiona los tipos de pensiones que se pueden asignar a una reserva.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                <div className="space-y-2">{pensions.map((pension) => (<div key={pension.id} className="flex items-center gap-2"><Input value={pension.name} onChange={(e) => handlePensionChange(pension.id, 'name', e.target.value)} placeholder="Nombre (Ej: Media Pensión)"/><Input value={pension.description} onChange={(e) => handlePensionChange(pension.id, 'description', e.target.value)} placeholder="Descripción (Ej: Desayuno y cena)"/><Button variant="ghost" size="icon" onClick={() => handleRemovePension(pension.id)}><Trash2 className="w-4 h-4 text-destructive"/></Button></div>))}</div>
-                <div className="flex justify-between items-center"><Button variant="outline" onClick={handleAddPension}><PlusCircle className="mr-2 h-4 w-4"/> Añadir Tipo</Button><Button onClick={handleSavePensions} disabled={!!isSaving}>{isSaving === 'pensions' && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}Guardar Pensiones</Button></div>
-            </CardContent>
+        <Card>
+            <CardHeader><CardTitle className="flex items-center gap-2"><ShieldCheck className="w-6 h-6"/> Seguridad de la Cuenta</CardTitle><CardDescription>Gestiona el correo y la contraseña de la cuenta de administrador.</CardDescription></CardHeader>
+            <CardContent className="space-y-4"><div className="p-4 border rounded-lg bg-muted/30"><div className="flex items-center justify-between"><div className="space-y-1"><h3 className="font-semibold">Credenciales</h3><p className="text-sm text-muted-foreground">Email: {adminUser?.email || 'cargando...'}</p></div><Button variant="outline" onClick={() => setIsCredentialsDialogOpen(true)}><KeyRound className="mr-2 h-4 w-4" /> Cambiar</Button></div></div></CardContent>
         </Card>
 
-         <Card>
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2"><BedDouble className="w-6 h-6"/> Tipos de Habitación</CardTitle>
-                <CardDescription>Añade y gestiona los tipos de habitaciones disponibles.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                <div className="space-y-2">{roomTypes.map((rt) => (<div key={rt.id} className="flex items-center gap-2"><Input value={rt.name} onChange={(e) => handleRoomTypeChange(rt.id, e.target.value)} placeholder="Nombre (Ej: Doble Matrimonial)"/><Button variant="ghost" size="icon" onClick={() => handleRemoveRoomType(rt.id)}><Trash2 className="w-4 h-4 text-destructive"/></Button></div>))}</div>
-                <div className="flex justify-between items-center"><Button variant="outline" onClick={handleAddRoomType}><PlusCircle className="mr-2 h-4 w-4"/> Añadir Tipo</Button><Button onClick={handleSaveRoomTypes} disabled={!!isSaving}>{isSaving === 'rooms' && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}Guardar Habitaciones</Button></div>
-            </CardContent>
-        </Card>
+        {isClient && <GeoSettingsCard />}
 
-        {(Object.keys(layoutCategoryDetails) as LayoutCategory[]).map(category => {
-            const details = layoutCategoryDetails[category];
-            const Icon = details.icon;
-            return (
-                <Card key={category}>
-                    <CardHeader>
-                        <div className="flex justify-between items-center">
-                            <div><CardTitle className="flex items-center gap-2"><Icon className="w-6 h-6"/> {details.title}</CardTitle><CardDescription>Añade, edita o elimina los tipos y sus layouts.</CardDescription></div>
-                            <Button onClick={() => handleAddNewLayout(category)}><PlusCircle className="mr-2 h-4 w-4" /> Añadir</Button>
-                        </div>
-                    </CardHeader>
-                    <CardContent className="space-y-2">
-                        {Object.entries(layoutConfig[category] || {}).map(([key, config]) => (
-                           <div key={key} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50">
-                              <div className="font-medium">{config.name}</div>
-                               <div className="flex items-center gap-2">
-                                 <Button variant="outline" size="icon" onClick={() => handleEditLayout(category, key)}><Edit className="w-4 h-4" /><span className="sr-only">Editar</span></Button>
-                                 <Button variant="destructive" size="icon" onClick={() => handleDeleteLayout(category, key)}><Trash2 className="w-4 h-4" /><span className="sr-only">Eliminar</span></Button>
-                               </div>
-                           </div>
-                        ))}
-                        {Object.keys(layoutConfig[category] || {}).length === 0 && (<p className="text-sm text-muted-foreground p-4 text-center">No hay tipos definidos.</p>)}
-                    </CardContent>
+        <Accordion type="multiple" className="w-full space-y-6">
+            <AccordionItem value="boarding-points" className="border-b-0">
+                <Card>
+                    <AccordionTrigger className="w-full px-6 text-left hover:no-underline">
+                        <CardHeader className="p-0"><CardTitle className="flex items-center gap-2"><Pin className="w-6 h-6"/> Puntos de Embarque</CardTitle></CardHeader>
+                    </AccordionTrigger>
+                    <AccordionContent className="p-6 pt-0">
+                        <CardDescription className="mb-4">Añade y gestiona las paradas o puntos de encuentro para los viajes.</CardDescription>
+                        <div className="space-y-2">{boardingPoints.map((point) => (<div key={point.id} className="flex items-center gap-2"><Input value={point.name} onChange={(e) => handleBoardingPointChange(point.id, e.target.value)} placeholder="Nombre de la parada..."/><Button variant="ghost" size="icon" onClick={() => handleRemoveBoardingPoint(point.id)}><Trash2 className="w-4 h-4 text-destructive"/></Button></div>))}</div>
+                        <div className="flex justify-between items-center pt-4"><Button variant="outline" onClick={handleAddBoardingPoint}><PlusCircle className="mr-2 h-4 w-4"/> Añadir Parada</Button><Button onClick={handleSaveBoardingPoints} disabled={!!isSaving}>{isSaving === 'boarding' && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}Guardar Paradas</Button></div>
+                    </AccordionContent>
                 </Card>
-            );
-        })}
-      <ChangeCredentialsDialog adminUser={adminUser} onUpdate={handleAdminUserUpdate} isOpen={isCredentialsDialogOpen} onOpenChange={setIsCredentialsDialogOpen} />
+            </AccordionItem>
+            <AccordionItem value="pensions" className="border-b-0">
+                <Card>
+                    <AccordionTrigger className="w-full px-6 text-left hover:no-underline">
+                        <CardHeader className="p-0"><CardTitle className="flex items-center gap-2"><Utensils className="w-6 h-6"/> Tipos de Pensión</CardTitle></CardHeader>
+                    </AccordionTrigger>
+                    <AccordionContent className="p-6 pt-0">
+                        <CardDescription className="mb-4">Gestiona los tipos de pensiones que se pueden asignar a una reserva.</CardDescription>
+                        <div className="space-y-2">{pensions.map((pension) => (<div key={pension.id} className="flex items-center gap-2"><Input value={pension.name} onChange={(e) => handlePensionChange(pension.id, 'name', e.target.value)} placeholder="Nombre (Ej: Media Pensión)"/><Input value={pension.description} onChange={(e) => handlePensionChange(pension.id, 'description', e.target.value)} placeholder="Descripción (Ej: Desayuno y cena)"/><Button variant="ghost" size="icon" onClick={() => handleRemovePension(pension.id)}><Trash2 className="w-4 h-4 text-destructive"/></Button></div>))}</div>
+                        <div className="flex justify-between items-center pt-4"><Button variant="outline" onClick={handleAddPension}><PlusCircle className="mr-2 h-4 w-4"/> Añadir Tipo</Button><Button onClick={handleSavePensions} disabled={!!isSaving}>{isSaving === 'pensions' && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}Guardar Pensiones</Button></div>
+                    </AccordionContent>
+                </Card>
+            </AccordionItem>
+            <AccordionItem value="room-types" className="border-b-0">
+                <Card>
+                    <AccordionTrigger className="w-full px-6 text-left hover:no-underline">
+                        <CardHeader className="p-0"><CardTitle className="flex items-center gap-2"><BedDouble className="w-6 h-6"/> Tipos de Habitación</CardTitle></CardHeader>
+                    </AccordionTrigger>
+                    <AccordionContent className="p-6 pt-0">
+                        <CardDescription className="mb-4">Añade y gestiona los tipos de habitaciones disponibles.</CardDescription>
+                        <div className="space-y-2">{roomTypes.map((rt) => (<div key={rt.id} className="flex items-center gap-2"><Input value={rt.name} onChange={(e) => handleRoomTypeChange(rt.id, e.target.value)} placeholder="Nombre (Ej: Doble Matrimonial)"/><Button variant="ghost" size="icon" onClick={() => handleRemoveRoomType(rt.id)}><Trash2 className="w-4 h-4 text-destructive"/></Button></div>))}</div>
+                        <div className="flex justify-between items-center pt-4"><Button variant="outline" onClick={handleAddRoomType}><PlusCircle className="mr-2 h-4 w-4"/> Añadir Tipo</Button><Button onClick={handleSaveRoomTypes} disabled={!!isSaving}>{isSaving === 'rooms' && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}Guardar Habitaciones</Button></div>
+                    </AccordionContent>
+                </Card>
+            </AccordionItem>
+
+            {(Object.keys(layoutCategoryDetails) as LayoutCategory[]).map(category => {
+                const details = layoutCategoryDetails[category];
+                const Icon = details.icon;
+                return (
+                     <AccordionItem key={category} value={`layout-${category}`} className="border-b-0">
+                         <Card>
+                             <AccordionTrigger className="w-full px-6 text-left hover:no-underline">
+                                 <CardHeader className="p-0"><CardTitle className="flex items-center gap-2"><Icon className="w-6 h-6"/> {details.title}</CardTitle></CardHeader>
+                            </AccordionTrigger>
+                             <AccordionContent className="p-6 pt-0">
+                                <CardDescription className="mb-4">Añade, edita o elimina los tipos y sus layouts.</CardDescription>
+                                <div className="space-y-2">
+                                    {Object.entries(layoutConfig[category] || {}).map(([key, config]) => (
+                                       <div key={key} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50">
+                                          <div className="font-medium">{config.name}</div>
+                                           <div className="flex items-center gap-2">
+                                             <Button variant="outline" size="icon" onClick={() => handleEditLayout(category, key)}><Edit className="w-4 h-4" /><span className="sr-only">Editar</span></Button>
+                                             <Button variant="destructive" size="icon" onClick={() => handleDeleteLayout(category, key)}><Trash2 className="w-4 h-4" /><span className="sr-only">Eliminar</span></Button>
+                                           </div>
+                                       </div>
+                                    ))}
+                                    {Object.keys(layoutConfig[category] || {}).length === 0 && (<p className="text-sm text-muted-foreground p-4 text-center">No hay tipos definidos.</p>)}
+                                </div>
+                                <CardFooter className="px-0 pt-4"><Button variant="outline" onClick={() => handleAddNewLayout(category)}><PlusCircle className="mr-2 h-4 w-4" /> Añadir</Button></CardFooter>
+                            </AccordionContent>
+                        </Card>
+                    </AccordionItem>
+                );
+            })}
+        </Accordion>
+      <ChangeCredentialsDialog adminUser={adminUser} onUpdate={handleAdminUserUpdate} isOpen={isCredentialsDialogOpen} onOpenChange={setIsCredentialsDialogOpen}/>
     </div>
     </>
   )
 }
-
-    
-
-    
