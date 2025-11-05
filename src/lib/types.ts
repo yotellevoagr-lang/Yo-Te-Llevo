@@ -336,4 +336,3 @@ export interface Transaction {
 export interface ChatbotState {
     selectedTags: string[];
 }
-    
