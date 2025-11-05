@@ -1,4 +1,5 @@
 
+
 "use client"
 
 import { useEffect, useState, useMemo } from "react"
@@ -15,7 +16,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { DatePicker } from "@/components/ui/date-picker"
 import { useToast } from "@/hooks/use-toast"
-import type { Tour, LayoutItemType, LayoutCategory, Insurance, Pension, PricingTier, TourCosts, ExtraCost, TransportUnit, BoardingPoint, CustomLayoutConfig, GalleryItem } from "@/lib/types"
+import type { Tour, LayoutItemType, LayoutCategory, Insurance, Pension, PricingTier, TourCosts, ExtraCost, TransportUnit, BoardingPoint, CustomLayoutConfig, GalleryItem, GeneralSettings } from "@/lib/types"
 import { PlusCircle, Trash2, Upload, Star, Video, Image as ImageIcon } from "lucide-react"
 import {
   Select,
@@ -44,8 +45,6 @@ interface TripFormProps {
   tour: Tour | null
   boardingPoints: BoardingPoint[];
 }
-
-const PREDEFINED_TAGS = ['Playa', 'Montaña', 'Ciudad', 'Aventura', 'Familia', 'Pareja', 'Relax', 'Fiesta', 'Nieve', 'Cultural'];
 
 const defaultCosts: TourCosts = { transport: [], hotel: { amount: 0, currency: 'ARS' }, extras: [] };
 
@@ -82,6 +81,7 @@ export function TripForm({ isOpen, onOpenChange, onSave, tour, boardingPoints }:
   const [isLoading, setIsLoading] = useState(false)
   const [nextId, setNextId] = useState(1);
   const [layoutConfig, setLayoutConfig] = useState<Record<LayoutCategory, Record<string, CustomLayoutConfig>>>({ vehicles: {}, airplanes: {}, cruises: {} });
+  const [availableTags, setAvailableTags] = useState<string[]>([]);
   
   const [newGalleryFiles, setNewGalleryFiles] = useState<GalleryFile[]>([]);
   const { toast } = useToast();
@@ -93,13 +93,15 @@ export function TripForm({ isOpen, onOpenChange, onSave, tour, boardingPoints }:
   }
 
   useEffect(() => {
-    const fetchLayoutConfig = async () => {
-        const config = await getDocumentById<any>('settings', 'layouts');
-        if (config) {
-            setLayoutConfig(config);
-        }
+    const fetchAuxiliaryData = async () => {
+        const [configData, settingsData] = await Promise.all([
+             getDocumentById<any>('settings', 'layouts'),
+             getDocumentById<GeneralSettings>('settings', 'general')
+        ]);
+        if (configData) setLayoutConfig(configData);
+        if (settingsData) setAvailableTags(settingsData.availableTags || []);
     }
-    fetchLayoutConfig();
+    fetchAuxiliaryData();
   }, []);
 
   useEffect(() => {
@@ -393,7 +395,7 @@ export function TripForm({ isOpen, onOpenChange, onSave, tour, boardingPoints }:
                  <div className="space-y-2">
                     <Label>Etiquetas</Label>
                     <div className="flex flex-wrap gap-2 p-2 border rounded-md">
-                        {PREDEFINED_TAGS.map(tag => (
+                        {availableTags.map(tag => (
                             <Button 
                                 key={tag} 
                                 variant={formData.tags?.includes(tag) ? "default" : "outline"}
@@ -404,6 +406,7 @@ export function TripForm({ isOpen, onOpenChange, onSave, tour, boardingPoints }:
                                 {tag}
                             </Button>
                         ))}
+                         {availableTags.length === 0 && <p className="text-xs text-muted-foreground">No hay etiquetas creadas. Ve a Configuración para añadirlas.</p>}
                     </div>
                 </div>
                 <div className="space-y-2">
@@ -683,3 +686,5 @@ export function TripForm({ isOpen, onOpenChange, onSave, tour, boardingPoints }:
     </Dialog>
   )
 }
+
+    
