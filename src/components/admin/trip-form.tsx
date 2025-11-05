@@ -1,5 +1,4 @@
 
-
 "use client"
 
 import { useEffect, useState, useMemo } from "react"
@@ -17,7 +16,7 @@ import { Label } from "@/components/ui/label"
 import { DatePicker } from "@/components/ui/date-picker"
 import { useToast } from "@/hooks/use-toast"
 import type { Tour, LayoutItemType, LayoutCategory, Insurance, Pension, PricingTier, TourCosts, ExtraCost, TransportUnit, BoardingPoint, CustomLayoutConfig, GalleryItem, GeneralSettings } from "@/lib/types"
-import { PlusCircle, Trash2, Upload, Star, Video, Image as ImageIcon } from "lucide-react"
+import { PlusCircle, Trash2, Upload, Star, Video, Image as ImageIcon, Loader2 } from "lucide-react"
 import {
   Select,
   SelectContent,
@@ -33,7 +32,7 @@ import {
 } from "@/components/ui/accordion"
 import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "../ui/checkbox"
-import { getDocumentById } from "@/lib/firestore-services"
+import { getDocumentById, uploadFileAndGetURL } from "@/lib/firestore-services"
 import { cn } from "@/lib/utils"
 import Image from "next/image"
 import { getDisplayUrl } from "@/lib/utils"
@@ -41,7 +40,7 @@ import { getDisplayUrl } from "@/lib/utils"
 interface TripFormProps {
   isOpen: boolean
   onOpenChange: (isOpen: boolean) => void
-  onSave: (tour: Tour, imageAsDataUrl: string | null) => void
+  onSave: (tour: Tour) => void
   tour: Tour | null
   boardingPoints: BoardingPoint[];
 }
@@ -84,6 +83,8 @@ export function TripForm({ isOpen, onOpenChange, onSave, tour, boardingPoints }:
   const [availableTags, setAvailableTags] = useState<string[]>([]);
   
   const [newGalleryFiles, setNewGalleryFiles] = useState<GalleryFile[]>([]);
+  const [backgroundImageFile, setBackgroundImageFile] = useState<File | null>(null);
+
   const { toast } = useToast();
 
   const categoryNames: Record<LayoutCategory, string> = {
@@ -143,6 +144,7 @@ export function TripForm({ isOpen, onOpenChange, onSave, tour, boardingPoints }:
             setNextId(1);
         }
         setNewGalleryFiles([]);
+        setBackgroundImageFile(null);
         setIsLoading(false); 
     }
   }, [tour, isOpen])
@@ -249,11 +251,11 @@ export function TripForm({ isOpen, onOpenChange, onSave, tour, boardingPoints }:
 
           setNewGalleryFiles(prev => [...prev, ...newFiles]);
 
-          // If no background image is set, set the first uploaded image as the background
           if (!formData.backgroundImage) {
               const firstNewImage = newFiles.find(f => f.type === 'image');
               if (firstNewImage) {
-                  handleFormChange('backgroundImage', firstNewImage.previewUrl);
+                  setAsBackgroundImage(firstNewImage.previewUrl);
+                  setBackgroundImageFile(firstNewImage.file);
               }
           }
       }
@@ -269,6 +271,7 @@ export function TripForm({ isOpen, onOpenChange, onSave, tour, boardingPoints }:
     setNewGalleryFiles(updatedNewFiles);
 
     if (wasBackgroundImage) {
+        setBackgroundImageFile(null);
         const remainingImages = [
             ...(formData.gallery || []).filter(item => item.type === 'image'),
             ...updatedNewFiles.filter(item => item.type === 'image')
@@ -289,6 +292,7 @@ export function TripForm({ isOpen, onOpenChange, onSave, tour, boardingPoints }:
     handleFormChange('gallery', updatedGallery);
 
     if (wasBackgroundImage) {
+        setBackgroundImageFile(null);
         const remainingImages = [
             ...updatedGallery.filter(item => item.type === 'image'),
             ...newGalleryFiles.filter(item => item.type === 'image')
@@ -301,7 +305,14 @@ export function TripForm({ isOpen, onOpenChange, onSave, tour, boardingPoints }:
   }
 
   const setAsBackgroundImage = (url: string | null) => {
-      handleFormChange('backgroundImage', url);
+    handleFormChange('backgroundImage', url);
+    // If it's a new file, find and set the File object for upload
+    const newFileMatch = newGalleryFiles.find(f => f.previewUrl === url);
+    if (newFileMatch) {
+      setBackgroundImageFile(newFileMatch.file);
+    } else {
+      setBackgroundImageFile(null); // It's an existing image, no new file to upload
+    }
   }
 
   const handleSubmit = async () => {
@@ -319,34 +330,28 @@ export function TripForm({ isOpen, onOpenChange, onSave, tour, boardingPoints }:
     setIsLoading(true);
 
     try {
-        const newGalleryItems: GalleryItem[] = [];
+        const tourId = tour?.id || `tour_${Date.now()}`;
+        
+        let finalBackgroundImageUrl = formData.backgroundImage;
+        if (backgroundImageFile) {
+             finalBackgroundImageUrl = await uploadFileAndGetURL(backgroundImageFile, `tours/${tourId}/background/${backgroundImageFile.name}`);
+        }
+        
+        const uploadedGalleryItems: GalleryItem[] = [];
         for (const galleryFile of newGalleryFiles) {
-            const dataUrl = await new Promise<string>((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onloadend = () => resolve(reader.result as string);
-                reader.onerror = reject;
-                reader.readAsDataURL(galleryFile.file);
-            });
-            newGalleryItems.push({
+            const url = await uploadFileAndGetURL(galleryFile.file, `tours/${tourId}/gallery/${galleryFile.file.name}`);
+            uploadedGalleryItems.push({
                 id: `G-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-                url: dataUrl,
+                url: url,
                 type: galleryFile.type,
             });
         }
         
-        let finalBackgroundImage = formData.backgroundImage;
-        const combinedGallery = [...(formData.gallery || []), ...newGalleryItems];
-        
-        if (finalBackgroundImage && finalBackgroundImage.startsWith('blob:')) {
-            const newFileIndex = newGalleryFiles.findIndex(f => f.previewUrl === finalBackgroundImage);
-            if (newFileIndex !== -1) {
-              finalBackgroundImage = newGalleryItems[newFileIndex]?.url || finalBackgroundImage;
-            }
-        }
+        const combinedGallery = [...(formData.gallery || []), ...uploadedGalleryItems];
         
         const tourDataToSave: Partial<Tour> = {
             ...formData,
-            backgroundImage: finalBackgroundImage,
+            backgroundImage: finalBackgroundImageUrl,
             price: Number(formData.price) || 0,
             costs: {
                 ...formData.costs,
@@ -366,12 +371,13 @@ export function TripForm({ isOpen, onOpenChange, onSave, tour, boardingPoints }:
             tourDataToSave.id = tour.id;
         }
 
-        onSave(tourDataToSave as Tour, null);
+        onSave(tourDataToSave as Tour);
   
     } catch (error) {
       console.error("Error preparing to save tour:", error);
-      toast({ title: "Error", description: "Ocurrió un problema al preparar los datos.", variant: "destructive" });
-      setIsLoading(false);
+      toast({ title: "Error", description: "Ocurrió un problema al guardar los datos y subir los archivos.", variant: "destructive" });
+    } finally {
+        setIsLoading(false);
     }
   };
 
@@ -679,6 +685,7 @@ export function TripForm({ isOpen, onOpenChange, onSave, tour, boardingPoints }:
         <DialogFooter className="mt-auto pt-4 border-t">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isLoading}>Cancelar</Button>
           <Button onClick={handleSubmit} disabled={isLoading}>
+             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {isLoading ? "Guardando..." : "Guardar Cambios"}
           </Button>
         </DialogFooter>
@@ -686,5 +693,3 @@ export function TripForm({ isOpen, onOpenChange, onSave, tour, boardingPoints }:
     </Dialog>
   )
 }
-
-    
