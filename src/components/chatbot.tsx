@@ -39,7 +39,7 @@ export default function Chatbot() {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [currentContext, setCurrentContext] = useState<any>(null);
-  const [chatbotState, setChatbotState] = useState<ChatbotState>({ selectedTags: [] });
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   
@@ -49,7 +49,7 @@ export default function Chatbot() {
     setCurrentNode(initialNode);
     setMessages([{ role: "bot", content: initialNode.message, nodeId: 'start' }]);
     setCurrentContext(null);
-    setChatbotState({ selectedTags: [] });
+    setSelectedTags([]);
     setIsLoading(false);
   }, []);
 
@@ -153,10 +153,51 @@ export default function Chatbot() {
     setIsLoading(false);
   };
   
+  const handleTagToggle = (tag: string) => {
+    setSelectedTags(prev => 
+        prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
+    );
+  };
+
   const handleOptionClick = async (optionText: string, nextNodeId: string, action?: ActionType, actionContext?: any, isExternalLink?: boolean, requiresAuth?: boolean) => {
     if (isExternalLink) {
         router.push(nextNodeId);
         setIsOpen(false);
+        return;
+    }
+    
+    // For tag selection, just update state, don't send messages
+    if (action === 'searchTripsByAttribute') {
+        const finalContext = actionContext || selectedTags;
+        if(Array.isArray(finalContext) && finalContext.length === 0){
+            toast({ title: "Selecciona al menos una etiqueta para buscar."});
+            return;
+        }
+        
+        const userMessage: Message = { role: "user", content: `Buscar viajes por: ${finalContext.join(', ')}` };
+        setMessages(prev => [...prev, userMessage]);
+        setIsLoading(true);
+
+        const response = await executeChatbotAction(action, finalContext);
+        const finalNodeId = response.fallbackNode || response.nodeId || nextNodeId;
+        const nextNode = {...getChatbotFlow(finalNodeId)};
+        let botMessageContent: React.ReactNode = response.message;
+        
+        if(response.data) {
+             botMessageContent = (
+              <div className="space-y-4">
+                <p>{response.message}</p>
+                {response.data.map((item: any) => (
+                   <TourCard key={item.id} tour={{ ...item, date: new Date(item.date) }} />
+                ))}
+              </div>
+            );
+        }
+        
+        setMessages(prev => [...prev, { role: "bot", content: botMessageContent, nodeId: finalNodeId, context: finalContext }]);
+        setCurrentNode(nextNode);
+        setIsLoading(false);
+        setSelectedTags([]); // Reset tags after search
         return;
     }
 
@@ -173,26 +214,11 @@ export default function Chatbot() {
         contextToPass = user.id;
     }
 
-    // Special handling for multi-tag selection
-    if (action === 'manageTagSelection') {
-        contextToPass = {
-            selectedTags: chatbotState.selectedTags,
-            tag: actionContext,
-        };
-    } else if (action === 'searchTripsByAttribute') {
-        contextToPass = chatbotState.selectedTags;
-    }
-
-
     if (action) {
       const response = await executeChatbotAction(action, contextToPass);
       finalNextNodeId = response.fallbackNode || response.nodeId || nextNodeId;
       optionsForNextNode = response.options;
 
-      if (response.state) {
-        setChatbotState(response.state);
-      }
-      
       if (response.success && response.data) {
           if (Array.isArray(response.data)) {
             botMessageContent = (
@@ -255,7 +281,7 @@ export default function Chatbot() {
     }
     
     // Set the context for the next interaction
-    if (actionContext !== undefined && action !== 'manageTagSelection') {
+    if (actionContext !== undefined) {
         setCurrentContext(actionContext);
     } else if (action === 'fetchTripDetailsByName') {
         // After searching a trip, its context should be available for pre-booking
@@ -292,7 +318,7 @@ export default function Chatbot() {
             setCurrentNode(previousNode);
             setCurrentContext(previousBotMessage.context);
             if (previousNode.id === 'tag_selection') {
-                setChatbotState(prev => ({...prev, selectedTags: [] }));
+                setSelectedTags([]);
             }
             return;
         }
@@ -363,16 +389,24 @@ export default function Chatbot() {
               <div className="w-full space-y-2">
                   {currentNode.options.length > 0 && !currentNode.isUserInput && (
                       <div className="flex flex-wrap gap-2 justify-center">
-                          {currentNode.id === 'tag_selection' && chatbotState.selectedTags.length > 0 && (
+                          {currentNode.id === 'tag_selection' && selectedTags.length > 0 && (
                             <Button onClick={() => handleOptionClick('Buscar', 'trips_result', 'searchTripsByAttribute')} className="w-full rounded-full shadow-sm">
                                 <Search className="w-4 h-4 mr-2"/>
-                                Buscar ({chatbotState.selectedTags.length})
+                                Buscar ({selectedTags.length})
                             </Button>
                           )}
                           {currentNode.options.map((opt, i) => {
-                            const isSelected = chatbotState.selectedTags.includes(opt.actionContext);
+                            const isTagSelection = currentNode.id === 'tag_selection';
+                            const isSelected = isTagSelection && selectedTags.includes(opt.actionContext);
+                            
                             return (
-                                <Button key={i} variant={isSelected ? "default" : "outline"} onClick={() => handleOptionClick(opt.text, opt.next, opt.action, opt.actionContext, opt.isExternalLink, opt.requiresAuth)} disabled={isLoading || (opt.requiresAuth && authLoading) || (opt.requiresAuth && !user)} className="rounded-full shadow-sm">
+                                <Button key={i} variant={isSelected ? "default" : "outline"} onClick={() => {
+                                    if(isTagSelection && opt.action === 'fetchAvailableTags') {
+                                        handleTagToggle(opt.actionContext);
+                                    } else {
+                                        handleOptionClick(opt.text, opt.next, opt.action, opt.actionContext, opt.isExternalLink, opt.requiresAuth);
+                                    }
+                                }} disabled={isLoading || (opt.requiresAuth && authLoading) || (opt.requiresAuth && !user)} className="rounded-full shadow-sm">
                                     {opt.text}
                                 </Button>
                             )

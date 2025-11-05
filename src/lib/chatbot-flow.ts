@@ -21,7 +21,6 @@ export type ActionType =
   | 'askForChildren'
   | 'calculatePrebookingPrice'
   | 'fetchContactInfo'
-  | 'manageTagSelection'
   | 'fetchAvailableTags';
 
 export type ActionResponse = {
@@ -98,7 +97,7 @@ export async function executeChatbotAction (action: ActionType, context?: any): 
             const tagOptions: ChatbotNode['options'] = Array.from(usedTags).map(tag => ({
                 text: tag,
                 next: 'tag_selection',
-                action: 'manageTagSelection',
+                action: 'fetchAvailableTags', // This action doesn't really do anything on click, it's a placeholder
                 actionContext: tag
             }));
 
@@ -109,33 +108,6 @@ export async function executeChatbotAction (action: ActionType, context?: any): 
                 success: true,
                 message: "Selecciona una o más temáticas que te interesen y luego presiona 'Buscar'.",
                 options: tagOptions
-            };
-        }
-        case 'manageTagSelection': {
-            if (!context) return { success: false, message: "Error" };
-            const { selectedTags, tag: newTag } = context;
-            const updatedTags = selectedTags.includes(newTag)
-                ? selectedTags.filter((t: string) => t !== newTag)
-                : [...selectedTags, newTag];
-
-            // Re-fetch all available tags to regenerate options
-            const allTours = await getAllFromCollection<Tour>('tours');
-            const activePublicTours = allTours.filter(tour => tour.isPublic && getDateFromFirestore(tour.date) >= new Date());
-            const usedTags = new Set(activePublicTours.flatMap(tour => tour.tags || []));
-            const tagOptions: ChatbotNode['options'] = Array.from(usedTags).map(tag => ({
-                text: tag,
-                next: 'tag_selection',
-                action: 'manageTagSelection',
-                actionContext: tag
-            }));
-            tagOptions.push({ text: "⬅️ Volver", next: "trips_menu" });
-
-            return {
-                success: true,
-                message: "Has actualizado tus filtros. Puedes seguir seleccionando o pulsar 'Buscar'.",
-                nodeId: 'tag_selection', // Stay on the same node
-                state: { selectedTags: updatedTags },
-                options: tagOptions,
             };
         }
         case 'fetchContactInfo': {
