@@ -121,7 +121,7 @@ export function SearchableSelect({ options, value, onChange, placeholder, listHe
                                 <div
                                     key={option.value}
                                     className={cn(
-                                        "px-3 py-2 cursor-pointer text-foreground",
+                                        "px-3 py-2 cursor-pointer text-foreground border-b border-primary/20 last:border-b-0",
                                         value === option.value && "bg-accent",
                                         getPriceColorClass(option.price, option.currency)
                                     )}
