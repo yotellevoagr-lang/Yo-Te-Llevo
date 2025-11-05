@@ -81,27 +81,17 @@ const chatbotFlow: Record<string, ChatbotNode> = {
     options: [
       { text: "⭐ Destacados", next: "trips_result", action: 'fetchFeaturedTours' },
       { text: "🗺️ Ver Catálogo Completo", next: "trips_result", action: 'fetchAllTours' },
-      { text: "🔎 Buscar por temática", next: "trip_recommendation" },
+      { text: "🔎 Buscar por temática", next: "tag_selection", action: 'fetchAvailableTags' },
       { text: "⬅️ Volver", next: "start" },
     ],
   },
-  trip_recommendation: {
-      id: "trip_recommendation",
-      message: "¡Perfecto! ¿Qué tipo de viaje te interesa?",
+  tag_selection: {
+      id: "tag_selection",
+      message: "Selecciona una o más temáticas de tu interés y luego presiona 'Buscar'.",
       options: [
-          { text: "Playa", next: "trips_result", action: "searchTripsByAttribute", actionContext: "playa" },
-          { text: "Montaña", next: "trips_result", action: "searchTripsByAttribute", actionContext: "montaña" },
-          { text: "Nieve", next: "trips_result", action: "searchTripsByAttribute", actionContext: "nieve" },
-          { text: "Aventura", next: "trips_result", action: "searchTripsByAttribute", actionContext: "aventura" },
-          { text: "⬅️ Volver", next: "trips_menu"},
+          // Options will be dynamically populated by fetchAvailableTags action.
+          // A "Search" button should be dynamically added by the UI when tags are selected.
       ]
-  },
-  search_by_name_input: {
-    id: "search_by_name_input",
-    message: "Escribe el nombre del destino que buscas (ej: Bariloche).",
-    options: [],
-    isUserInput: true,
-    action: 'fetchTripDetailsByName',
   },
   trips_result: {
     id: "trips_result",
