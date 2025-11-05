@@ -14,10 +14,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Bot, User, CornerDownLeft, ArrowLeft, Mail, Phone } from "lucide-react";
+import { Bot, User, CornerDownLeft, ArrowLeft, Mail, Phone, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getChatbotFlow, type ChatbotNode } from "@/lib/chatbot-nodes";
 import { executeChatbotAction, type ActionType, type ActionResponse } from "@/lib/chatbot-flow";
+import type { ChatbotState } from "@/lib/types";
 import { useAuth } from "./auth/auth-provider";
 import { TourCard } from "./tour-card";
 import { useRouter } from "next/navigation";
@@ -38,6 +39,7 @@ export default function Chatbot() {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [currentContext, setCurrentContext] = useState<any>(null);
+  const [chatbotState, setChatbotState] = useState<ChatbotState>({ selectedTags: [] });
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   
@@ -47,6 +49,7 @@ export default function Chatbot() {
     setCurrentNode(initialNode);
     setMessages([{ role: "bot", content: initialNode.message, nodeId: 'start' }]);
     setCurrentContext(null);
+    setChatbotState({ selectedTags: [] });
     setIsLoading(false);
   }, []);
 
@@ -165,9 +168,19 @@ export default function Chatbot() {
     let botMessageContent: React.ReactNode = "";
     let optionsForNextNode: ChatbotNode['options'] | undefined = undefined;
 
-    let contextToPass = actionContext;
+    let contextToPass: any = actionContext;
     if (requiresAuth && user) {
         contextToPass = user.id;
+    }
+
+    // Special handling for multi-tag selection
+    if (action === 'manageTagSelection') {
+        contextToPass = {
+            selectedTags: chatbotState.selectedTags,
+            tag: actionContext,
+        };
+    } else if (action === 'searchTripsByAttribute') {
+        contextToPass = chatbotState.selectedTags;
     }
 
 
@@ -176,6 +189,10 @@ export default function Chatbot() {
       finalNextNodeId = response.fallbackNode || response.nodeId || nextNodeId;
       optionsForNextNode = response.options;
 
+      if (response.state) {
+        setChatbotState(response.state);
+      }
+      
       if (response.success && response.data) {
           if (Array.isArray(response.data)) {
             botMessageContent = (
@@ -238,7 +255,7 @@ export default function Chatbot() {
     }
     
     // Set the context for the next interaction
-    if (actionContext !== undefined) {
+    if (actionContext !== undefined && action !== 'manageTagSelection') {
         setCurrentContext(actionContext);
     } else if (action === 'fetchTripDetailsByName') {
         // After searching a trip, its context should be available for pre-booking
@@ -343,11 +360,20 @@ export default function Chatbot() {
               <div className="w-full space-y-2">
                   {currentNode.options.length > 0 && !currentNode.isUserInput && (
                       <div className="flex flex-wrap gap-2 justify-center">
-                          {currentNode.options.map((opt, i) => (
-                            <Button key={i} variant="outline" onClick={() => handleOptionClick(opt.text, opt.next, opt.action, opt.actionContext, opt.isExternalLink, opt.requiresAuth)} disabled={isLoading || (opt.requiresAuth && authLoading) || (opt.requiresAuth && !user)} className="rounded-full shadow-sm">
-                                {opt.text}
+                          {currentNode.id === 'tag_selection' && chatbotState.selectedTags.length > 0 && (
+                            <Button onClick={() => handleOptionClick('Buscar', 'trips_result', 'searchTripsByAttribute')} className="w-full rounded-full shadow-sm">
+                                <Search className="w-4 h-4 mr-2"/>
+                                Buscar ({chatbotState.selectedTags.length})
                             </Button>
-                          ))}
+                          )}
+                          {currentNode.options.map((opt, i) => {
+                            const isSelected = chatbotState.selectedTags.includes(opt.actionContext);
+                            return (
+                                <Button key={i} variant={isSelected ? "default" : "outline"} onClick={() => handleOptionClick(opt.text, opt.next, opt.action, opt.actionContext, opt.isExternalLink, opt.requiresAuth)} disabled={isLoading || (opt.requiresAuth && authLoading) || (opt.requiresAuth && !user)} className="rounded-full shadow-sm">
+                                    {opt.text}
+                                </Button>
+                            )
+                          })}
                       </div>
                   )}
                   {currentNode.isUserInput && (

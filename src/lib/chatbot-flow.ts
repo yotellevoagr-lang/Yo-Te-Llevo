@@ -3,7 +3,7 @@
 
 import { getAllFromCollection, getDocumentById } from "./firestore-services";
 import { getLayoutForType } from './layouts';
-import type { Tour, Passenger, Reservation, BoardingPoint, Installment, PaymentMethod, GeneralSettings } from "./types";
+import type { Tour, Passenger, Reservation, BoardingPoint, Installment, PaymentMethod, GeneralSettings, ChatbotState } from "./types";
 import type { ChatbotNode } from "./chatbot-nodes";
 
 export type ActionType = 
@@ -20,7 +20,9 @@ export type ActionType =
   | 'getTripStatus'
   | 'askForChildren'
   | 'calculatePrebookingPrice'
-  | 'fetchContactInfo';
+  | 'fetchContactInfo'
+  | 'manageTagSelection'
+  | 'fetchAvailableTags';
 
 export type ActionResponse = {
   success: boolean;
@@ -30,6 +32,7 @@ export type ActionResponse = {
   nodeId?: string; // Can be used to force a specific next node
   options?: ChatbotNode['options']; // To dynamically generate options
   context?: any; // To pass context to the next node
+  state?: ChatbotState; // To update the chatbot's state
 };
 
 const faqAnswers: Record<string, string> = {
@@ -88,6 +91,40 @@ const formatCurrency = (amount: number) => {
 export async function executeChatbotAction (action: ActionType, context?: any): Promise<ActionResponse> {
   try {
     switch (action) {
+        case 'fetchAvailableTags': {
+            const allTours = await getAllFromCollection<Tour>('tours');
+            const activePublicTours = allTours.filter(tour => tour.isPublic && getDateFromFirestore(tour.date) >= new Date());
+            const usedTags = new Set(activePublicTours.flatMap(tour => tour.tags || []));
+            const tagOptions: ChatbotNode['options'] = Array.from(usedTags).map(tag => ({
+                text: tag,
+                next: 'tag_selection',
+                action: 'manageTagSelection',
+                actionContext: tag
+            }));
+
+            // Add the "Back" option
+            tagOptions.push({ text: "⬅️ Volver", next: "trips_menu" });
+
+            return {
+                success: true,
+                message: "Selecciona una o más temáticas que te interesen y luego presiona 'Buscar'.",
+                options: tagOptions
+            };
+        }
+        case 'manageTagSelection': {
+            if (!context) return { success: false, message: "Error" };
+            const { selectedTags, tag: newTag } = context;
+            const updatedTags = selectedTags.includes(newTag)
+                ? selectedTags.filter((t: string) => t !== newTag)
+                : [...selectedTags, newTag];
+
+            return {
+                success: true,
+                message: "Has actualizado tus filtros. Puedes seguir seleccionando o pulsar 'Buscar'.",
+                nodeId: 'tag_selection', // Stay on the same node
+                state: { selectedTags: updatedTags }
+            };
+        }
         case 'fetchContactInfo': {
             const settings = await getDocumentById<GeneralSettings>('settings', 'general');
             if (settings && settings.contact) {
@@ -282,19 +319,23 @@ Transporte: ${tour.bus || 'No especificado'}
           return { success: false, message: `No encontré ningún viaje a "${context}". ¿Quieres ver todos los viajes?`, fallbackNode: 'trips_menu' };
       }
       case 'searchTripsByAttribute': {
+          const tagsToSearch: string[] = Array.isArray(context) ? context : [context];
+          if (tagsToSearch.length === 0) {
+              return { success: true, message: "No seleccionaste ninguna temática. ¿Quieres ver todos los viajes?", nodeId: 'trips_menu' };
+          }
+
           const allTours = await getAllFromCollection<Tour>('tours');
           const activeTours = allTours.filter(t => t.isPublic && getDateFromFirestore(t.date) >= new Date());
-          const searchTerm = context.toLowerCase();
           
-          const results = activeTours.filter(t => 
-              (t.destination.toLowerCase().includes(searchTerm)) ||
-              (t.tags && t.tags.some(tag => tag.toLowerCase() === searchTerm))
+          const results = activeTours.filter(tour => 
+              tagsToSearch.every(tag => tour.tags?.includes(tag))
           );
           
           if (results.length > 0) {
-              return { success: true, message: `Encontré estos viajes para ti con la temática "${context}":`, data: serializeCollection(results) };
+              const tagText = tagsToSearch.join(', ');
+              return { success: true, message: `Encontré estos viajes con la(s) temática(s) "${tagText}":`, data: serializeCollection(results) };
           }
-          return { success: false, message: `No encontré viajes de "${context}" ahora mismo, pero aquí tienes todos nuestros viajes activos:`, data: serializeCollection(activeTours), fallbackNode: 'trips_result'};
+          return { success: false, message: `No encontré viajes con todas esas temáticas. Aquí tienes todos nuestros viajes activos:`, data: serializeCollection(activeTours), fallbackNode: 'trips_result'};
       }
       case 'fetchPassengerByDNI': {
         if (!context) return { success: false, message: "Debes iniciar sesión para ver tus datos.", fallbackNode: 'start' };
