@@ -19,14 +19,7 @@ import {
   DialogDescription,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command"
+import { SearchableSelect } from "@/components/searchable-select"
 
 import { useToast } from "@/hooks/use-toast"
 import { cn, getDisplayUrl } from "@/lib/utils"
@@ -99,7 +92,6 @@ const Slideshow = ({ items }: { items: { id: string; image: string; destination:
 export default function Home() {
   const [tours, setTours] = useState<Tour[]>([])
   const [generalSettings, setGeneralSettings] = useState<GeneralSettings | null>(null);
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const router = useRouter()
   const { toast } = useToast();
   const { t } = useTranslation();
@@ -140,10 +132,16 @@ export default function Home() {
     return featuredTours.filter(tour => tour.showAsPopup);
   }, [featuredTours]);
   
+  const destinationOptions = useMemo(() => {
+    return activeTours.map(tour => ({
+      value: tour.id,
+      label: tour.destination
+    }));
+  }, [activeTours]);
+  
   const handleDestinationSelect = (tourId: string) => {
-    if (tourId) {
+    if (tourId && destinationOptions.some(opt => opt.value === tourId)) {
       router.push(`/booking/${tourId}`)
-      setIsSearchOpen(false);
     }
   }
 
@@ -166,7 +164,7 @@ export default function Home() {
       <SiteHeader />
       <FeaturedTripPopup tours={popupTours} />
       <main className="flex-1">
-        <section className="relative w-full h-[80vh] md:h-[90vh] flex items-center justify-center text-center text-white overflow-hidden">
+        <section className="relative w-full h-[80vh] md:h-[90vh] flex items-center justify-center text-center text-white">
            <Slideshow items={carouselItems} />
 
           <div className="container px-4 md:px-6 z-10">
@@ -177,41 +175,16 @@ export default function Home() {
               {t('hero.subtitle')}
             </p>
             <div className="max-w-xl mx-auto mt-8 animate-fade-in-up" style={{ animationDelay: '0.4s' }}>
-              <div className="flex flex-col gap-4 p-4 rounded-2xl shadow-2xl bg-background/80 backdrop-blur-lg border border-white/20 overflow-visible">
-                 <Dialog open={isSearchOpen} onOpenChange={setIsSearchOpen}>
-                    <DialogTrigger asChild>
-                        <Button
-                            variant="default"
-                            className="w-full h-14 text-base md:text-lg justify-start pl-12 relative bg-white hover:bg-white/90 text-muted-foreground"
-                        >
-                             <MapPinIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-primary" />
-                             {t('hero.destination_placeholder')}
-                        </Button>
-                    </DialogTrigger>
-                    <DialogContent className="p-0">
-                        <DialogHeader className="sr-only">
-                          <DialogTitle>Seleccionar Destino</DialogTitle>
-                          <DialogDescription>Busca y selecciona un viaje para ver más detalles.</DialogDescription>
-                        </DialogHeader>
-                        <Command>
-                            <CommandInput placeholder="Buscar destino..." />
-                            <CommandList>
-                                <CommandEmpty>No se encontraron viajes.</CommandEmpty>
-                                <CommandGroup>
-                                    {activeTours.map(tour => (
-                                        <CommandItem
-                                            key={tour.id}
-                                            value={tour.destination}
-                                            onSelect={() => handleDestinationSelect(tour.id)}
-                                        >
-                                            {tour.destination}
-                                        </CommandItem>
-                                    ))}
-                                </CommandGroup>
-                            </CommandList>
-                        </Command>
-                    </DialogContent>
-                </Dialog>
+              <div className="flex flex-col gap-4 p-4 rounded-2xl shadow-2xl bg-background/80 backdrop-blur-lg border border-white/20">
+                 <div className="relative">
+                    <MapPinIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-primary" />
+                    <SearchableSelect
+                      options={destinationOptions}
+                      value={""}
+                      onChange={handleDestinationSelect}
+                      placeholder={t('hero.destination_placeholder')}
+                    />
+                 </div>
               </div>
             </div>
           </div>

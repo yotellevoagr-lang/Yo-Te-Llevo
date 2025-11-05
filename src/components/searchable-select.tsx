@@ -25,26 +25,37 @@ interface SearchableSelectProps {
 
 export function SearchableSelect({ options, value, onChange, placeholder, listHeight = 'h-60', disabled = false }: SearchableSelectProps) {
     const [isOpen, setIsOpen] = useState(false);
-    const [searchTerm, setSearchTerm] = useState(value);
-    const inputRef = useRef<HTMLInputElement>(null);
+    const [searchTerm, setSearchTerm] = useState("");
+    const wrapperRef = useRef<HTMLDivElement>(null);
 
     const selectedOption = useMemo(() => options.find(opt => opt.value === value), [options, value]);
 
     useEffect(() => {
-        // Update searchTerm if the external value changes and we are NOT focused
-        if (document.activeElement !== inputRef.current) {
-            setSearchTerm(selectedOption?.label || value);
+        // Update input display value when selected option changes from outside
+        setSearchTerm(selectedOption?.label || "");
+    }, [selectedOption]);
+
+    useEffect(() => {
+      // Close dropdown when clicking outside
+      function handleClickOutside(event: MouseEvent) {
+        if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
+          setIsOpen(false);
         }
-    }, [value, selectedOption]);
+      }
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => {
+        document.removeEventListener("mousedown", handleClickOutside);
+      };
+    }, [wrapperRef]);
 
     const filteredOptions = useMemo(() => {
-        if (!searchTerm || (selectedOption && searchTerm === selectedOption.label)) return options;
+        if (!searchTerm) return options;
         const lowercasedTerm = searchTerm.toLowerCase();
         return options.filter(opt => 
             opt.label.toLowerCase().includes(lowercasedTerm) || 
             (opt.keywords && opt.keywords.some(kw => kw.toLowerCase().includes(lowercasedTerm)))
         );
-    }, [options, searchTerm, selectedOption]);
+    }, [options, searchTerm]);
 
     const handleSelect = (optionValue: string, optionLabel: string) => {
         onChange(optionValue);
@@ -57,37 +68,24 @@ export function SearchableSelect({ options, value, onChange, placeholder, listHe
         onChange('');
         setSearchTerm('');
         setIsOpen(true);
-        inputRef.current?.focus();
     };
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const newValue = e.target.value;
         setSearchTerm(newValue);
-        onChange(newValue); // Allow creating new values by typing
         if (!isOpen) setIsOpen(true);
     };
 
     return (
-        <div className="relative">
+        <div className="relative" ref={wrapperRef}>
             <div className="relative">
                 <Input
-                    ref={inputRef}
                     placeholder={placeholder}
                     value={searchTerm}
                     onChange={handleInputChange}
                     onFocus={() => setIsOpen(true)}
-                    onBlur={() => setTimeout(() => {
-                        setIsOpen(false);
-                        // On blur, if no option is selected, the input value is the final value
-                        const matchingOption = options.find(opt => opt.label.toLowerCase() === searchTerm.toLowerCase());
-                        if (matchingOption) {
-                            setSearchTerm(matchingOption.label);
-                            onChange(matchingOption.value);
-                        } else {
-                            onChange(searchTerm);
-                        }
-                    }, 200)}
                     disabled={disabled}
+                    className="h-14 text-base md:text-lg pl-12"
                 />
                 {value && !disabled && (
                     <Button
@@ -126,7 +124,7 @@ export function SearchableSelect({ options, value, onChange, placeholder, listHe
                             ))
                         ) : (
                             <div className="px-3 py-2 text-sm text-muted-foreground">
-                                No se encontraron familias. Puedes crear una nueva escribiendo.
+                                No se encontraron resultados.
                             </div>
                         )}
                     </ScrollArea>
