@@ -311,6 +311,15 @@ export function TripForm({ isOpen, onOpenChange, onSave, tour, boardingPoints }:
         setBackgroundImagePreview(nextImage ? ('url' in nextImage ? getDisplayUrl(nextImage.url) : (nextImage as GalleryFile).previewUrl) : null);
     }
   }
+  
+  const removeGalleryItem = (item: GalleryItem | GalleryFile) => {
+      if ('isNew' in item && item.isNew) {
+          removeNewGalleryFile(item.id);
+      } else {
+          removeExistingGalleryItem(item.id);
+      }
+  }
+
 
   const setAsBackgroundImage = (item: GalleryItem | GalleryFile) => {
     if (item.type === 'image') {
@@ -498,7 +507,7 @@ export function TripForm({ isOpen, onOpenChange, onSave, tour, boardingPoints }:
                                                           <Star className={cn(isMain && "fill-yellow-400 text-yellow-400")}/>
                                                       </Button>
                                                   )}
-                                                  <Button size="icon" variant="destructive" className="h-8 w-8" onClick={() => 'isNew' in item ? removeNewGalleryFile(item.id) : removeExistingGalleryItem(item.id)}>
+                                                  <Button size="icon" variant="destructive" className="h-8 w-8" onClick={() => removeGalleryItem(item)}>
                                                       <Trash2 className="w-4 h-4"/>
                                                   </Button>
                                               </div>
