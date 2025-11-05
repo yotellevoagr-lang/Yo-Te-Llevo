@@ -584,19 +584,108 @@ export default function SettingsPage() {
         <Card>
             <CardHeader>
                 <CardTitle className="flex items-center gap-2"><SettingsIcon className="w-6 h-6"/> Configuración del Sitio</CardTitle>
-                <CardDescription>Administra las configuraciones generales del sitio web.</CardDescription>
+                <CardDescription>Administra las configuraciones generales, de contacto, geográficas y de diseño del sitio web.</CardDescription>
             </CardHeader>
         </Card>
 
         <Accordion type="multiple" className="w-full space-y-6">
+            <AccordionItem value="branding" className="border-b-0">
+                <Card>
+                    <AccordionTrigger className="w-full px-6 text-left hover:no-underline text-xl">Branding y Apariencia</AccordionTrigger>
+                    <AccordionContent className="p-6 pt-2 space-y-6">
+                        <div className="space-y-4">
+                           <h3 className="font-semibold text-lg flex items-center gap-2"><ImageIcon className="w-5 h-5"/> Logo del Sitio Web</h3>
+                            <Input id="logoFile" type="file" accept="image/png, image/jpeg, image/gif, image/svg+xml" onChange={handleLogoFileChange} className="file:text-primary-foreground file:font-bold file:mr-4 file:px-4 file:py-2 file:rounded-full file:border-0 file:bg-primary hover:file:bg-primary/90"/>
+                            {logoPreview && <div className="space-y-2"><Label>Vista previa del logo</Label><div className="flex items-center gap-4 p-4 border rounded-md bg-muted"><Image src={getDisplayUrl(logoPreview)} alt="Vista previa del Logo" width={64} height={64} className="rounded-full"/></div></div>}
+                             <Button onClick={handleSaveLogo} disabled={isSaving === 'logo' || !logoFile}>{isSaving === 'logo' && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}Guardar Logo</Button>
+                        </div>
+                        <Separator/>
+                        <div className="space-y-4">
+                             <h3 className="font-semibold text-lg flex items-center gap-2"><AppWindow className="w-5 h-5"/> Ícono y Capturas de la App (PWA)</h3>
+                            <p className="text-sm text-muted-foreground">Sube el ícono (512x512px) y capturas de pantalla (verticales) para la app instalable.</p>
+                             <div className="space-y-2">
+                                <Label htmlFor="pwaIconFile">Ícono de la App</Label>
+                                <Input id="pwaIconFile" type="file" accept="image/png" onChange={handlePwaIconFileChange} className="file:text-primary-foreground file:font-bold file:mr-4 file:px-4 file:py-2 file:rounded-full file:border-0 file:bg-primary hover:file:bg-primary/90"/>
+                                {pwaIconPreview && <div className="space-y-2"><Label>Vista previa del ícono</Label><div className="flex items-center gap-4 p-4 border rounded-md bg-muted"><Image src={getDisplayUrl(pwaIconPreview)} alt="Vista previa del ícono PWA" width={64} height={64} className="rounded-lg"/></div></div>}
+                                <Button onClick={handleSavePwaIcon} disabled={isSaving === 'pwa-icon' || !pwaIconFile} className="mt-2">{isSaving === 'pwa-icon' && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}Guardar Ícono</Button>
+                            </div>
+                            <div className="space-y-2 pt-4">
+                                <Label htmlFor="pwaScreenshots">Capturas de Pantalla de la App</Label>
+                                <Input id="pwaScreenshots" type="file" accept="image/png, image/jpeg" multiple onChange={handlePwaScreenshotsChange} className="file:text-primary-foreground file:font-bold file:mr-4 file:px-4 file:py-2 file:rounded-full file:border-0 file:bg-primary hover:file:bg-primary/90"/>
+                                {pwaScreenshotPreviews.length > 0 && <div className="space-y-2"><Label>Vistas previas</Label><div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 p-4 border rounded-md bg-muted">{pwaScreenshotPreviews.map((preview, index) => (<div key={index} className="relative group aspect-[9/16]"><Image src={getDisplayUrl(preview)} alt={`Captura ${index + 1}`} layout="fill" objectFit="cover" className="rounded-md"/><Button variant="destructive" size="icon" className="absolute top-1 right-1 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => removePwaScreenshot(index)}><Trash2 className="w-4 h-4"/></Button></div>))}</div></div>}
+                                <Button onClick={handleSavePwaScreenshots} disabled={isSaving === 'pwa-screenshots'} className="mt-2">{isSaving === 'pwa-screenshots' && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}Guardar Capturas</Button>
+                            </div>
+                        </div>
+                        <Separator/>
+                         <div className="space-y-4">
+                            <h3 className="font-semibold text-lg flex items-center gap-2"><ImageIcon className="w-5 h-5"/> Imagen/Video 'Sobre Nosotros'</h3>
+                            <p className="text-sm text-muted-foreground">Este contenido aparecerá en la sección "Sobre Nosotros" de la página de inicio.</p>
+                            <Input id="aboutUsMedia" type="file" accept="image/*,video/*" onChange={handleAboutUsMediaChange} className="file:text-primary-foreground file:font-bold file:mr-4 file:px-4 file:py-2 file:rounded-full file:border-0 file:bg-primary hover:file:bg-primary/90"/>
+                            {aboutUsMediaPreview && <div className="space-y-2"><Label>Vista previa</Label><div className="flex items-center justify-center p-4 border rounded-md bg-muted">{aboutUsMediaPreview.type === 'video' ? <video src={getDisplayUrl(aboutUsMediaPreview.url)} controls className="max-h-60 rounded-md" /> : <Image src={getDisplayUrl(aboutUsMediaPreview.url)} alt="Vista previa" width={300} height={200} className="rounded-md object-contain max-h-60"/>}</div></div>}
+                            <Button onClick={handleSaveAboutUsMedia} disabled={isSaving === 'about-us' || !aboutUsMediaFile}>{isSaving === 'about-us' && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}Guardar Multimedia</Button>
+                        </div>
+                    </AccordionContent>
+                </Card>
+            </AccordionItem>
+            
+             <AccordionItem value="main-settings" className="border-b-0">
+                <Card>
+                    <AccordionTrigger className="w-full px-6 text-left hover:no-underline text-xl">Ajustes Generales</AccordionTrigger>
+                    <AccordionContent className="p-6 pt-2">
+                        <div className="space-y-4">
+                            <div className="space-y-2"><Label htmlFor="main-whatsapp">Número de WhatsApp Principal</Label><Input id="main-whatsapp" type="tel" placeholder="Ej: 5491122334455" value={generalSettings.mainWhatsappNumber || ''} onChange={(e) => handleGeneralSettingsChange('mainWhatsappNumber', e.target.value)} /><p className="text-xs text-muted-foreground">Este número se usará si un vendedor no tiene uno asignado.</p></div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div className="space-y-2"><Label htmlFor="calendar-folder" className="flex items-center gap-2"><Folder/> Nombre Carpeta Calendarios</Label><Input id="calendar-folder" value={generalSettings.calendarDownloadFolder || ''} onChange={(e) => handleGeneralSettingsChange('calendarDownloadFolder', e.target.value)} /></div><div className="space-y-2"><Label htmlFor="report-folder" className="flex items-center gap-2"><Folder/> Nombre Carpeta Reportes</Label><Input id="report-folder" value={generalSettings.reportDownloadFolder || ''} onChange={(e) => handleGeneralSettingsChange('reportDownloadFolder', e.target.value)} /></div></div>
+                            <Button onClick={handleSaveMainSettings} disabled={!!isSaving}>{isSaving === 'main' && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}Guardar Ajustes</Button>
+                        </div>
+                    </AccordionContent>
+                </Card>
+            </AccordionItem>
+            
+            <AccordionItem value="contact" className="border-b-0">
+                <Card>
+                    <AccordionTrigger className="w-full px-6 text-left hover:no-underline text-xl">Datos de Contacto</AccordionTrigger>
+                    <AccordionContent className="p-6 pt-2">
+                        <p className="text-sm text-muted-foreground mb-4">Esta información se mostrará en la página de contacto pública.</p>
+                        <div className="space-y-4">
+                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-2"><Label htmlFor="contact-address">Dirección (Texto)</Label><Input id="contact-address" value={contactSettings.address || ''} onChange={(e) => handleContactSettingsChange('address', e.target.value)} placeholder="Calle Falsa 123, Ciudad"/></div>
+                                <div className="space-y-2"><Label htmlFor="contact-addressLink">Enlace de Google Maps</Label><Input id="contact-addressLink" value={contactSettings.addressLink || ''} onChange={(e) => handleContactSettingsChange('addressLink', e.target.value)} placeholder="URL de Google Maps"/></div>
+                                <div className="space-y-2"><Label htmlFor="contact-phone">Teléfono de Contacto</Label><Input id="contact-phone" value={contactSettings.phone || ''} onChange={(e) => handleContactSettingsChange('phone', e.target.value)} placeholder="011-4567-8901"/></div>
+                                <div className="space-y-2"><Label htmlFor="contact-email">Email</Label><Input id="contact-email" type="email" value={contactSettings.email || ''} onChange={(e) => handleContactSettingsChange('email', e.target.value)} placeholder="contacto@empresa.com"/></div>
+                                <div className="space-y-2"><Label htmlFor="contact-hours">Horario de Atención</Label><Input id="contact-hours" value={contactSettings.hours || ''} onChange={(e) => handleContactSettingsChange('hours', e.target.value)} placeholder="Lunes a Viernes de 9 a 18hs"/></div>
+                                <div className="space-y-2"><Label htmlFor="contact-instagram">Instagram</Label><Input id="contact-instagram" value={contactSettings.instagram || ''} onChange={(e) => handleContactSettingsChange('instagram', e.target.value)} placeholder="https://instagram.com/usuario"/></div>
+                                <div className="space-y-2"><Label htmlFor="contact-facebook">Facebook</Label><Input id="contact-facebook" value={contactSettings.facebook || ''} onChange={(e) => handleContactSettingsChange('facebook', e.target.value)} placeholder="https://facebook.com/usuario"/></div>
+                            </div>
+                            <Button onClick={handleSaveContact} disabled={!!isSaving}>{isSaving === 'contact' && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}Guardar Contacto</Button>
+                        </div>
+                    </AccordionContent>
+                </Card>
+            </AccordionItem>
+            
+            <AccordionItem value="security" className="border-b-0">
+                 <Card>
+                    <AccordionTrigger className="w-full px-6 text-left hover:no-underline text-xl">Seguridad de la Cuenta</AccordionTrigger>
+                    <AccordionContent className="p-6 pt-2">
+                        <p className="text-sm text-muted-foreground mb-4">Gestiona el correo y la contraseña de la cuenta de administrador.</p>
+                        <div className="p-4 border rounded-lg bg-muted/30"><div className="flex items-center justify-between"><div className="space-y-1"><h3 className="font-semibold">Credenciales</h3><p className="text-sm text-muted-foreground">Email: {adminUser?.email || 'cargando...'}</p></div><Button variant="outline" onClick={() => setIsCredentialsDialogOpen(true)}><KeyRound className="mr-2 h-4 w-4" /> Cambiar</Button></div></div>
+                    </AccordionContent>
+                 </Card>
+            </AccordionItem>
+            
+            <AccordionItem value="geo" className="border-b-0">
+                 <Card>
+                    <AccordionTrigger className="w-full px-6 text-left hover:no-underline text-xl">Zona Geográfica</AccordionTrigger>
+                    <AccordionContent className="p-6 pt-2">
+                         <p className="text-sm text-muted-foreground mb-4">Define el centro y el radio de tu zona de servicio para la compra directa.</p>
+                         {isClient && <GeoSettingsCard />}
+                    </AccordionContent>
+                 </Card>
+            </AccordionItem>
+
             <AccordionItem value="tags" className="border-b-0">
                 <Card>
-                    <AccordionTrigger className="w-full px-6 text-left hover:no-underline">
-                        <CardHeader className="p-0">
-                            <CardTitle className="flex items-center gap-2"><Tag className="w-6 h-6"/> Etiquetas de Viajes</CardTitle>
-                        </CardHeader>
-                    </AccordionTrigger>
-                    <AccordionContent className="p-6 pt-0">
+                    <AccordionTrigger className="w-full px-6 text-left hover:no-underline text-xl">Etiquetas de Viajes</AccordionTrigger>
+                    <AccordionContent className="p-6 pt-2">
                         <CardDescription className="mb-4">Gestiona las etiquetas disponibles para categorizar los viajes.</CardDescription>
                         <div className="space-y-2">
                             {travelTags.map((tag, index) => (
@@ -606,21 +695,18 @@ export default function SettingsPage() {
                                 </div>
                             ))}
                         </div>
-                        <CardFooter className="justify-between px-0 pt-4">
+                        <div className="flex justify-between items-center pt-4">
                             <Button variant="outline" onClick={handleAddTag}><PlusCircle className="mr-2 h-4 w-4"/> Añadir Etiqueta</Button>
                             <Button onClick={handleSaveTags} disabled={isSaving === 'tags'}>{isSaving === 'tags' && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}Guardar Etiquetas</Button>
-                        </CardFooter>
+                        </div>
                     </AccordionContent>
                 </Card>
             </AccordionItem>
+
             <AccordionItem value="domains" className="border-b-0">
                 <Card>
-                    <AccordionTrigger className="w-full px-6 text-left hover:no-underline">
-                        <CardHeader className="p-0">
-                             <CardTitle className="flex items-center gap-2"><Globe className="w-6 h-6"/> Dominios Personalizados</CardTitle>
-                        </CardHeader>
-                    </AccordionTrigger>
-                    <AccordionContent className="p-6 pt-0">
+                    <AccordionTrigger className="w-full px-6 text-left hover:no-underline text-xl">Dominios Personalizados</AccordionTrigger>
+                    <AccordionContent className="p-6 pt-2">
                         <CardDescription className="mb-4">Añade los dominios que has configurado en Firebase para el sitio de clientes.</CardDescription>
                          <div className="flex gap-2">
                             <Input placeholder="ejemplo.com" value={newDomain} onChange={(e) => setNewDomain(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleAddDomain()}/>
@@ -638,86 +724,11 @@ export default function SettingsPage() {
                     </AccordionContent>
                 </Card>
             </AccordionItem>
-        </Accordion>
-        
-        <Card>
-            <CardHeader><CardTitle className="text-xl">Logo del Sitio Web</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-                <Input id="logoFile" type="file" accept="image/png, image/jpeg, image/gif, image/svg+xml" onChange={handleLogoFileChange} className="file:text-primary-foreground file:font-bold file:mr-4 file:px-4 file:py-2 file:rounded-full file:border-0 file:bg-primary hover:file:bg-primary/90"/>
-                {logoPreview && <div className="space-y-2"><Label>Vista previa del logo</Label><div className="flex items-center gap-4 p-4 border rounded-md bg-muted"><Image src={getDisplayUrl(logoPreview)} alt="Vista previa del Logo" width={64} height={64} className="rounded-full"/></div></div>}
-            </CardContent>
-            <CardFooter><Button onClick={handleSaveLogo} disabled={isSaving === 'logo' || !logoFile}>{isSaving === 'logo' && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}Guardar Logo</Button></CardFooter>
-        </Card>
-        
-        <Card>
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2"><AppWindow className="w-6 h-6"/> Ícono y Capturas de la App (PWA)</CardTitle>
-                <CardDescription>Sube el ícono (512x512px) y capturas de pantalla (verticales) para la app instalable.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                <div className="space-y-2">
-                    <Label htmlFor="pwaIconFile">Ícono de la App</Label>
-                    <Input id="pwaIconFile" type="file" accept="image/png" onChange={handlePwaIconFileChange} className="file:text-primary-foreground file:font-bold file:mr-4 file:px-4 file:py-2 file:rounded-full file:border-0 file:bg-primary hover:file:bg-primary/90"/>
-                    {pwaIconPreview && <div className="space-y-2"><Label>Vista previa del ícono</Label><div className="flex items-center gap-4 p-4 border rounded-md bg-muted"><Image src={getDisplayUrl(pwaIconPreview)} alt="Vista previa del ícono PWA" width={64} height={64} className="rounded-lg"/></div></div>}
-                     <Button onClick={handleSavePwaIcon} disabled={isSaving === 'pwa-icon' || !pwaIconFile} className="mt-2">{isSaving === 'pwa-icon' && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}Guardar Ícono</Button>
-                </div>
-                 <div className="space-y-2 pt-4">
-                    <Label htmlFor="pwaScreenshots">Capturas de Pantalla de la App</Label>
-                    <Input id="pwaScreenshots" type="file" accept="image/png, image/jpeg" multiple onChange={handlePwaScreenshotsChange} className="file:text-primary-foreground file:font-bold file:mr-4 file:px-4 file:py-2 file:rounded-full file:border-0 file:bg-primary hover:file:bg-primary/90"/>
-                    {pwaScreenshotPreviews.length > 0 && <div className="space-y-2"><Label>Vistas previas</Label><div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 p-4 border rounded-md bg-muted">{pwaScreenshotPreviews.map((preview, index) => (<div key={index} className="relative group aspect-[9/16]"><Image src={getDisplayUrl(preview)} alt={`Captura ${index + 1}`} layout="fill" objectFit="cover" className="rounded-md"/><Button variant="destructive" size="icon" className="absolute top-1 right-1 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => removePwaScreenshot(index)}><Trash2 className="w-4 h-4"/></Button></div>))}</div></div>}
-                     <Button onClick={handleSavePwaScreenshots} disabled={isSaving === 'pwa-screenshots'} className="mt-2">{isSaving === 'pwa-screenshots' && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}Guardar Capturas</Button>
-                </div>
-            </CardContent>
-        </Card>
-
-        <Card>
-            <CardHeader><CardTitle className="flex items-center gap-2 text-xl"><ImageIcon className="w-5 h-5"/> Imagen/Video 'Sobre Nosotros'</CardTitle><CardDescription>Este contenido aparecerá en la sección "Sobre Nosotros" de la página de inicio.</CardDescription></CardHeader>
-            <CardContent className="space-y-4">
-                <Input id="aboutUsMedia" type="file" accept="image/*,video/*" onChange={handleAboutUsMediaChange} className="file:text-primary-foreground file:font-bold file:mr-4 file:px-4 file:py-2 file:rounded-full file:border-0 file:bg-primary hover:file:bg-primary/90"/>
-                {aboutUsMediaPreview && <div className="space-y-2"><Label>Vista previa</Label><div className="flex items-center justify-center p-4 border rounded-md bg-muted">{aboutUsMediaPreview.type === 'video' ? <video src={getDisplayUrl(aboutUsMediaPreview.url)} controls className="max-h-60 rounded-md" /> : <Image src={getDisplayUrl(aboutUsMediaPreview.url)} alt="Vista previa" width={300} height={200} className="rounded-md object-contain max-h-60"/>}</div></div>}
-            </CardContent>
-            <CardFooter><Button onClick={handleSaveAboutUsMedia} disabled={isSaving === 'about-us' || !aboutUsMediaFile}>{isSaving === 'about-us' && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}Guardar Multimedia</Button></CardFooter>
-        </Card>
-        
-        <Card>
-            <CardHeader><CardTitle className="text-xl">Ajustes Generales</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-                <div className="space-y-2"><Label htmlFor="main-whatsapp">Número de WhatsApp Principal</Label><Input id="main-whatsapp" type="tel" placeholder="Ej: 5491122334455" value={generalSettings.mainWhatsappNumber || ''} onChange={(e) => handleGeneralSettingsChange('mainWhatsappNumber', e.target.value)} /><p className="text-xs text-muted-foreground">Este número se usará si un vendedor no tiene uno asignado.</p></div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div className="space-y-2"><Label htmlFor="calendar-folder" className="flex items-center gap-2"><Folder/> Nombre Carpeta Calendarios</Label><Input id="calendar-folder" value={generalSettings.calendarDownloadFolder || ''} onChange={(e) => handleGeneralSettingsChange('calendarDownloadFolder', e.target.value)} /></div><div className="space-y-2"><Label htmlFor="report-folder" className="flex items-center gap-2"><Folder/> Nombre Carpeta Reportes</Label><Input id="report-folder" value={generalSettings.reportDownloadFolder || ''} onChange={(e) => handleGeneralSettingsChange('reportDownloadFolder', e.target.value)} /></div></div>
-            </CardContent>
-            <CardFooter><Button onClick={handleSaveMainSettings} disabled={!!isSaving}>{isSaving === 'main' && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}Guardar Ajustes</Button></CardFooter>
-        </Card>
-
-        <Card>
-            <CardHeader><CardTitle className="flex items-center gap-2 text-xl"><Contact className="w-5 h-5"/> Datos de Contacto</CardTitle><CardDescription>Esta información se mostrará en la página de contacto pública.</CardDescription></CardHeader>
-            <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2"><Label htmlFor="contact-address">Dirección (Texto)</Label><Input id="contact-address" value={contactSettings.address || ''} onChange={(e) => handleContactSettingsChange('address', e.target.value)} placeholder="Calle Falsa 123, Ciudad"/></div>
-                    <div className="space-y-2"><Label htmlFor="contact-addressLink">Enlace de Google Maps</Label><Input id="contact-addressLink" value={contactSettings.addressLink || ''} onChange={(e) => handleContactSettingsChange('addressLink', e.target.value)} placeholder="URL de Google Maps"/></div>
-                    <div className="space-y-2"><Label htmlFor="contact-phone">Teléfono de Contacto</Label><Input id="contact-phone" value={contactSettings.phone || ''} onChange={(e) => handleContactSettingsChange('phone', e.target.value)} placeholder="011-4567-8901"/></div>
-                    <div className="space-y-2"><Label htmlFor="contact-email">Email</Label><Input id="contact-email" type="email" value={contactSettings.email || ''} onChange={(e) => handleContactSettingsChange('email', e.target.value)} placeholder="contacto@empresa.com"/></div>
-                    <div className="space-y-2"><Label htmlFor="contact-hours">Horario de Atención</Label><Input id="contact-hours" value={contactSettings.hours || ''} onChange={(e) => handleContactSettingsChange('hours', e.target.value)} placeholder="Lunes a Viernes de 9 a 18hs"/></div>
-                    <div className="space-y-2"><Label htmlFor="contact-instagram">Instagram</Label><Input id="contact-instagram" value={contactSettings.instagram || ''} onChange={(e) => handleContactSettingsChange('instagram', e.target.value)} placeholder="https://instagram.com/usuario"/></div>
-                    <div className="space-y-2"><Label htmlFor="contact-facebook">Facebook</Label><Input id="contact-facebook" value={contactSettings.facebook || ''} onChange={(e) => handleContactSettingsChange('facebook', e.target.value)} placeholder="https://facebook.com/usuario"/></div>
-                </div>
-            </CardContent>
-            <CardFooter><Button onClick={handleSaveContact} disabled={!!isSaving}>{isSaving === 'contact' && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}Guardar Contacto</Button></CardFooter>
-        </Card>
-        
-        <Card>
-            <CardHeader><CardTitle className="flex items-center gap-2"><ShieldCheck className="w-6 h-6"/> Seguridad de la Cuenta</CardTitle><CardDescription>Gestiona el correo y la contraseña de la cuenta de administrador.</CardDescription></CardHeader>
-            <CardContent className="space-y-4"><div className="p-4 border rounded-lg bg-muted/30"><div className="flex items-center justify-between"><div className="space-y-1"><h3 className="font-semibold">Credenciales</h3><p className="text-sm text-muted-foreground">Email: {adminUser?.email || 'cargando...'}</p></div><Button variant="outline" onClick={() => setIsCredentialsDialogOpen(true)}><KeyRound className="mr-2 h-4 w-4" /> Cambiar</Button></div></div></CardContent>
-        </Card>
-
-        {isClient && <GeoSettingsCard />}
-
-        <Accordion type="multiple" className="w-full space-y-6">
+            
             <AccordionItem value="boarding-points" className="border-b-0">
                 <Card>
-                    <AccordionTrigger className="w-full px-6 text-left hover:no-underline">
-                        <CardHeader className="p-0"><CardTitle className="flex items-center gap-2"><Pin className="w-6 h-6"/> Puntos de Embarque</CardTitle></CardHeader>
-                    </AccordionTrigger>
-                    <AccordionContent className="p-6 pt-0">
+                    <AccordionTrigger className="w-full px-6 text-left hover:no-underline text-xl">Puntos de Embarque</AccordionTrigger>
+                    <AccordionContent className="p-6 pt-2">
                         <CardDescription className="mb-4">Añade y gestiona las paradas o puntos de encuentro para los viajes.</CardDescription>
                         <div className="space-y-2">{boardingPoints.map((point) => (<div key={point.id} className="flex items-center gap-2"><Input value={point.name} onChange={(e) => handleBoardingPointChange(point.id, e.target.value)} placeholder="Nombre de la parada..."/><Button variant="ghost" size="icon" onClick={() => handleRemoveBoardingPoint(point.id)}><Trash2 className="w-4 h-4 text-destructive"/></Button></div>))}</div>
                         <div className="flex justify-between items-center pt-4"><Button variant="outline" onClick={handleAddBoardingPoint}><PlusCircle className="mr-2 h-4 w-4"/> Añadir Parada</Button><Button onClick={handleSaveBoardingPoints} disabled={!!isSaving}>{isSaving === 'boarding' && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}Guardar Paradas</Button></div>
@@ -726,10 +737,8 @@ export default function SettingsPage() {
             </AccordionItem>
             <AccordionItem value="pensions" className="border-b-0">
                 <Card>
-                    <AccordionTrigger className="w-full px-6 text-left hover:no-underline">
-                        <CardHeader className="p-0"><CardTitle className="flex items-center gap-2"><Utensils className="w-6 h-6"/> Tipos de Pensión</CardTitle></CardHeader>
-                    </AccordionTrigger>
-                    <AccordionContent className="p-6 pt-0">
+                    <AccordionTrigger className="w-full px-6 text-left hover:no-underline text-xl">Tipos de Pensión</AccordionTrigger>
+                    <AccordionContent className="p-6 pt-2">
                         <CardDescription className="mb-4">Gestiona los tipos de pensiones que se pueden asignar a una reserva.</CardDescription>
                         <div className="space-y-2">{pensions.map((pension) => (<div key={pension.id} className="flex items-center gap-2"><Input value={pension.name} onChange={(e) => handlePensionChange(pension.id, 'name', e.target.value)} placeholder="Nombre (Ej: Media Pensión)"/><Input value={pension.description} onChange={(e) => handlePensionChange(pension.id, 'description', e.target.value)} placeholder="Descripción (Ej: Desayuno y cena)"/><Button variant="ghost" size="icon" onClick={() => handleRemovePension(pension.id)}><Trash2 className="w-4 h-4 text-destructive"/></Button></div>))}</div>
                         <div className="flex justify-between items-center pt-4"><Button variant="outline" onClick={handleAddPension}><PlusCircle className="mr-2 h-4 w-4"/> Añadir Tipo</Button><Button onClick={handleSavePensions} disabled={!!isSaving}>{isSaving === 'pensions' && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}Guardar Pensiones</Button></div>
@@ -738,10 +747,8 @@ export default function SettingsPage() {
             </AccordionItem>
             <AccordionItem value="room-types" className="border-b-0">
                 <Card>
-                    <AccordionTrigger className="w-full px-6 text-left hover:no-underline">
-                        <CardHeader className="p-0"><CardTitle className="flex items-center gap-2"><BedDouble className="w-6 h-6"/> Tipos de Habitación</CardTitle></CardHeader>
-                    </AccordionTrigger>
-                    <AccordionContent className="p-6 pt-0">
+                    <AccordionTrigger className="w-full px-6 text-left hover:no-underline text-xl">Tipos de Habitación</AccordionTrigger>
+                    <AccordionContent className="p-6 pt-2">
                         <CardDescription className="mb-4">Añade y gestiona los tipos de habitaciones disponibles.</CardDescription>
                         <div className="space-y-2">{roomTypes.map((rt) => (<div key={rt.id} className="flex items-center gap-2"><Input value={rt.name} onChange={(e) => handleRoomTypeChange(rt.id, e.target.value)} placeholder="Nombre (Ej: Doble Matrimonial)"/><Button variant="ghost" size="icon" onClick={() => handleRemoveRoomType(rt.id)}><Trash2 className="w-4 h-4 text-destructive"/></Button></div>))}</div>
                         <div className="flex justify-between items-center pt-4"><Button variant="outline" onClick={handleAddRoomType}><PlusCircle className="mr-2 h-4 w-4"/> Añadir Tipo</Button><Button onClick={handleSaveRoomTypes} disabled={!!isSaving}>{isSaving === 'rooms' && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}Guardar Habitaciones</Button></div>
@@ -755,10 +762,8 @@ export default function SettingsPage() {
                 return (
                      <AccordionItem key={category} value={`layout-${category}`} className="border-b-0">
                          <Card>
-                             <AccordionTrigger className="w-full px-6 text-left hover:no-underline">
-                                 <CardHeader className="p-0"><CardTitle className="flex items-center gap-2"><Icon className="w-6 h-6"/> {details.title}</CardTitle></CardHeader>
-                            </AccordionTrigger>
-                             <AccordionContent className="p-6 pt-0">
+                             <AccordionTrigger className="w-full px-6 text-left hover:no-underline text-xl"><Icon className="w-6 h-6 mr-2"/> {details.title}</AccordionTrigger>
+                             <AccordionContent className="p-6 pt-2">
                                 <CardDescription className="mb-4">Añade, edita o elimina los tipos y sus layouts.</CardDescription>
                                 <div className="space-y-2">
                                     {Object.entries(layoutConfig[category] || {}).map(([key, config]) => (
@@ -772,7 +777,7 @@ export default function SettingsPage() {
                                     ))}
                                     {Object.keys(layoutConfig[category] || {}).length === 0 && (<p className="text-sm text-muted-foreground p-4 text-center">No hay tipos definidos.</p>)}
                                 </div>
-                                <CardFooter className="px-0 pt-4"><Button variant="outline" onClick={() => handleAddNewLayout(category)}><PlusCircle className="mr-2 h-4 w-4" /> Añadir</Button></CardFooter>
+                                <div className="pt-4"><Button variant="outline" onClick={() => handleAddNewLayout(category)}><PlusCircle className="mr-2 h-4 w-4" /> Añadir</Button></div>
                             </AccordionContent>
                         </Card>
                     </AccordionItem>
