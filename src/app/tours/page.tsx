@@ -70,10 +70,7 @@ export default function ToursPage() {
   
   useEffect(() => {
     const fetchData = async () => {
-        const [toursData, settingsData] = await Promise.all([
-            getAllFromCollection_client<Tour>('tours'),
-            getDocumentById<GeneralSettings>('settings', 'general')
-        ]);
+        const toursData = await getAllFromCollection_client<Tour>('tours');
         
         const processedTours = toursData.map(t => ({
           ...t,
@@ -211,5 +208,3 @@ export default function ToursPage() {
     </div>
   )
 }
-
-    
