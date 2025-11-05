@@ -1,5 +1,3 @@
-
-
 "use client"
 
 import { useState, useEffect } from "react"
@@ -30,12 +28,20 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion"
 import { useAuth } from "@/components/auth/auth-provider"
-import { getAllFromCollection_client, getDocumentById, deleteDocument, saveDocument, uploadFileAndGetURL } from "@/lib/firestore-services"
+import { getAllFromCollection_client, getDocumentById, deleteDocument, saveDocument } from "@/lib/firestore-services"
 import { getDisplayUrl } from "@/lib/utils"
 import { GeoSettingsCard } from "@/components/admin/settings/geo-settings-card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Separator } from "@/components/ui/separator"
 
+const fileToDataUrl = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = error => reject(error);
+        reader.readAsDataURL(file);
+    });
+};
 
 function ChangeCredentialsDialog({ adminUser, onUpdate, isOpen, onOpenChange }: { adminUser: Employee | null, onUpdate: (user: Employee) => void, isOpen: boolean, onOpenChange: (open: boolean) => void }) {
   const [currentPassword, setCurrentPassword] = useState("");
@@ -338,6 +344,7 @@ export default function SettingsPage() {
 
         setIsSaving('pwa-screenshots');
         try {
+            // Since we are using Base64, previews are the final data.
             await saveDocument('settings', { pwaScreenshots: pwaScreenshotPreviews }, 'general');
             window.dispatchEvent(new Event('storage'));
             toast({ title: "Capturas guardadas", description: "Las capturas de pantalla de la PWA han sido actualizadas." });
@@ -357,8 +364,8 @@ export default function SettingsPage() {
         }
         setIsSaving('about-us');
         try {
-            const mediaUrl = await uploadFileAndGetURL(aboutUsMediaFile, `settings/about-us/${aboutUsMediaFile.name}`);
-            const newAboutUsMedia = { url: mediaUrl, type: aboutUsMediaFile.type.startsWith('video') ? 'video' : 'image' };
+            const dataUrl = await fileToDataUrl(aboutUsMediaFile);
+            const newAboutUsMedia = { url: dataUrl, type: aboutUsMediaFile.type.startsWith('video') ? 'video' : 'image' };
 
             await saveDocument('settings', { aboutUsMedia: newAboutUsMedia }, 'general');
             window.dispatchEvent(new Event('storage'));
