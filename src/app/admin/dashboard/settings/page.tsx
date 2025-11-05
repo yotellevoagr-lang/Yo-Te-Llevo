@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
 import { Settings as SettingsIcon, Bus, Trash2, Edit, PlusCircle, Ship, Plane, Save, Contact, Utensils, BedDouble, Folder, ShieldCheck, KeyRound, Mail, Eye, EyeOff, Image as ImageIcon, Globe, AppWindow, Loader2, Tag, Pin } from "lucide-react"
-import type { CustomLayoutConfig, LayoutCategory, GeneralSettings, ContactSettings, Pension, RoomType, Employee, DomainSettings } from "@/lib/types"
+import type { CustomLayoutConfig, LayoutCategory, GeneralSettings, ContactSettings, Pension, RoomType, Employee, DomainSettings, BoardingPoint } from "@/lib/types"
 import { LayoutEditor } from "@/components/admin/layout-editor"
 import { updatePassword, updateEmail, reauthenticateWithCredential, EmailAuthProvider } from "firebase/auth"
 import {
@@ -34,6 +34,7 @@ import { getAllFromCollection_client, getDocumentById, deleteDocument, saveDocum
 import { getDisplayUrl } from "@/lib/utils"
 import { GeoSettingsCard } from "@/components/admin/settings/geo-settings-card"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Separator } from "@/components/ui/separator"
 
 
 function ChangeCredentialsDialog({ adminUser, onUpdate, isOpen, onOpenChange }: { adminUser: Employee | null, onUpdate: (user: Employee) => void, isOpen: boolean, onOpenChange: (open: boolean) => void }) {
