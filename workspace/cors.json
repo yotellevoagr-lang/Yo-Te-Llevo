@@ -1,0 +1,9 @@
+
+[
+  {
+    "origin": ["http://localhost:9003", "https://*.cloudworkstations.dev", "https://*.web.app", "https://*.firebaseapp.com"],
+    "method": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    "responseHeader": ["Content-Type", "Access-Control-Allow-Origin"],
+    "maxAgeSeconds": 3600
+  }
+]
