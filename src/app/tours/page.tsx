@@ -98,7 +98,7 @@ export default function ToursPage() {
     // Filter by tags
     if (selectedTags.length > 0) {
       filtered = filtered.filter(tour => 
-        selectedTags.every(tag => tour.tags?.includes(tag))
+        selectedTags.some(tag => tour.tags?.includes(tag))
       );
     }
 
