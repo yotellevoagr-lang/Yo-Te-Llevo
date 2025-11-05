@@ -13,28 +13,33 @@ echo "--- Iniciando el proceso de despliegue a GitHub en la rama '$BRANCH_NAME' 
 echo ""
 
 # 1. Asegurarse de que el repositorio Git esté inicializado y conectado.
-# Si no hay un directorio .git, lo inicializa.
 if [ ! -d ".git" ]; then
   echo "Paso 1: No se encontró repositorio Git. Inicializando uno nuevo..."
   git init
   git branch -M $BRANCH_NAME
 else
   echo "Paso 1: Repositorio Git encontrado."
-  # Cambiamos a la rama deseada, creándola si no existe
   git checkout -B $BRANCH_NAME
 fi
 echo ""
 
-# 2. Conecta tu repositorio local con el de GitHub si no está conectado.
+# 2. Conecta tu repositorio local con el de GitHub y descarga cambios.
 echo "Paso 2: Verificando la conexión con el repositorio remoto..."
 if git remote | grep -q "origin"; then
-    # Si 'origin' existe, solo nos aseguramos de que la URL sea la correcta.
     git remote set-url origin $GITHUB_URL
     echo "El remoto 'origin' ya existía, URL actualizada si fue necesario."
 else
-    # Si no existe, lo añadimos.
     git remote add origin $GITHUB_URL
     echo "¡Conectado al repositorio remoto en GitHub!"
+fi
+echo ""
+
+# Sincroniza con la rama remota antes de hacer cualquier cambio.
+echo "Paso 2.5: Descargando cambios remotos..."
+git pull origin $BRANCH_NAME --rebase
+if [ $? -ne 0 ]; then
+    echo "⚠️  Error al hacer 'git pull'. Puede haber conflictos que necesites resolver manualmente."
+    exit 1
 fi
 echo ""
 
@@ -67,6 +72,10 @@ echo ""
 # 5. Sube todos los commits a GitHub.
 echo "Paso 5: Subiendo los cambios a la rama '$BRANCH_NAME' en GitHub..."
 git push -u origin $BRANCH_NAME
+if [ $? -ne 0 ]; then
+    echo "❌ Error al subir los cambios a GitHub. Revisa los mensajes de error anteriores."
+    exit 1
+fi
 echo ""
 
 echo "🎉 --- ¡PROCESO COMPLETADO! --- 🎉"
