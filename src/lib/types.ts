@@ -101,6 +101,7 @@ export interface GeneralSettings {
     logoUrl?: string;
     pwaIconUrl?: string;
     pwaScreenshots?: string[];
+    availableTags?: string[];
     aboutUsMedia?: {
         url: string;
         type: 'image' | 'video';
@@ -331,3 +332,5 @@ export interface Transaction {
   relatedId?: string;
   method?: string;
 }
+
+    

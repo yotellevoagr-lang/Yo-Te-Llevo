@@ -1,4 +1,5 @@
 
+
 "use client"
 
 import { useState, useEffect } from "react"
@@ -8,7 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
-import { Settings as SettingsIcon, Bus, Trash2, Edit, PlusCircle, Ship, Plane, Save, Pin, Contact, Utensils, BedDouble, Folder, ShieldCheck, KeyRound, Mail, Eye, EyeOff, Image as ImageIcon, Globe, AppWindow, Loader2 } from "lucide-react"
+import { Settings as SettingsIcon, Bus, Trash2, Edit, PlusCircle, Ship, Plane, Save, Pin, Contact, Utensils, BedDouble, Folder, ShieldCheck, KeyRound, Mail, Eye, EyeOff, Image as ImageIcon, Globe, AppWindow, Loader2, Tag } from "lucide-react"
 import type { CustomLayoutConfig, LayoutCategory, GeneralSettings, ContactSettings, Pension, RoomType, Employee, DomainSettings } from "@/lib/types"
 import { LayoutEditor } from "@/components/admin/layout-editor"
 import { updatePassword, updateEmail, reauthenticateWithCredential, EmailAuthProvider } from "firebase/auth"
@@ -155,7 +156,7 @@ export default function SettingsPage() {
 
 
     const [layoutConfig, setLayoutConfig] = useState<Record<LayoutCategory, Record<string, CustomLayoutConfig>>>({ vehicles: {}, airplanes: {}, cruises: {} });
-    const [generalSettings, setGeneralSettings] = useState<GeneralSettings>({ mainWhatsappNumber: "", calendarDownloadFolder: "Calendarios YO-TE-LLEVO", reportDownloadFolder: "Reportes Gen. YO-TE-LLEVO" });
+    const [generalSettings, setGeneralSettings] = useState<GeneralSettings>({ mainWhatsappNumber: "", calendarDownloadFolder: "Calendarios YO-TE-LLEVO", reportDownloadFolder: "Reportes Gen. YO-TE-LLEVO", availableTags: [] });
     const [contactSettings, setContactSettings] = useState<ContactSettings>({});
     const [domainSettings, setDomainSettings] = useState<DomainSettings>({ domains: [] });
     const [newDomain, setNewDomain] = useState("");
@@ -168,6 +169,7 @@ export default function SettingsPage() {
     const [isCredentialsDialogOpen, setIsCredentialsDialogOpen] = useState(false);
     const [editingLayout, setEditingLayout] = useState<{ category: LayoutCategory, key: string | null } | null>(null);
     const [adminUser, setAdminUser] = useState<Employee | null>(null);
+    const [travelTags, setTravelTags] = useState<string[]>([]);
 
 
     const fetchData = async () => {
@@ -201,6 +203,7 @@ export default function SettingsPage() {
                 setPwaIconPreview(generalSettingsData.pwaIconUrl || null);
                 setAboutUsMediaPreview(generalSettingsData.aboutUsMedia || null);
                 setPwaScreenshotPreviews(generalSettingsData.pwaScreenshots || []);
+                setTravelTags(generalSettingsData.availableTags || []);
             }
             if (domainSettingsData) setDomainSettings(domainSettingsData);
             setBoardingPoints(boardingPointsData);
@@ -537,6 +540,25 @@ export default function SettingsPage() {
     
     const handleAdminUserUpdate = (updatedUser: Employee) => setAdminUser(updatedUser);
 
+    const handleTagChange = (index: number, value: string) => {
+        const newTags = [...travelTags];
+        newTags[index] = value;
+        setTravelTags(newTags);
+    }
+    const handleAddTag = () => setTravelTags([...travelTags, ""]);
+    const handleRemoveTag = (index: number) => setTravelTags(travelTags.filter((_, i) => i !== index));
+    
+    const handleSaveTags = async () => {
+        setIsSaving('tags');
+        const uniqueTags = [...new Set(travelTags.map(t => t.trim()).filter(Boolean))];
+        const currentSettings = await getDocumentById<GeneralSettings>('settings', 'general') || {};
+        await saveDocument('settings', { ...currentSettings, availableTags: uniqueTags }, 'general');
+        setTravelTags(uniqueTags);
+        window.dispatchEvent(new Event('storage'));
+        toast({ title: "Etiquetas guardadas", description: "La lista de etiquetas ha sido actualizada." });
+        setIsSaving(null);
+    }
+
 
     if (isLoading) {
         return <div className="flex justify-center items-center h-64"><Loader2 className="w-8 h-8 animate-spin" /></div>
@@ -558,6 +580,38 @@ export default function SettingsPage() {
                 <CardTitle className="flex items-center gap-2"><SettingsIcon className="w-6 h-6"/> Configuración del Sitio</CardTitle>
                 <CardDescription>Administra las configuraciones generales del sitio web.</CardDescription>
             </CardHeader>
+        </Card>
+
+        <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Tag className="w-6 h-6"/> Etiquetas de Viajes</CardTitle>
+                <CardDescription>Gestiona las etiquetas disponibles para categorizar los viajes.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <div className="space-y-2">
+                    {travelTags.map((tag, index) => (
+                        <div key={index} className="flex items-center gap-2">
+                            <Input 
+                                value={tag} 
+                                onChange={(e) => handleTagChange(index, e.target.value)} 
+                                placeholder="Nombre de la etiqueta..."
+                            />
+                            <Button variant="ghost" size="icon" onClick={() => handleRemoveTag(index)}>
+                                <Trash2 className="w-4 h-4 text-destructive"/>
+                            </Button>
+                        </div>
+                    ))}
+                </div>
+            </CardContent>
+            <CardFooter className="justify-between">
+                <Button variant="outline" onClick={handleAddTag}>
+                    <PlusCircle className="mr-2 h-4 w-4"/> Añadir Etiqueta
+                </Button>
+                <Button onClick={handleSaveTags} disabled={isSaving === 'tags'}>
+                    {isSaving === 'tags' && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                    Guardar Etiquetas
+                </Button>
+            </CardFooter>
         </Card>
 
         <Card>
@@ -830,5 +884,7 @@ export default function SettingsPage() {
     </>
   )
 }
+
+    
 
     
