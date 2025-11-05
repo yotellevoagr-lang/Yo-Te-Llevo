@@ -15,6 +15,7 @@ import { getAllFromCollection_client, getDocumentById } from '@/lib/firestore-se
 import type { GeneralSettings } from '@/lib/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 function OutsideZoneNotification({ whatsappNumber }: { whatsappNumber?: string }) {
     const { toast } = useToast();
@@ -182,20 +183,22 @@ export default function ToursPage() {
                       <SelectItem value="price-desc">Mayor precio</SelectItem>
                   </SelectContent>
               </Select>
-              <div className="flex flex-wrap items-center gap-2 pt-4 sm:pt-0 sm:ml-4">
-                  {availableTags.map(tag => (
-                      <Button 
-                        key={tag}
-                        variant={selectedTags.includes(tag) ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => handleTagToggle(tag)}
-                        className="rounded-full"
-                      >
-                        {tag}
-                        {selectedTags.includes(tag) && <X className="ml-2 w-3 h-3"/>}
-                      </Button>
-                  ))}
-              </div>
+              <ScrollArea className="w-full sm:flex-1 max-h-24 pt-4 sm:pt-0 sm:ml-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                      {availableTags.map(tag => (
+                          <Button 
+                            key={tag}
+                            variant={selectedTags.includes(tag) ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => handleTagToggle(tag)}
+                            className="rounded-full"
+                          >
+                            {tag}
+                            {selectedTags.includes(tag) && <X className="ml-2 w-3 h-3"/>}
+                          </Button>
+                      ))}
+                  </div>
+              </ScrollArea>
             </div>
           </Card>
 
