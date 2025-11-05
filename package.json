@@ -10,7 +10,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "storage:cors": "gsutil cors set workspace/cors.json gs://yo-te-llevo-1021c.appspot.com"
   },
   "dependencies": {
     "@capacitor/android": "^7.4.4",
