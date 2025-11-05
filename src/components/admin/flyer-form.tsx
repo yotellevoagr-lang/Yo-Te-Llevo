@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useEffect, useState } from "react"
@@ -18,7 +17,6 @@ import type { Tour, Flyer } from "@/lib/types"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "../ui/checkbox"
 import Image from "next/image"
-import { uploadFileAndGetURL } from "@/lib/firestore-services"
 import { Loader2 } from "lucide-react"
 import { getDisplayUrl } from "@/lib/utils"
 
@@ -35,6 +33,15 @@ const defaultFlyerState: Omit<Flyer, 'id' | 'url' | 'type'> = {
     tourId: null,
     isGeneralPromotion: false,
 }
+
+const fileToDataUrl = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = error => reject(error);
+        reader.readAsDataURL(file);
+    });
+};
 
 export function FlyerForm({ isOpen, onOpenChange, onSave, flyer, tours }: FlyerFormProps) {
   const [formData, setFormData] = useState(defaultFlyerState)
@@ -89,9 +96,7 @@ export function FlyerForm({ isOpen, onOpenChange, onSave, flyer, tours }: FlyerF
         let mediaUrl = flyer?.url || '';
 
         if (file) {
-            const flyerId = flyer?.id || `flyer_${Date.now()}`;
-            const storagePath = `flyers/${flyerId}/${file.name}`;
-            mediaUrl = await uploadFileAndGetURL(file, storagePath);
+            mediaUrl = await fileToDataUrl(file);
         }
         
         const finalData = { 
@@ -103,8 +108,8 @@ export function FlyerForm({ isOpen, onOpenChange, onSave, flyer, tours }: FlyerF
         onSave(finalData);
         
     } catch (error) {
-        console.error("Error uploading file:", error);
-        toast({ title: "Error al subir archivo", description: "No se pudo subir el archivo a Firebase Storage.", variant: "destructive"});
+        console.error("Error converting file:", error);
+        toast({ title: "Error al procesar archivo", description: "No se pudo procesar el archivo.", variant: "destructive"});
     } finally {
         setIsUploading(false);
     }
@@ -149,9 +154,9 @@ export function FlyerForm({ isOpen, onOpenChange, onSave, flyer, tours }: FlyerF
                         <Label>Vista Previa</Label>
                         <div className="border rounded-md p-2 flex justify-center items-center bg-muted">
                             {mediaType === 'video' ? (
-                                <video src={previewUrl.startsWith('blob:') ? previewUrl : getDisplayUrl(previewUrl)} controls className="max-h-60 rounded" />
+                                <video src={getDisplayUrl(previewUrl)} controls className="max-h-60 rounded" />
                             ) : (
-                                <Image src={previewUrl.startsWith('blob:') ? previewUrl : getDisplayUrl(previewUrl)} alt="Vista previa" width={200} height={300} className="max-h-60 w-auto object-contain rounded"/>
+                                <Image src={getDisplayUrl(previewUrl)} alt="Vista previa" width={200} height={300} className="max-h-60 w-auto object-contain rounded"/>
                             )}
                         </div>
                     </div>

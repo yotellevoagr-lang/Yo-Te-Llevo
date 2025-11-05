@@ -1,11 +1,8 @@
 import { db, auth } from './firebase';
 import { collection, doc, getDoc, getDocs, setDoc, deleteDoc, query, where, writeBatch, addDoc, updateDoc } from 'firebase/firestore';
 import { createUserWithEmailAndPassword, sendEmailVerification, signInWithEmailAndPassword, User as FirebaseAuthUser } from 'firebase/auth';
-import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import type { Tour, Passenger, Reservation, Seller, Employee, CommissionSettings, GeneralSettings } from "./types";
 import { getLayoutForType } from './layouts';
-
-const storage = getStorage();
 
 // --- Generic Firestore Functions ---
 
@@ -73,27 +70,6 @@ export async function saveDocument<T>(collectionName: string, data: T, docId?: s
 export async function deleteDocument(collectionName: string, id: string): Promise<void> {
   const docRef = doc(db, collectionName, id);
   await deleteDoc(docRef);
-}
-
-
-export async function uploadFileAndGetURL(file: File, path: string): Promise<string> {
-  const storageRef = ref(storage, path);
-  await uploadBytes(storageRef, file);
-  const url = await getDownloadURL(storageRef);
-  return url;
-}
-
-export async function deleteFileFromStorage(url: string): Promise<void> {
-    try {
-        const fileRef = ref(storage, url);
-        await deleteObject(fileRef);
-    } catch (error: any) {
-        // It's common for this to fail if the file doesn't exist, so we can often ignore 'object-not-found'
-        if (error.code !== 'storage/object-not-found') {
-            console.error("Error deleting file from storage:", error);
-            // Optionally re-throw or handle other errors
-        }
-    }
 }
 
 
