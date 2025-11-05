@@ -313,14 +313,14 @@ Transporte: ${tour.bus || 'No especificado'}
           const activeTours = allTours.filter(t => t.isPublic && getDateFromFirestore(t.date) >= new Date());
           
           const results = activeTours.filter(tour => 
-              tagsToSearch.every(tag => tour.tags?.includes(tag))
+              tagsToSearch.some(tag => tour.tags?.includes(tag))
           );
           
           if (results.length > 0) {
               const tagText = tagsToSearch.join(', ');
               return { success: true, message: `Encontré estos viajes con la(s) temática(s) "${tagText}":`, data: serializeCollection(results) };
           }
-          return { success: false, message: `No encontré viajes con todas esas temáticas. Aquí tienes todos nuestros viajes activos:`, data: serializeCollection(activeTours), fallbackNode: 'trips_result'};
+          return { success: false, message: `No encontré viajes con esas temáticas. Aquí tienes todos nuestros viajes activos:`, data: serializeCollection(activeTours), fallbackNode: 'trips_result'};
       }
       case 'fetchPassengerByDNI': {
         if (!context) return { success: false, message: "Debes iniciar sesión para ver tus datos.", fallbackNode: 'start' };
