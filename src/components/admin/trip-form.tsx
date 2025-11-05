@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useEffect, useState, useMemo } from "react"
@@ -123,6 +124,7 @@ export function TripForm({ isOpen, onOpenChange, onSave, tour, boardingPoints }:
               price: tour.price || 0,
               currency: tour.currency || 'ARS',
               isFeatured: tour.isFeatured || false,
+              showAsPopup: tour.showAsPopup || false,
               tags: tour.tags || [],
               origin: tour.origin || "",
               days: tour.days || 0,
@@ -274,7 +276,6 @@ export function TripForm({ isOpen, onOpenChange, onSave, tour, boardingPoints }:
 
           setNewGalleryFiles(prev => [...prev, ...newFiles]);
 
-          // If there's no main background image, set the first new image as the main one
           if (!backgroundImagePreview) {
               const firstNewImage = newFiles.find(f => f.type === 'image');
               if (firstNewImage) {
@@ -288,44 +289,40 @@ export function TripForm({ isOpen, onOpenChange, onSave, tour, boardingPoints }:
   const removeNewGalleryFile = (id: string) => {
     const fileToRemove = newGalleryFiles.find(f => f.id === id);
     if (!fileToRemove) return;
-
     const wasBackgroundImage = fileToRemove.previewUrl === backgroundImagePreview;
     const updatedNewFiles = newGalleryFiles.filter(f => f.id !== id);
     setNewGalleryFiles(updatedNewFiles);
-
     if (wasBackgroundImage) {
         setBackgroundImageFile(null);
-        const remainingImages = [
-            ...(formData.gallery || []).filter(item => item.type === 'image'),
-            ...updatedNewFiles.filter(item => item.type === 'image')
-        ];
-        const nextImageUrl = remainingImages.length > 0 ? getDisplayUrl((remainingImages[0] as any).url || (remainingImages[0] as any).previewUrl) : null;
-        setBackgroundImagePreview(nextImageUrl);
+        const nextImage = [...(formData.gallery || []), ...updatedNewFiles].find(item => item.type === 'image');
+        setBackgroundImagePreview(nextImage ? ('url' in nextImage ? getDisplayUrl(nextImage.url) : (nextImage as GalleryFile).previewUrl) : null);
     }
   }
   
   const removeExistingGalleryItem = (id: string) => {
     const itemToRemove = formData.gallery?.find(g => g.id === id);
     if (!itemToRemove) return;
-
     const wasBackgroundImage = itemToRemove.url === formData.backgroundImage;
     const updatedGallery = (formData.gallery || []).filter(g => g.id !== id);
     handleFormChange('gallery', updatedGallery);
-
     if (wasBackgroundImage) {
         setBackgroundImageFile(null);
-        const remainingImages = [
-            ...updatedGallery.filter(item => item.type === 'image'),
-            ...newGalleryFiles.filter(item => item.type === 'image')
-        ];
-        const nextImageUrl = remainingImages.length > 0 ? getDisplayUrl((remainingImages[0] as any).url || (remainingImages[0] as any).previewUrl) : null;
-        setBackgroundImagePreview(nextImageUrl);
+        const nextImage = [...updatedGallery, ...newGalleryFiles].find(item => item.type === 'image');
+        setBackgroundImagePreview(nextImage ? ('url' in nextImage ? getDisplayUrl(nextImage.url) : (nextImage as GalleryFile).previewUrl) : null);
     }
   }
 
-  const setAsBackgroundImage = (url: string | null, file: File | null = null) => {
-    setBackgroundImagePreview(url);
-    setBackgroundImageFile(file);
+  const setAsBackgroundImage = (item: GalleryItem | GalleryFile) => {
+    if (item.type === 'image') {
+        if ('file' in item) { // It's a new GalleryFile
+            setBackgroundImageFile(item.file);
+            setBackgroundImagePreview(item.previewUrl);
+        } else { // It's an existing GalleryItem
+            setBackgroundImageFile(null);
+            setBackgroundImagePreview(item.url);
+            handleFormChange('backgroundImage', item.url);
+        }
+    }
   }
 
   const handleSubmit = async () => {
@@ -343,7 +340,7 @@ export function TripForm({ isOpen, onOpenChange, onSave, tour, boardingPoints }:
     setIsLoading(true);
 
     try {
-        let finalBackgroundImageUrl = formData.backgroundImage;
+        let finalBackgroundImageUrl = backgroundImagePreview;
         if (backgroundImageFile) {
             finalBackgroundImageUrl = await fileToDataUrl(backgroundImageFile);
         }
@@ -361,7 +358,7 @@ export function TripForm({ isOpen, onOpenChange, onSave, tour, boardingPoints }:
         const combinedGallery = [...(formData.gallery || []), ...uploadedGalleryItems];
         
         const tourDataToSave: Tour = {
-            id: tour?.id || '', // ID will be handled in the parent onSave
+            id: tour?.id || '',
             ...formData,
             backgroundImage: finalBackgroundImageUrl,
             price: Number(formData.price) || 0,
@@ -388,6 +385,12 @@ export function TripForm({ isOpen, onOpenChange, onSave, tour, boardingPoints }:
       setIsLoading(false);
     }
   };
+
+  const allMediaItems = useMemo(() => {
+    const existingItems = (formData.gallery || []).map(item => ({ ...item, isNew: false }));
+    const newItems = newGalleryFiles.map(file => ({ ...file, isNew: true }));
+    return [...existingItems, ...newItems];
+  }, [formData.gallery, newGalleryFiles]);
 
 
   return (
@@ -454,6 +457,12 @@ export function TripForm({ isOpen, onOpenChange, onSave, tour, boardingPoints }:
                     <Checkbox id="isFeatured" checked={formData.isFeatured} onCheckedChange={(checked) => handleFormChange('isFeatured', !!checked)} />
                     <Label htmlFor="isFeatured" className="font-normal">Marcar como Viaje Destacado en la página de inicio</Label>
                 </div>
+                {formData.isFeatured && (
+                    <div className="flex items-center space-x-2 pl-6">
+                        <Checkbox id="showAsPopup" checked={formData.showAsPopup} onCheckedChange={(checked) => handleFormChange('showAsPopup', !!checked)} />
+                        <Label htmlFor="showAsPopup" className="font-normal">Mostrar como Popup en la página de inicio</Label>
+                    </div>
+                )}
                 <div className="space-y-2">
                   <Label htmlFor="description">Descripción del Viaje (Opcional)</Label>
                   <Textarea id="description" value={formData.description || ''} onChange={(e) => handleFormChange('description', e.target.value)} placeholder="Describe el itinerario, qué incluye, etc." className="h-32"/>
@@ -464,69 +473,42 @@ export function TripForm({ isOpen, onOpenChange, onSave, tour, boardingPoints }:
                          <AccordionItem value="gallery">
                             <AccordionTrigger className="text-base font-medium">Galería Multimedia</AccordionTrigger>
                             <AccordionContent className="pt-4 space-y-4">
-                                <div className="space-y-2">
-                                  <Label htmlFor="background-image-file">Imagen Principal del Viaje</Label>
-                                  <Input id="background-image-file" type="file" accept="image/*" onChange={handleBackgroundImageFileChange}/>
-                                   {backgroundImagePreview && <Image src={getDisplayUrl(backgroundImagePreview)} alt="Vista previa" width={300} height={150} className="rounded-md object-cover mt-2"/>}
-                                </div>
-                                <div className="space-y-2">
+                               <div className="space-y-2">
                                   <Label htmlFor="gallery-files">Añadir Imágenes y Videos a la Galería</Label>
                                   <Input id="gallery-files" type="file" accept="image/*,video/*" multiple onChange={handleGalleryFilesChange} />
                                 </div>
-                                <div className="space-y-4">
-                                    { (formData.gallery && formData.gallery.filter(g => g.type === 'image').length > 0) || newGalleryFiles.filter(f => f.type === 'image').length > 0 ? (
-                                        <div>
-                                            <h4 className="font-semibold mb-2">Imágenes</h4>
-                                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                                                {(formData.gallery || []).filter(g => g.type === 'image').map(item => (
-                                                    <div key={item.id} className="relative group aspect-square">
-                                                        <Image src={getDisplayUrl(item.url)} alt="Galería" layout="fill" objectFit="cover" className={cn("rounded-md transition-all", backgroundImagePreview === item.url && "ring-2 ring-offset-2 ring-primary")} />
-                                                         <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 p-2">
-                                                            <Button size="icon" variant="ghost" className="h-8 w-8 text-white hover:text-yellow-400" onClick={() => setAsBackgroundImage(item.url)} title="Usar como imagen principal">
-                                                                <Star className={cn(backgroundImagePreview === item.url && "fill-yellow-400 text-yellow-400")}/>
-                                                            </Button>
-                                                            <Button size="icon" variant="destructive" className="h-8 w-8" onClick={() => removeExistingGalleryItem(item.id)}><Trash2 className="w-4 h-4"/></Button>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                                {newGalleryFiles.filter(f => f.type === 'image').map(file => (
-                                                    <div key={file.id} className="relative group aspect-square">
-                                                        <Image src={file.previewUrl} alt="Vista previa" layout="fill" objectFit="cover" className={cn("rounded-md transition-all", backgroundImagePreview === file.previewUrl && "ring-2 ring-offset-2 ring-primary")} />
-                                                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 p-2">
-                                                            <Button size="icon" variant="ghost" className="h-8 w-8 text-white hover:text-yellow-400" onClick={() => setAsBackgroundImage(file.previewUrl, file.file)} title="Usar como imagen principal">
-                                                                <Star className={cn(backgroundImagePreview === file.previewUrl && "fill-yellow-400 text-yellow-400")}/>
-                                                            </Button>
-                                                            <Button size="icon" variant="destructive" className="h-8 w-8" onClick={() => removeNewGalleryFile(file.id)}><Trash2 className="w-4 h-4"/></Button>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    ) : null}
-                                     { (formData.gallery && formData.gallery.filter(g => g.type === 'video').length > 0) || newGalleryFiles.filter(f => f.type === 'video').length > 0 ? (
-                                        <div>
-                                            <h4 className="font-semibold mb-2">Videos</h4>
-                                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                                                {(formData.gallery || []).filter(g => g.type === 'video').map(item => (
-                                                    <div key={item.id} className="relative group aspect-video">
-                                                        <video src={getDisplayUrl(item.url)} className="w-full h-full object-cover rounded-md"/>
-                                                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                                            <Button size="icon" variant="destructive" onClick={() => removeExistingGalleryItem(item.id)}><Trash2 className="w-4 h-4"/></Button>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                                {newGalleryFiles.filter(f => f.type === 'video').map(file => (
-                                                    <div key={file.id} className="relative group aspect-video">
-                                                        <video src={file.previewUrl} className="w-full h-full object-cover rounded-md"/>
-                                                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                                            <Button size="icon" variant="destructive" onClick={() => removeNewGalleryFile(file.id)}><Trash2 className="w-4 h-4"/></Button>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    ) : null}
-                                </div>
+                                
+                                {allMediaItems.length > 0 && (
+                                  <div>
+                                    <h4 className="font-semibold mb-2">Galería Actual</h4>
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                                      {allMediaItems.map(item => {
+                                        const url = 'previewUrl' in item ? item.previewUrl : item.url;
+                                        const isMain = backgroundImagePreview === url;
+                                        return (
+                                          <div key={item.id} className="relative group aspect-square">
+                                              {item.type === 'image' ? (
+                                                  <Image src={url} alt="Galería" layout="fill" objectFit="cover" className={cn("rounded-md transition-all", isMain && "ring-2 ring-offset-2 ring-primary")} />
+                                              ) : (
+                                                  <video src={url} className="w-full h-full object-cover rounded-md"/>
+                                              )}
+                                              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 p-2">
+                                                  {item.type === 'image' && (
+                                                      <Button size="icon" variant="ghost" className="h-8 w-8 text-white hover:text-yellow-400" onClick={() => setAsBackgroundImage(item)} title="Usar como imagen principal">
+                                                          <Star className={cn(isMain && "fill-yellow-400 text-yellow-400")}/>
+                                                      </Button>
+                                                  )}
+                                                  <Button size="icon" variant="destructive" className="h-8 w-8" onClick={() => 'isNew' in item ? removeNewGalleryFile(item.id) : removeExistingGalleryItem(item.id)}>
+                                                      <Trash2 className="w-4 h-4"/>
+                                                  </Button>
+                                              </div>
+                                          </div>
+                                        )
+                                      })}
+                                    </div>
+                                  </div>
+                                )}
+
                             </AccordionContent>
                         </AccordionItem>
                          <AccordionItem value="general">
