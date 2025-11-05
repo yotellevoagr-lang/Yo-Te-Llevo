@@ -17,7 +17,6 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
-  DialogTrigger,
 } from "@/components/ui/dialog"
 import { SearchableSelect } from "@/components/searchable-select"
 
@@ -135,7 +134,9 @@ export default function Home() {
   const destinationOptions = useMemo(() => {
     return activeTours.map(tour => ({
       value: tour.id,
-      label: tour.destination
+      label: tour.destination,
+      price: tour.price,
+      currency: tour.currency
     }));
   }, [activeTours]);
   
@@ -174,7 +175,7 @@ export default function Home() {
             <p className="max-w-3xl mx-auto mt-4 text-lg md:text-xl text-white/90 drop-shadow-lg animate-fade-in-down " style={{ animationDelay: '0.2s' }}>
               {t('hero.subtitle')}
             </p>
-            <div className="max-w-xl mx-auto mt-8 animate-fade-in-up" style={{ animationDelay: '0.4s' }}>
+            <div className="max-w-xl mx-auto mt-8 animate-fade-in-up overflow-visible" style={{ animationDelay: '0.4s' }}>
               <div className="flex flex-col gap-4 p-4 rounded-2xl shadow-2xl bg-background/80 backdrop-blur-lg border border-white/20">
                  <div className="relative">
                     <MapPinIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-primary" />
