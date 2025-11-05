@@ -165,7 +165,7 @@ export default function Home() {
               {t('hero.subtitle')}
             </p>
             <div className="max-w-xl mx-auto mt-8 animate-fade-in-up" style={{ animationDelay: '0.4s' }}>
-              <div className="flex flex-col gap-4 p-4 rounded-2xl shadow-2xl bg-background/80 backdrop-blur-lg border border-white/20">
+              <div className="flex flex-col gap-4 p-4 rounded-2xl shadow-2xl bg-background/80 backdrop-blur-lg border border-white/20 overflow-visible">
                 <div className="relative flex-1">
                   <MapPinIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-primary" />
                   <Select onValueChange={handleDestinationSelect}>
