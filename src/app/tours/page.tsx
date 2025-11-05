@@ -1,5 +1,4 @@
 
-
 "use client"
 import { useMemo, useState, useEffect } from 'react';
 import { SiteHeader } from "@/components/site-header"
@@ -11,8 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Loader2, MapPin, MessageSquare, ThumbsUp, Filter, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { getAllFromCollection_client, getDocumentById } from '@/lib/firestore-services';
-import type { GeneralSettings } from '@/lib/types';
+import { getAllFromCollection_client } from '@/lib/firestore-services';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -68,6 +66,7 @@ export default function ToursPage() {
   const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [sortOrder, setSortOrder] = useState<"default" | "price-asc" | "price-desc">("default");
+  const [exchangeRate, setExchangeRate] = useState<number | null>(null);
   
   useEffect(() => {
     const fetchData = async () => {
@@ -79,14 +78,33 @@ export default function ToursPage() {
         }));
 
         setTours(processedTours);
-        
-        // Determine which tags are actually in use by active tours
-        const activePublicTours = processedTours.filter(tour => tour.isPublic && new Date(tour.date) >= new Date());
-        const usedTags = new Set(activePublicTours.flatMap(tour => tour.tags || []));
-        setAvailableTags(Array.from(usedTags));
     };
+
+    const fetchExchangeRate = async () => {
+        try {
+            const response = await fetch('https://dolarapi.com/v1/dolares/blue');
+            const data = await response.json();
+            if (data && data.venta) {
+                setExchangeRate(data.venta);
+            }
+        } catch (error) {
+            console.error("Failed to fetch exchange rate:", error);
+            // Fallback rate in case the API fails
+            setExchangeRate(1000); 
+        }
+    };
+    
     fetchData();
+    fetchExchangeRate();
   }, []);
+  
+  useEffect(() => {
+    // This effect runs whenever the list of active tours changes
+    const activePublicTours = tours.filter(tour => tour.isPublic && new Date(tour.date) >= new Date());
+    const usedTags = new Set(activePublicTours.flatMap(tour => tour.tags || []));
+    setAvailableTags(Array.from(usedTags));
+  }, [tours]);
+
 
   const activeTours = useMemo(() => tours.filter(tour => tour.isPublic && new Date(tour.date) >= new Date()), [tours]);
   
@@ -99,18 +117,25 @@ export default function ToursPage() {
         selectedTags.some(tag => tour.tags?.includes(tag))
       );
     }
+    
+    const getNormalizedPrice = (tour: Tour): number => {
+        if (tour.currency === 'USD' && exchangeRate) {
+            return tour.price * exchangeRate;
+        }
+        return tour.price;
+    }
 
     // Sort
     switch (sortOrder) {
       case 'price-asc':
-        return [...filtered].sort((a, b) => a.price - b.price);
+        return [...filtered].sort((a, b) => getNormalizedPrice(a) - getNormalizedPrice(b));
       case 'price-desc':
-        return [...filtered].sort((a, b) => b.price - a.price);
+        return [...filtered].sort((a, b) => getNormalizedPrice(b) - getNormalizedPrice(a));
       case 'default':
       default:
         return [...filtered].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     }
-  }, [activeTours, selectedTags, sortOrder]);
+  }, [activeTours, selectedTags, sortOrder, exchangeRate]);
 
 
   const handleTagToggle = (tag: string) => {
@@ -183,8 +208,9 @@ export default function ToursPage() {
                       <SelectItem value="price-desc">Mayor precio</SelectItem>
                   </SelectContent>
               </Select>
-              <ScrollArea className="w-full sm:flex-1 max-h-24 pt-4 sm:pt-0 sm:ml-4">
-                  <div className="flex flex-wrap items-center gap-2">
+              <div className="sm:ml-4 flex-1 w-full">
+                <ScrollArea className="max-h-24 w-full">
+                  <div className="flex flex-wrap items-center gap-2 py-1">
                       {availableTags.map(tag => (
                           <Button 
                             key={tag}
@@ -198,7 +224,8 @@ export default function ToursPage() {
                           </Button>
                       ))}
                   </div>
-              </ScrollArea>
+                </ScrollArea>
+              </div>
             </div>
           </Card>
 
