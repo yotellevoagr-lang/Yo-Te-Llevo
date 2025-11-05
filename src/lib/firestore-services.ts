@@ -1,10 +1,11 @@
-
-import { db, auth, storage } from './firebase';
+import { db, auth } from './firebase';
 import { collection, doc, getDoc, getDocs, setDoc, deleteDoc, query, where, writeBatch, addDoc, updateDoc } from 'firebase/firestore';
 import { createUserWithEmailAndPassword, sendEmailVerification, signInWithEmailAndPassword, User as FirebaseAuthUser } from 'firebase/auth';
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import type { Tour, Passenger, Reservation, Seller, Employee, CommissionSettings, GeneralSettings } from "./types";
 import { getLayoutForType } from './layouts';
+
+const storage = getStorage();
 
 // --- Generic Firestore Functions ---
 

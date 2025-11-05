@@ -18,11 +18,13 @@ import type { Tour, Flyer } from "@/lib/types"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "../ui/checkbox"
 import Image from "next/image"
+import { uploadFileAndGetURL } from "@/lib/firestore-services"
+import { Loader2 } from "lucide-react"
 
 interface FlyerFormProps {
   isOpen: boolean
   onOpenChange: (isOpen: boolean) => void
-  onSave: (flyerData: Omit<Flyer, 'id'>, fileAsDataUrl: string | null) => void
+  onSave: (flyerData: Omit<Flyer, 'id'> & { id?: string }) => void
   flyer: Flyer | null
   tours: Tour[]
 }
@@ -38,6 +40,7 @@ export function FlyerForm({ isOpen, onOpenChange, onSave, flyer, tours }: FlyerF
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [mediaType, setMediaType] = useState<'image' | 'video'>('image');
+  const [isUploading, setIsUploading] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -72,28 +75,36 @@ export function FlyerForm({ isOpen, onOpenChange, onSave, flyer, tours }: FlyerF
     }
   }
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!flyer && !file) {
         toast({ title: "Falta el archivo", description: "Por favor, sube una imagen o video.", variant: "destructive" });
         return;
     }
     
-    // Convert file to Data URL if a new file is present
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const dataUrl = reader.result as string;
-        const finalData = { ...formData, type: mediaType };
-        onSave(finalData, dataUrl);
-      };
-      reader.onerror = () => {
-          toast({ title: "Error al leer archivo", description: "No se pudo procesar el archivo seleccionado.", variant: "destructive"});
-      }
-      reader.readAsDataURL(file);
-    } else {
-      // If editing and no new file, pass existing data without a new data URL
-      const finalData = { ...formData, type: mediaType };
-      onSave(finalData, null);
+    setIsUploading(true);
+
+    try {
+        let mediaUrl = flyer?.url || '';
+
+        if (file) {
+            const flyerId = flyer?.id || `flyer_${Date.now()}`;
+            const storagePath = `flyers/${flyerId}/${file.name}`;
+            mediaUrl = await uploadFileAndGetURL(file, storagePath);
+        }
+        
+        const finalData = { 
+            ...formData, 
+            id: flyer?.id,
+            url: mediaUrl,
+            type: mediaType 
+        };
+        onSave(finalData);
+        
+    } catch (error) {
+        console.error("Error uploading file:", error);
+        toast({ title: "Error al subir archivo", description: "No se pudo subir el archivo a Firebase Storage.", variant: "destructive"});
+    } finally {
+        setIsUploading(false);
     }
   }
 
@@ -148,7 +159,10 @@ export function FlyerForm({ isOpen, onOpenChange, onSave, flyer, tours }: FlyerF
         
         <DialogFooter className="mt-auto pt-4 border-t">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <Button onClick={handleSubmit}>Guardar Flyer</Button>
+          <Button onClick={handleSubmit} disabled={isUploading}>
+            {isUploading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {isUploading ? "Subiendo..." : "Guardar Flyer"}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
