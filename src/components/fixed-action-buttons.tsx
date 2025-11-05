@@ -16,14 +16,13 @@ export function FixedActionButtons() {
   useEffect(() => {
     setIsClient(true);
     const fetchSettings = async () => {
-        // Use client-side fetch since this is a client component
-        const storedSettings = localStorage.getItem("ytl_general_settings");
-        if (storedSettings) {
-            setSettings(JSON.parse(storedSettings));
-        } else {
-            const fetchedSettings = await getDocumentById<GeneralSettings>('settings', 'general');
-            setSettings(fetchedSettings);
-        }
+      // Always fetch from Firestore to ensure the latest data is available
+      const fetchedSettings = await getDocumentById<GeneralSettings>('settings', 'general');
+      if (fetchedSettings) {
+          setSettings(fetchedSettings);
+          // Also update localStorage so other components might benefit from caching
+          localStorage.setItem("ytl_general_settings", JSON.stringify(fetchedSettings));
+      }
     }
     fetchSettings();
   }, []);
