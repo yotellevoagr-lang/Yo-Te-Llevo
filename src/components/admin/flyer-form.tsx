@@ -100,13 +100,14 @@ export function FlyerForm({ isOpen, onOpenChange, onSave, flyer, tours }: FlyerF
             url: mediaUrl,
             type: mediaType 
         };
-        await onSave(finalData);
+        onSave(finalData);
         
     } catch (error) {
         console.error("Error uploading file:", error);
         toast({ title: "Error al subir archivo", description: "No se pudo subir el archivo a Firebase Storage.", variant: "destructive"});
-        setIsUploading(false); // Make sure to reset on error
-    } 
+    } finally {
+        setIsUploading(false);
+    }
   }
 
   return (
