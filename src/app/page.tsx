@@ -9,15 +9,24 @@ import { SiteHeader } from "@/components/site-header"
 import { SiteFooter } from "@/components/site-footer"
 import { Button } from "@/components/ui/button"
 import { TourCard } from "@/components/tour-card"
-import { MapPinIcon, ArrowRight, PlaneIcon, SparklesIcon } from "lucide-react"
+import { MapPinIcon, ArrowRight, PlaneIcon, SparklesIcon, Search } from "lucide-react"
 import type { Tour, GeneralSettings, GalleryItem } from "@/lib/types"
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command"
+
 import { useToast } from "@/hooks/use-toast"
 import { cn, getDisplayUrl } from "@/lib/utils"
 import { useTranslation } from "react-i18next"
@@ -89,6 +98,7 @@ const Slideshow = ({ items }: { items: { id: string; image: string; destination:
 export default function Home() {
   const [tours, setTours] = useState<Tour[]>([])
   const [generalSettings, setGeneralSettings] = useState<GeneralSettings | null>(null);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const router = useRouter()
   const { toast } = useToast();
   const { t } = useTranslation();
@@ -132,6 +142,7 @@ export default function Home() {
   const handleDestinationSelect = (tourId: string) => {
     if (tourId) {
       router.push(`/booking/${tourId}`)
+      setIsSearchOpen(false);
     }
   }
 
@@ -165,22 +176,37 @@ export default function Home() {
               {t('hero.subtitle')}
             </p>
             <div className="max-w-xl mx-auto mt-8 animate-fade-in-up" style={{ animationDelay: '0.4s' }}>
-              <div className="flex flex-col gap-4 p-4 rounded-2xl shadow-2xl bg-background/80 backdrop-blur-lg border border-white/20 overflow-visible">
-                <div className="relative flex-1">
-                  <MapPinIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-primary" />
-                  <Select onValueChange={handleDestinationSelect}>
-                    <SelectTrigger className="pl-12 h-14 text-base md:text-lg border-2 border-transparent focus:border-primary focus:bg-white text-muted-foreground w-full">
-                      <SelectValue placeholder={t('hero.destination_placeholder')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {activeTours.map(tour => (
-                        <SelectItem key={tour.id} value={tour.id}>
-                          {tour.destination}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+              <div className="flex flex-col gap-4 p-4 rounded-2xl shadow-2xl bg-background/80 backdrop-blur-lg border border-white/20">
+                 <Dialog open={isSearchOpen} onOpenChange={setIsSearchOpen}>
+                    <DialogTrigger asChild>
+                        <Button
+                            variant="default"
+                            className="w-full h-14 text-base md:text-lg justify-start pl-12 relative bg-white hover:bg-white/90 text-muted-foreground"
+                        >
+                             <MapPinIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-primary" />
+                             {t('hero.destination_placeholder')}
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent className="p-0">
+                        <Command>
+                            <CommandInput placeholder="Buscar destino..." />
+                            <CommandList>
+                                <CommandEmpty>No se encontraron viajes.</CommandEmpty>
+                                <CommandGroup>
+                                    {activeTours.map(tour => (
+                                        <CommandItem
+                                            key={tour.id}
+                                            value={tour.destination}
+                                            onSelect={() => handleDestinationSelect(tour.id)}
+                                        >
+                                            {tour.destination}
+                                        </CommandItem>
+                                    ))}
+                                </CommandGroup>
+                            </CommandList>
+                        </Command>
+                    </DialogContent>
+                </Dialog>
               </div>
             </div>
           </div>
