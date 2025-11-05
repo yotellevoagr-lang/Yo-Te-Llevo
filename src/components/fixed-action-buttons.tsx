@@ -1,9 +1,8 @@
-
 "use client";
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Instagram, Facebook } from 'lucide-react';
+import { Instagram, Facebook, MessageSquare } from 'lucide-react';
 import Chatbot from '@/components/chatbot';
 import { InstallPwaButton } from '@/components/install-pwa-button';
 import { getDocumentById } from '@/lib/firestore-services';
@@ -29,6 +28,11 @@ export function FixedActionButtons() {
   
   const instagramUrl = settings?.contact?.instagram;
   const facebookUrl = settings?.contact?.facebook;
+  const whatsappNumber = settings?.mainWhatsappNumber;
+  const whatsappLink = whatsappNumber 
+    ? `https://wa.me/${whatsappNumber.replace(/\D/g, '')}?text=${encodeURIComponent("Hola! Quisiera hacer una consulta.")}`
+    : null;
+
 
   if (!isClient) {
       return null;
@@ -47,6 +51,13 @@ export function FixedActionButtons() {
              <Button asChild size="icon" variant="outline" className="rounded-full w-12 h-12 bg-background/80 backdrop-blur-sm hover:bg-blue-600 hover:text-white transition-all duration-300">
                 <a href={facebookUrl} target="_blank" rel="noopener noreferrer" aria-label="Facebook">
                     <Facebook className="w-6 h-6" />
+                </a>
+            </Button>
+        )}
+        {whatsappLink && (
+            <Button asChild size="icon" variant="outline" className="rounded-full w-12 h-12 bg-background/80 backdrop-blur-sm hover:bg-green-500 hover:text-white transition-all duration-300">
+                <a href={whatsappLink} target="_blank" rel="noopener noreferrer" aria-label="WhatsApp">
+                    <MessageSquare className="w-6 h-6" />
                 </a>
             </Button>
         )}
