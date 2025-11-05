@@ -12,6 +12,8 @@ interface SearchableSelectOption {
     value: string;
     label: string;
     keywords?: string[];
+    price?: number;
+    currency?: 'ARS' | 'USD';
 }
 
 interface SearchableSelectProps {
@@ -75,6 +77,17 @@ export function SearchableSelect({ options, value, onChange, placeholder, listHe
         setSearchTerm(newValue);
         if (!isOpen) setIsOpen(true);
     };
+    
+    const getPriceColorClass = (price?: number, currency?: string) => {
+        if (price === undefined || currency === undefined) {
+            return '';
+        }
+        if ((currency === 'ARS' && price < 500000) || (currency === 'USD' && price < 400)) {
+            return 'bg-primary/10 hover:bg-primary/20'; // Light pink
+        }
+        return 'bg-primary/30 hover:bg-primary/40'; // Darker pink
+    };
+
 
     return (
         <div className="relative" ref={wrapperRef}>
@@ -108,8 +121,9 @@ export function SearchableSelect({ options, value, onChange, placeholder, listHe
                                 <div
                                     key={option.value}
                                     className={cn(
-                                        "px-3 py-2 cursor-pointer hover:bg-accent text-foreground",
-                                        value === option.value && "bg-accent"
+                                        "px-3 py-2 cursor-pointer text-foreground",
+                                        value === option.value && "bg-accent",
+                                        getPriceColorClass(option.price, option.currency)
                                     )}
                                     onMouseDown={(e) => { 
                                         e.preventDefault();
