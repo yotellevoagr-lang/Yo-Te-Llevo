@@ -371,13 +371,14 @@ export function TripForm({ isOpen, onOpenChange, onSave, tour, boardingPoints }:
             tourDataToSave.id = tour.id;
         }
 
-        await onSave(tourDataToSave as Tour);
-  
+        onSave(tourDataToSave as Tour);
+        
     } catch (error) {
       console.error("Error preparing to save tour:", error);
       toast({ title: "Error", description: "Ocurrió un problema al guardar los datos y subir los archivos.", variant: "destructive" });
-      setIsLoading(false); // Make sure to reset on error
-    } 
+    } finally {
+        setIsLoading(false);
+    }
   };
 
 
