@@ -375,44 +375,64 @@ export default function SettingsPage() {
 
     const handleSaveMainSettings = async () => {
         setIsSaving('main');
-        const currentSettings = await getDocumentById<GeneralSettings>('settings', 'general') || {};
-        const newSettings = { ...currentSettings, ...generalSettings };
-        await saveDocument('settings', newSettings, 'general');
-        window.dispatchEvent(new Event('storage'));
-        toast({ title: "Ajustes guardados", description: "Los ajustes generales han sido actualizados." });
-        setIsSaving(null);
+        try {
+            const currentSettings = await getDocumentById<GeneralSettings>('settings', 'general') || {};
+            const newSettings = { ...currentSettings, ...generalSettings };
+            await saveDocument('settings', newSettings, 'general');
+            window.dispatchEvent(new Event('storage'));
+            toast({ title: "Ajustes guardados", description: "Los ajustes generales han sido actualizados." });
+        } catch (error) {
+            toast({ title: "Error", description: "No se pudieron guardar los ajustes generales.", variant: "destructive" });
+        } finally {
+            setIsSaving(null);
+        }
     };
 
     const handleSaveContact = async () => {
         setIsSaving('contact');
-        const currentSettings = await getDocumentById<GeneralSettings>('settings', 'general') || {};
-        const newSettings = { ...currentSettings, contact: contactSettings };
-        await saveDocument('settings', newSettings, 'general');
-        window.dispatchEvent(new Event('storage'));
-        toast({ title: "Contacto guardado", description: "Los datos de contacto han sido actualizados." });
-        setIsSaving(null);
+        try {
+            const currentSettings = await getDocumentById<GeneralSettings>('settings', 'general') || {};
+            const newSettings = { ...currentSettings, contact: contactSettings };
+            await saveDocument('settings', newSettings, 'general');
+            window.dispatchEvent(new Event('storage'));
+            toast({ title: "Contacto guardado", description: "Los datos de contacto han sido actualizados." });
+        } catch (error) {
+            toast({ title: "Error", description: "No se pudieron guardar los datos de contacto.", variant: "destructive" });
+        } finally {
+            setIsSaving(null);
+        }
     };
     
     const handleAddDomain = async () => {
         if (!newDomain.trim()) return;
         setIsSaving('domains');
-        const updatedDomains = [...(domainSettings.domains || []), newDomain.trim()];
-        await saveDocument('settings', { domains: updatedDomains }, 'domains');
-        setDomainSettings({ domains: updatedDomains });
-        setNewDomain("");
-        window.dispatchEvent(new Event('storage'));
-        toast({ title: "Dominio agregado" });
-        setIsSaving(null);
+        try {
+            const updatedDomains = [...(domainSettings.domains || []), newDomain.trim()];
+            await saveDocument('settings', { domains: updatedDomains }, 'domains');
+            setDomainSettings({ domains: updatedDomains });
+            setNewDomain("");
+            window.dispatchEvent(new Event('storage'));
+            toast({ title: "Dominio agregado" });
+        } catch (error) {
+            toast({ title: "Error", description: "No se pudo agregar el dominio.", variant: "destructive" });
+        } finally {
+            setIsSaving(null);
+        }
     }
 
     const handleRemoveDomain = async (domainToRemove: string) => {
         setIsSaving('domains');
-        const updatedDomains = (domainSettings.domains || []).filter(d => d !== domainToRemove);
-        await saveDocument('settings', { domains: updatedDomains }, 'domains');
-        setDomainSettings({ domains: updatedDomains });
-        window.dispatchEvent(new Event('storage'));
-        toast({ title: "Dominio eliminado", variant: "destructive" });
-        setIsSaving(null);
+        try {
+            const updatedDomains = (domainSettings.domains || []).filter(d => d !== domainToRemove);
+            await saveDocument('settings', { domains: updatedDomains }, 'domains');
+            setDomainSettings({ domains: updatedDomains });
+            window.dispatchEvent(new Event('storage'));
+            toast({ title: "Dominio eliminado", variant: "destructive" });
+        } catch (error) {
+            toast({ title: "Error", description: "No se pudo eliminar el dominio.", variant: "destructive" });
+        } finally {
+            setIsSaving(null);
+        }
     }
 
     const handleEditLayout = (category: LayoutCategory, key: string) => {
@@ -470,17 +490,22 @@ export default function SettingsPage() {
     
     const handleSaveBoardingPoints = async () => {
         setIsSaving('boarding');
-        for(const point of boardingPoints) {
-            if (point.name.trim()) {
-                await saveDocument('boarding_points', point, point.id);
-            } else {
-                await deleteDocument('boarding_points', point.id);
+        try {
+            for(const point of boardingPoints) {
+                if (point.name.trim()) {
+                    await saveDocument('boarding_points', point, point.id);
+                } else {
+                    await deleteDocument('boarding_points', point.id);
+                }
             }
+            await fetchData();
+            window.dispatchEvent(new Event('storage'));
+            toast({ title: "Puntos de embarque guardados." });
+        } catch (error) {
+             toast({ title: "Error", description: "No se pudieron guardar los puntos de embarque.", variant: "destructive" });
+        } finally {
+            setIsSaving(null);
         }
-        await fetchData();
-        window.dispatchEvent(new Event('storage'));
-        toast({ title: "Puntos de embarque guardados." });
-        setIsSaving(null);
     }
 
     const handleAddPension = async () => {
@@ -495,17 +520,22 @@ export default function SettingsPage() {
     
     const handleSavePensions = async () => {
         setIsSaving('pensions');
-        for(const pension of pensions) {
-            if (pension.name.trim()) {
-                await saveDocument('pensions', pension, pension.id);
-            } else {
-                await deleteDocument('pensions', pension.id);
+        try {
+            for(const pension of pensions) {
+                if (pension.name.trim()) {
+                    await saveDocument('pensions', pension, pension.id);
+                } else {
+                    await deleteDocument('pensions', pension.id);
+                }
             }
+            await fetchData();
+            window.dispatchEvent(new Event('storage'));
+            toast({ title: "Tipos de pensión guardados." });
+        } catch (error) {
+            toast({ title: "Error", description: "No se pudieron guardar los tipos de pensión.", variant: "destructive" });
+        } finally {
+            setIsSaving(null);
         }
-        await fetchData();
-        window.dispatchEvent(new Event('storage'));
-        toast({ title: "Tipos de pensión guardados." });
-        setIsSaving(null);
     }
 
     const handleAddRoomType = async () => {
@@ -520,17 +550,22 @@ export default function SettingsPage() {
     
     const handleSaveRoomTypes = async () => {
         setIsSaving('rooms');
-        for(const rt of roomTypes) {
-            if (rt.name.trim()) {
-                await saveDocument('room_types', rt, rt.id);
-            } else {
-                await deleteDocument('room_types', rt.id);
+        try {
+            for(const rt of roomTypes) {
+                if (rt.name.trim()) {
+                    await saveDocument('room_types', rt, rt.id);
+                } else {
+                    await deleteDocument('room_types', rt.id);
+                }
             }
+            await fetchData();
+            window.dispatchEvent(new Event('storage'));
+            toast({ title: "Tipos de habitación guardados." });
+        } catch (error) {
+            toast({ title: "Error", description: "No se pudieron guardar los tipos de habitación.", variant: "destructive" });
+        } finally {
+            setIsSaving(null);
         }
-        await fetchData();
-        window.dispatchEvent(new Event('storage'));
-        toast({ title: "Tipos de habitación guardados." });
-        setIsSaving(null);
     }
 
     const layoutCategoryDetails = {
@@ -551,13 +586,18 @@ export default function SettingsPage() {
     
     const handleSaveTags = async () => {
         setIsSaving('tags');
-        const uniqueTags = [...new Set(travelTags.map(t => t.trim()).filter(Boolean))];
-        const currentSettings = await getDocumentById<GeneralSettings>('settings', 'general') || {};
-        await saveDocument('settings', { ...currentSettings, availableTags: uniqueTags }, 'general');
-        setTravelTags(uniqueTags);
-        window.dispatchEvent(new Event('storage'));
-        toast({ title: "Etiquetas guardadas", description: "La lista de etiquetas ha sido actualizada." });
-        setIsSaving(null);
+        try {
+            const uniqueTags = [...new Set(travelTags.map(t => t.trim()).filter(Boolean))];
+            const currentSettings = await getDocumentById<GeneralSettings>('settings', 'general') || {};
+            await saveDocument('settings', { ...currentSettings, availableTags: uniqueTags }, 'general');
+            setTravelTags(uniqueTags);
+            window.dispatchEvent(new Event('storage'));
+            toast({ title: "Etiquetas guardadas", description: "La lista de etiquetas ha sido actualizada." });
+        } catch (error) {
+             toast({ title: "Error", description: "No se pudieron guardar las etiquetas.", variant: "destructive" });
+        } finally {
+             setIsSaving(null);
+        }
     }
 
 
