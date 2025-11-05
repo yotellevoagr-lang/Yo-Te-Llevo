@@ -16,6 +16,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogTrigger,
 } from "@/components/ui/dialog"
 import {
@@ -176,7 +177,7 @@ export default function Home() {
               {t('hero.subtitle')}
             </p>
             <div className="max-w-xl mx-auto mt-8 animate-fade-in-up" style={{ animationDelay: '0.4s' }}>
-              <div className="flex flex-col gap-4 p-4 rounded-2xl shadow-2xl bg-background/80 backdrop-blur-lg border border-white/20">
+              <div className="flex flex-col gap-4 p-4 rounded-2xl shadow-2xl bg-background/80 backdrop-blur-lg border border-white/20 overflow-visible">
                  <Dialog open={isSearchOpen} onOpenChange={setIsSearchOpen}>
                     <DialogTrigger asChild>
                         <Button
@@ -188,6 +189,10 @@ export default function Home() {
                         </Button>
                     </DialogTrigger>
                     <DialogContent className="p-0">
+                        <DialogHeader className="sr-only">
+                          <DialogTitle>Seleccionar Destino</DialogTitle>
+                          <DialogDescription>Busca y selecciona un viaje para ver más detalles.</DialogDescription>
+                        </DialogHeader>
                         <Command>
                             <CommandInput placeholder="Buscar destino..." />
                             <CommandList>
