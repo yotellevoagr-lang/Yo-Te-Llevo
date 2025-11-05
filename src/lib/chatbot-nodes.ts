@@ -81,18 +81,17 @@ const chatbotFlow: Record<string, ChatbotNode> = {
     options: [
       { text: "⭐ Destacados", next: "trips_result", action: 'fetchFeaturedTours' },
       { text: "🗺️ Ver Catálogo Completo", next: "trips_result", action: 'fetchAllTours' },
-      { text: "💡 Recomiéndame un viaje", next: "trip_recommendation" },
-      { text: "🔎 Buscar por nombre", next: "search_by_name_input" },
+      { text: "🔎 Buscar por temática", next: "trip_recommendation" },
       { text: "⬅️ Volver", next: "start" },
     ],
   },
   trip_recommendation: {
       id: "trip_recommendation",
-      message: "¡Por supuesto! ¿Qué tipo de destino prefieres?",
+      message: "¡Perfecto! ¿Qué tipo de viaje te interesa?",
       options: [
-          { text: "Playa y Sol", next: "trips_result", action: "searchTripsByAttribute", actionContext: "playa" },
-          { text: "Montaña y Nieve", next: "trips_result", action: "searchTripsByAttribute", actionContext: "montaña" },
-          { text: "Ciudad y Cultura", next: "trips_result", action: "searchTripsByAttribute", actionContext: "ciudad" },
+          { text: "Playa", next: "trips_result", action: "searchTripsByAttribute", actionContext: "playa" },
+          { text: "Montaña", next: "trips_result", action: "searchTripsByAttribute", actionContext: "montaña" },
+          { text: "Nieve", next: "trips_result", action: "searchTripsByAttribute", actionContext: "nieve" },
           { text: "Aventura", next: "trips_result", action: "searchTripsByAttribute", actionContext: "aventura" },
           { text: "⬅️ Volver", next: "trips_menu"},
       ]
