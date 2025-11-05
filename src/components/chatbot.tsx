@@ -291,6 +291,9 @@ export default function Chatbot() {
             setMessages(prev => prev.slice(0, previousBotMessageIndex + 1));
             setCurrentNode(previousNode);
             setCurrentContext(previousBotMessage.context);
+            if (previousNode.id === 'tag_selection') {
+                setChatbotState(prev => ({...prev, selectedTags: [] }));
+            }
             return;
         }
     }

@@ -90,7 +90,6 @@ const chatbotFlow: Record<string, ChatbotNode> = {
       message: "Selecciona una o más temáticas de tu interés y luego presiona 'Buscar'.",
       options: [
           // Options will be dynamically populated by fetchAvailableTags action.
-          // A "Search" button should be dynamically added by the UI when tags are selected.
       ]
   },
   trips_result: {
