@@ -18,7 +18,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { PlusCircle, MoreHorizontal, Edit, Trash2, Maximize } from "lucide-react"
 import type { Tour, Flyer } from "@/lib/types"
 import { useToast } from "@/hooks/use-toast"
-import { getAllFromCollection_client, deleteDocument, saveDocument } from "@/lib/firestore-services"
+import { getAllFromCollection_client, deleteDocument, saveDocument, deleteFileFromStorage } from "@/lib/firestore-services"
 import { FlyerForm } from "@/components/admin/flyer-form"
 import Image from "next/image"
 import { getDisplayUrl } from "@/lib/utils"
@@ -65,22 +65,10 @@ export default function FlyersPage() {
     setIsFormOpen(true)
   }
 
-  const handleFlyerSave = async (flyerData: Omit<Flyer, 'id'>, fileAsDataUrl: string | null) => {
+  const handleFlyerSave = async (flyerData: Omit<Flyer, 'id'>) => {
     try {
-        let mediaUrl = selectedFlyer?.url || '';
-
-        if (fileAsDataUrl) {
-            mediaUrl = fileAsDataUrl;
-        }
-        
-        const dataToSave: Omit<Flyer, 'id'> & { url: string } = {
-            ...flyerData,
-            url: mediaUrl,
-        };
-        
-        await saveDocument('flyers', dataToSave, selectedFlyer?.id);
+        await saveDocument('flyers', flyerData, flyerData.id || undefined);
         window.dispatchEvent(new Event('storage'));
-
         toast({ title: "¡Guardado!", description: "El flyer ha sido guardado correctamente." });
         await fetchData(); 
         setIsFormOpen(false); 
@@ -92,6 +80,14 @@ export default function FlyersPage() {
 
 
   const handleDelete = async (flyerId: string) => {
+    const flyerToDelete = flyers.find(f => f.id === flyerId);
+    if (!flyerToDelete) return;
+    
+    // Delete file from storage before deleting the document
+    if (flyerToDelete.url) {
+        await deleteFileFromStorage(flyerToDelete.url);
+    }
+
     await deleteDocument('flyers', flyerId);
     await fetchData();
     window.dispatchEvent(new Event('storage'));

@@ -1,4 +1,3 @@
-
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(req: NextRequest) {
@@ -30,7 +29,8 @@ export async function GET(req: NextRequest) {
 
     const headers = new Headers();
     headers.set('Content-Type', contentType);
-    headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+    // Cache for 1 hour for remote resources
+    headers.set('Cache-Control', 'public, max-age=3600');
     
     return new NextResponse(imageBuffer, {
       status: 200,

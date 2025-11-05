@@ -37,7 +37,7 @@ import {
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
-import { getAllFromCollection_client, getDocumentById, saveTour, deleteDocument, saveDocument } from "@/lib/firestore-services"
+import { getAllFromCollection_client, getDocumentById, saveTour, deleteDocument, saveDocument, deleteFileFromStorage } from "@/lib/firestore-services"
 import { Switch } from "@/components/ui/switch"
 import { cn } from "@/lib/utils"
 
@@ -141,16 +141,13 @@ export default function TripsPage() {
     setIsFormOpen(true)
   }
 
-  const handleSave = async (tourData: Tour, imageAsDataUrl: string | null) => {
+  const handleSave = async (tourData: Tour) => {
     const tourToSave: Partial<Tour> = { ...tourData };
+    
     if (!tourToSave.id) {
         const globalSettings = await getDocumentById<GeneralSettings>('settings', 'general');
         tourToSave.observations = globalSettings?.observations || "";
         tourToSave.cancellationPolicy = globalSettings?.cancellationPolicy || "";
-    }
-    
-    if (imageAsDataUrl) {
-      tourToSave.backgroundImage = imageAsDataUrl;
     }
     
     await saveTour(tourToSave, tourToSave.id);
@@ -165,6 +162,19 @@ export default function TripsPage() {
   };
 
   const handleDelete = async (tourId: string) => {
+    const tourToDelete = tours.find(t => t.id === tourId);
+    if (!tourToDelete) return;
+
+    // Delete associated files from storage
+    if (tourToDelete.backgroundImage) {
+        await deleteFileFromStorage(tourToDelete.backgroundImage);
+    }
+    if (tourToDelete.gallery && tourToDelete.gallery.length > 0) {
+        for (const item of tourToDelete.gallery) {
+            await deleteFileFromStorage(item.url);
+        }
+    }
+
     await deleteDocument('tours', tourId);
     await fetchData();
     window.dispatchEvent(new Event('storage'));

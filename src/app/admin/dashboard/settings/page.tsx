@@ -30,7 +30,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion"
 import { useAuth } from "@/components/auth/auth-provider"
-import { getAllFromCollection_client, getDocumentById, deleteDocument, saveDocument } from "@/lib/firestore-services"
+import { getAllFromCollection_client, getDocumentById, deleteDocument, saveDocument, uploadFileAndGetURL } from "@/lib/firestore-services"
 import { getDisplayUrl } from "@/lib/utils"
 import { GeoSettingsCard } from "@/components/admin/settings/geo-settings-card"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -357,14 +357,8 @@ export default function SettingsPage() {
         }
         setIsSaving('about-us');
         try {
-            const reader = new FileReader();
-            const dataUrl = await new Promise<string>((resolve, reject) => {
-                reader.onloadend = () => resolve(reader.result as string);
-                reader.onerror = reject;
-                reader.readAsDataURL(aboutUsMediaFile);
-            });
-
-            const newAboutUsMedia = { url: dataUrl, type: aboutUsMediaFile.type.startsWith('video') ? 'video' : 'image' };
+            const mediaUrl = await uploadFileAndGetURL(aboutUsMediaFile, `settings/about-us/${aboutUsMediaFile.name}`);
+            const newAboutUsMedia = { url: mediaUrl, type: aboutUsMediaFile.type.startsWith('video') ? 'video' : 'image' };
 
             await saveDocument('settings', { aboutUsMedia: newAboutUsMedia }, 'general');
             window.dispatchEvent(new Event('storage'));
