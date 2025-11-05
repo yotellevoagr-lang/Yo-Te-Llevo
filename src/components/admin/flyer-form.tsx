@@ -20,6 +20,7 @@ import { Checkbox } from "../ui/checkbox"
 import Image from "next/image"
 import { uploadFileAndGetURL } from "@/lib/firestore-services"
 import { Loader2 } from "lucide-react"
+import { getDisplayUrl } from "@/lib/utils"
 
 interface FlyerFormProps {
   isOpen: boolean
@@ -58,6 +59,7 @@ export function FlyerForm({ isOpen, onOpenChange, onSave, flyer, tours }: FlyerF
             setPreviewUrl(null);
         }
         setFile(null); // Always reset file on open
+        setIsUploading(false); // Reset loading state
     }
   }, [flyer, isOpen])
 
@@ -98,14 +100,13 @@ export function FlyerForm({ isOpen, onOpenChange, onSave, flyer, tours }: FlyerF
             url: mediaUrl,
             type: mediaType 
         };
-        onSave(finalData);
+        await onSave(finalData);
         
     } catch (error) {
         console.error("Error uploading file:", error);
         toast({ title: "Error al subir archivo", description: "No se pudo subir el archivo a Firebase Storage.", variant: "destructive"});
-    } finally {
-        setIsUploading(false);
-    }
+        setIsUploading(false); // Make sure to reset on error
+    } 
   }
 
   return (
@@ -147,9 +148,9 @@ export function FlyerForm({ isOpen, onOpenChange, onSave, flyer, tours }: FlyerF
                         <Label>Vista Previa</Label>
                         <div className="border rounded-md p-2 flex justify-center items-center bg-muted">
                             {mediaType === 'video' ? (
-                                <video src={previewUrl} controls className="max-h-60 rounded" />
+                                <video src={previewUrl.startsWith('blob:') ? previewUrl : getDisplayUrl(previewUrl)} controls className="max-h-60 rounded" />
                             ) : (
-                                <Image src={previewUrl} alt="Vista previa" width={200} height={300} className="max-h-60 w-auto object-contain rounded"/>
+                                <Image src={previewUrl.startsWith('blob:') ? previewUrl : getDisplayUrl(previewUrl)} alt="Vista previa" width={200} height={300} className="max-h-60 w-auto object-contain rounded"/>
                             )}
                         </div>
                     </div>
