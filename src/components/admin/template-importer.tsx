@@ -41,23 +41,15 @@ type ImportResult = {
 
 
 const excelDateToJSDate = (serial: any): Date | undefined => {
-    if (serial === undefined || serial === null) return undefined;
+    if (serial === undefined || serial === null || String(serial).trim() === "") return undefined;
 
-    // Handle Excel's numeric date format
-    if (typeof serial === 'number' && serial > 0) {
-        const utc_days  = Math.floor(serial - 25569);
-        const utc_value = utc_days * 86400;                                        
-        const date_info = new Date(utc_value * 1000);
-        if(isNaN(date_info.getTime())) return undefined;
-        return new Date(date_info.getTime() + (date_info.getTimezoneOffset() * 60000));
-    }
-
-    // Handle string date formats
+    // Handle string date formats first
     if (typeof serial === 'string') {
-        const cleanedSerial = serial.replace(/[\/\.-]/g, '-');
+        // Replace common separators with a standard one
+        const cleanedSerial = serial.replace(/[\/\.]/g, '-');
         const parts = cleanedSerial.split('-');
         if (parts.length === 3) {
-            let [day, month, year] = parts;
+            let [day, month, year] = parts.map(p => p.trim());
             // Handle yy format
             if (year.length === 2) {
                 year = (parseInt(year) > 50 ? '19' : '20') + year;
@@ -70,6 +62,18 @@ const excelDateToJSDate = (serial: any): Date | undefined => {
                     return date;
                 }
             }
+        }
+    }
+    
+    // Handle Excel's numeric date format if string parsing fails or it's a number
+    if (typeof serial === 'number' && serial > 0) {
+        // Excel's epoch starts on 1900-01-01, but has a bug where it thinks 1900 is a leap year.
+        // The serial number 25569 corresponds to 1970-01-01.
+        const utc_days  = Math.floor(serial - 25569);
+        const utc_value = utc_days * 86400;                                        
+        const date_info = new Date(utc_value * 1000);
+        if(!isNaN(date_info.getTime())) {
+             return new Date(date_info.getTime() + (date_info.getTimezoneOffset() * 60000));
         }
     }
 
@@ -260,11 +264,14 @@ export function TemplateImporter({ isOpen, onOpenChange }: TemplateImporterProps
                         if(existingBp) boardingPointId = existingBp.id;
                     }
                 }
+                
+                const phoneRaw = row[colMap['TELÉFONO O CELULAR']];
+                const phoneCleaned = phoneRaw ? String(phoneRaw).replace(/\D/g, '') : null;
 
                 const passengerUpdate: Partial<Passenger> = {
                     fullName: passengerName,
-                    dob: dobValue,
-                    phone: row[colMap['TELÉFONO O CELULAR']] ? String(row[colMap['TELÉFONO O CELULAR']]) : undefined,
+                    dob: dobValue || null,
+                    phone: phoneCleaned || null,
                     boardingPointId: boardingPointId || undefined,
                 };
 
