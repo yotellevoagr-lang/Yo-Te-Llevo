@@ -133,7 +133,7 @@ function DraggableNode({ node, position, onNodeClick, isSelected }: { node: Chat
     };
 
     return (
-        <div ref={setNodeRef} style={style} className="absolute" onClick={() => onNodeClick(node.id)}>
+        <div ref={setNodeRef} style={style} className="absolute z-10" onClick={() => onNodeClick(node.id)}>
              <Card className={cn("w-64 bg-background shadow-lg hover:shadow-2xl transition-shadow border-2", isSelected && "border-primary")}>
                 <CardHeader className="p-2 border-b cursor-move" {...listeners} {...attributes}>
                     <CardTitle className="text-sm flex items-center gap-2">
@@ -150,14 +150,52 @@ function DraggableNode({ node, position, onNodeClick, isSelected }: { node: Chat
 }
 
 function ChatbotVisualView({ nodes, nodePositions, handleDragEnd, onNodeClick, selectedNodeId }: any) {
+    const nodeMap = new Map(nodes.map((node: ChatbotNode) => [node.id, node]));
+
     return (
-        <Card className="h-[70vh] relative overflow-hidden">
-             <CardHeader className="absolute top-0 left-0 z-10 bg-background/80 backdrop-blur-sm rounded-t-lg w-full">
+        <Card className="h-[70vh] relative overflow-auto">
+             <CardHeader className="absolute top-0 left-0 z-20 bg-background/80 backdrop-blur-sm rounded-t-lg w-full">
                 <CardTitle>Editor Visual (En Construcción)</CardTitle>
-                <CardDescription>Arrastra los nodos para organizar el flujo. Próximamente: conecta los nodos y edítalos aquí.</CardDescription>
+                <CardDescription>Arrastra los nodos para organizar el flujo. Haz clic para seleccionar.</CardDescription>
             </CardHeader>
             <DndContext onDragEnd={handleDragEnd}>
-                <div className="w-full h-full bg-muted/30 rounded-b-lg">
+                <div className="w-full h-full bg-muted/30 rounded-b-lg relative">
+                    <svg className="absolute inset-0 w-full h-full pointer-events-none">
+                        <defs>
+                            <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                                <path d="M 0 0 L 10 5 L 0 10 z" fill="hsl(var(--primary))" />
+                            </marker>
+                        </defs>
+                         {nodes.map((node: ChatbotNode) => {
+                             const startPos = nodePositions[node.id];
+                             if (!startPos) return null;
+                             
+                             return node.options.map((opt, index) => {
+                                 const endNode = nodeMap.get(opt.next);
+                                 const endPos = endNode ? nodePositions[endNode.id] : null;
+
+                                 if (!endPos) return null;
+                                 
+                                 const startX = startPos.x + 128; // center of node
+                                 const startY = startPos.y + 40; // middle of node
+                                 const endX = endPos.x + 128;
+                                 const endY = endPos.y + 40;
+
+                                 // Simple straight line for now
+                                 return (
+                                     <line 
+                                         key={`${node.id}-${opt.next}-${index}`}
+                                         x1={startX} y1={startY}
+                                         x2={endX} y2={endY}
+                                         stroke="hsl(var(--primary) / 0.5)"
+                                         strokeWidth="2"
+                                         markerEnd="url(#arrow)"
+                                     />
+                                 )
+                             })
+                         })}
+                    </svg>
+
                     {nodes.map((node: ChatbotNode) => (
                         <DraggableNode 
                             key={node.id} 
@@ -322,8 +360,8 @@ export default function ChatbotEditorPage() {
       setNodePositions(prev => ({
           ...prev,
           [active.id]: {
-              x: prev[active.id].x + delta.x,
-              y: prev[active.id].y + delta.y,
+              x: (prev[active.id]?.x || 0) + delta.x,
+              y: (prev[active.id]?.y || 0) + delta.y,
           }
       }));
   }
@@ -372,5 +410,3 @@ export default function ChatbotEditorPage() {
     </div>
   );
 }
-
-    
