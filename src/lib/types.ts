@@ -333,6 +333,38 @@ export interface Transaction {
   method?: string;
 }
 
+export type ActionType = 
+  | 'fetchFeaturedTours' 
+  | 'fetchAllTours' 
+  | 'fetchPassengerByDNI' 
+  | 'fetchFamilyGroup'
+  | 'getFaqAnswer'
+  | 'fetchTripDetailsByName'
+  | 'searchTripsByAttribute'
+  | 'fetchActiveReservations'
+  | 'fetchPaymentStatus'
+  | 'fetchBoardingPass'
+  | 'getTripStatus'
+  | 'askForChildren'
+  | 'calculatePrebookingPrice'
+  | 'fetchContactInfo'
+  | 'fetchAvailableTags';
+
+export interface ChatbotNode {
+  id: string;
+  message: string;
+  options: {
+    text: string;
+    next: string;
+    action?: ActionType;
+    actionContext?: any;
+    requiresAuth?: boolean;
+    isExternalLink?: boolean;
+  }[];
+  isUserInput?: boolean;
+  action?: ActionType;
+}
+
 export interface ChatbotState {
     selectedTags: string[];
 }
