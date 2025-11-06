@@ -494,7 +494,7 @@ export default function BookingPage() {
                                 {formattedPresentationTime && <div className="flex items-center gap-2"><ClockIcon className="w-5 h-5 text-primary" /><span>Presentación: {formattedPresentationTime}</span></div>}
                                 {formattedDepartureTime && <div className="flex items-center gap-2"><ClockIcon className="w-5 h-5 text-primary" /><span>Salida: {formattedDepartureTime}</span></div>}
                             </div>
-                            {tour.description && ( <div className="prose prose-sm max-w-none text-muted-foreground"><p>{tour.description}</p></div> )}
+                            {tour.description && ( <p className="prose prose-sm max-w-none text-muted-foreground whitespace-pre-wrap">{tour.description}</p> )}
                              {tour.gallery && tour.gallery.length > 0 && (
                                 <div className="mt-6">
                                     <div className="flex gap-2 overflow-x-auto pb-2">
