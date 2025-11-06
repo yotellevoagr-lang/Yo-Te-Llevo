@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect } from "react"
@@ -8,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
 import { Settings as SettingsIcon, Bus, Trash2, Edit, PlusCircle, Ship, Plane, Save, Contact, Utensils, BedDouble, Folder, ShieldCheck, KeyRound, Mail, Eye, EyeOff, Image as ImageIcon, Globe, AppWindow, Loader2, Tag, Pin } from "lucide-react"
-import type { CustomLayoutConfig, LayoutCategory, GeneralSettings, ContactSettings, Pension, RoomType, Employee, DomainSettings, BoardingPoint } from "@/lib/types"
+import type { CustomLayoutConfig, LayoutCategory, GeneralSettings, ContactSettings, Pension, RoomType, Employee, DomainSettings, BoardingPoint, Tour } from "@/lib/types"
 import { LayoutEditor } from "@/components/admin/layout-editor"
 import { updatePassword, updateEmail, reauthenticateWithCredential, EmailAuthProvider } from "firebase/auth"
 import {
@@ -33,6 +34,9 @@ import { getDisplayUrl } from "@/lib/utils"
 import { GeoSettingsCard } from "@/components/admin/settings/geo-settings-card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Separator } from "@/components/ui/separator"
+import { arrayRemove, writeBatch } from "firebase/firestore"
+import { db } from "@/lib/firebase"
+import { doc } from "firebase/firestore"
 
 const fileToDataUrl = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -589,21 +593,58 @@ export default function SettingsPage() {
         setTravelTags(newTags);
     }
     const handleAddTag = () => setTravelTags([...travelTags, ""]);
-    const handleRemoveTag = (index: number) => setTravelTags(travelTags.filter((_, i) => i !== index));
     
+    const handleRemoveTag = async (index: number) => {
+        const tagToRemove = travelTags[index];
+        const newTags = travelTags.filter((_, i) => i !== index);
+        setTravelTags(newTags);
+
+        // This is a preview. To make it permanent, user must save.
+        toast({
+            title: `Etiqueta '${tagToRemove}' marcada para eliminar`,
+            description: "Guarda los cambios para que la eliminación sea permanente y se actualice en todos los viajes.",
+            variant: "default",
+        });
+    }
+
     const handleSaveTags = async () => {
         setIsSaving('tags');
         try {
-            const uniqueTags = [...new Set(travelTags.map(t => t.trim()).filter(Boolean))];
-            const currentSettings = await getDocumentById<GeneralSettings>('settings', 'general') || {};
-            await saveDocument('settings', { ...currentSettings, availableTags: uniqueTags }, 'general');
-            setTravelTags(uniqueTags);
+            const originalTags = generalSettings.availableTags || [];
+            const newUniqueTags = [...new Set(travelTags.map(t => t.trim()).filter(Boolean))];
+            
+            const deletedTags = originalTags.filter(t => !newUniqueTags.includes(t));
+
+            if (deletedTags.length > 0) {
+                const allTours = await getAllFromCollection_client<Tour>('tours');
+                const batch = writeBatch(db);
+
+                allTours.forEach(tour => {
+                    const tourHasDeletedTag = tour.tags?.some(tag => deletedTags.includes(tag));
+                    if (tourHasDeletedTag) {
+                        const tourRef = doc(db, 'tours', tour.id);
+                        batch.update(tourRef, {
+                            tags: arrayRemove(...deletedTags)
+                        });
+                    }
+                });
+                await batch.commit();
+                toast({ title: "Viajes actualizados", description: `Se eliminó la etiqueta de ${deletedTags.length} viaje(s).`});
+            }
+
+            const currentSettings = generalSettings || {};
+            await saveDocument('settings', { ...currentSettings, availableTags: newUniqueTags }, 'general');
+            
+            setGeneralSettings(prev => ({...prev!, availableTags: newUniqueTags}));
+            setTravelTags(newUniqueTags);
+            
             window.dispatchEvent(new Event('storage'));
             toast({ title: "Etiquetas guardadas", description: "La lista de etiquetas ha sido actualizada." });
         } catch (error) {
-             toast({ title: "Error", description: "No se pudieron guardar las etiquetas.", variant: "destructive" });
+            console.error("Error saving tags:", error);
+            toast({ title: "Error", description: "No se pudieron guardar las etiquetas.", variant: "destructive" });
         } finally {
-             setIsSaving(null);
+            setIsSaving(null);
         }
     }
 
