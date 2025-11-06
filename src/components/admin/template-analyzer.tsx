@@ -11,6 +11,12 @@ import {
   DialogDescription,
   DialogFooter
 } from "@/components/ui/dialog"
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -120,24 +126,23 @@ export function TemplateAnalyzer({ isOpen, onOpenChange }: TemplateAnalyzerProps
                     </AlertDescription>
                 </Alert>
                 
-                <div className="space-y-2">
-                    <h4 className="font-semibold flex items-center gap-2"><TableIcon className="w-4 h-4"/> Cabeceras de Columna Encontradas</h4>
-                    <pre className="text-xs bg-muted p-2 rounded-md overflow-x-auto">{JSON.stringify(analysisResult.headers, null, 2)}</pre>
-                </div>
-                
-                <div className="space-y-2">
-                    <h4 className="font-semibold flex items-center gap-2"><Users className="w-4 h-4"/> Muestra de Datos de Pasajeros (primeras 5 filas)</h4>
-                    <div className="border rounded-md overflow-x-auto">
-                        <Table className="min-w-max">
-                            <TableHeader><TableRow>{Object.keys(analysisResult.headers).map(h => <TableHead key={h} className="text-xs p-1 whitespace-nowrap">{h}</TableHead>)}</TableRow></TableHeader>
-                            <TableBody>
-                                {analysisResult.passengerDataSample.map((row, i) => (
-                                    <TableRow key={i}>{Object.values(analysisResult.headers).map(colIdx => <TableCell key={colIdx} className="text-xs p-1 whitespace-nowrap">{row[colIdx]}</TableCell>)}</TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </div>
-                </div>
+                <Accordion type="single" collapsible className="w-full" defaultValue="item-1">
+                    <AccordionItem value="item-1">
+                        <AccordionTrigger className="font-semibold">Muestra de Datos de Pasajeros (primeras 5 filas)</AccordionTrigger>
+                        <AccordionContent>
+                             <div className="border rounded-md overflow-x-auto">
+                                <Table className="min-w-max">
+                                    <TableHeader><TableRow>{Object.keys(analysisResult.headers).map(h => <TableHead key={h} className="text-xs p-1 whitespace-nowrap">{h}</TableHead>)}</TableRow></TableHeader>
+                                    <TableBody>
+                                        {analysisResult.passengerDataSample.map((row, i) => (
+                                            <TableRow key={i}>{Object.values(analysisResult.headers).map(colIdx => <TableCell key={colIdx} className="text-xs p-1 whitespace-nowrap">{row[colIdx]}</TableCell>)}</TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        </AccordionContent>
+                    </AccordionItem>
+                </Accordion>
                 
                  <div className="space-y-2">
                     <h4 className="font-semibold flex items-center gap-2"><Building className="w-4 h-4"/> Datos de Listas Encontradas</h4>
@@ -200,3 +205,5 @@ export function TemplateAnalyzer({ isOpen, onOpenChange }: TemplateAnalyzerProps
         </Dialog>
     )
 }
+
+    
