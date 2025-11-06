@@ -355,7 +355,7 @@ export interface ChatbotNode {
   options: {
     text: string;
     next: string;
-    action?: ActionType;
+    action?: ActionType | undefined; // Allow undefined
     actionContext?: any;
     requiresAuth?: boolean;
     isExternalLink?: boolean;
