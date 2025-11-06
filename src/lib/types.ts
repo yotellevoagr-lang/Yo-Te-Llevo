@@ -1,4 +1,5 @@
 
+
 import type { Layout, Cell } from './layouts';
 
 export type LayoutCategory = 'vehicles' | 'airplanes' | 'cruises';
@@ -348,6 +349,75 @@ export type ActionType =
   | 'calculatePrebookingPrice'
   | 'fetchContactInfo'
   | 'fetchAvailableTags';
+  
+export interface ActionDescription {
+  label: string;
+  description: string;
+}
+
+export const actionDescriptions: Record<ActionType, ActionDescription> = {
+  fetchFeaturedTours: {
+    label: "Obtener Viajes Destacados",
+    description: "Busca y muestra solo los viajes marcados como 'destacados'.",
+  },
+  fetchAllTours: {
+    label: "Obtener Todos los Viajes",
+    description: "Muestra un catálogo con todos los viajes activos y públicos.",
+  },
+  fetchPassengerByDNI: {
+    label: "Buscar Pasajero por DNI",
+    description: "Busca un pasajero usando el DNI ingresado y muestra su información.",
+  },
+  fetchFamilyGroup: {
+    label: "Obtener Grupo Familiar",
+    description: "Muestra todos los miembros del grupo familiar del usuario que ha iniciado sesión.",
+  },
+  getFaqAnswer: {
+    label: "Obtener Respuesta de FAQ",
+    description: "Proporciona una respuesta predefinida a una pregunta frecuente.",
+  },
+  fetchTripDetailsByName: {
+    label: "Buscar Viaje por Nombre",
+    description: "Busca un viaje cuyo destino coincida con el texto ingresado por el usuario.",
+  },
+  searchTripsByAttribute: {
+    label: "Buscar Viajes por Etiqueta",
+    description: "Filtra y muestra viajes que conten_gan las etiquetas temáticas seleccionadas.",
+  },
+  fetchActiveReservations: {
+    label: "Obtener Reservas Activas",
+    description: "Muestra los próximos viajes del usuario que ha iniciado sesión.",
+  },
+  fetchPaymentStatus: {
+    label: "Obtener Estado de Pago",
+    description: "Muestra el detalle de pagos y el saldo pendiente de una reserva seleccionada.",
+  },
+  fetchBoardingPass: {
+    label: "Obtener Pase de Abordo",
+    description: "Genera y muestra un resumen del pase de abordo para una reserva.",
+  },
+  getTripStatus: {
+    label: "Obtener Estado de un Viaje (Admin)",
+    description: "Muestra la capacidad total, ocupada y disponible de un viaje específico.",
+  },
+  askForChildren: {
+    label: "Iniciar Pre-reserva (paso 1)",
+    description: "Inicia el flujo para cotizar una reserva, preguntando por la cantidad total de pasajeros.",
+  },
+  calculatePrebookingPrice: {
+    label: "Calcular Precio de Pre-reserva (paso 2)",
+    description: "Calcula el precio final basado en el número de adultos y niños ingresado.",
+  },
+  fetchContactInfo: {
+    label: "Obtener Información de Contacto",
+    description: "Muestra el teléfono y email de contacto de la agencia.",
+  },
+  fetchAvailableTags: {
+    label: "Cargar Etiquetas Disponibles",
+    description: "Carga y muestra las etiquetas temáticas de los viajes como opciones.",
+  },
+};
+
 
 export interface ChatbotNode {
   id: string;

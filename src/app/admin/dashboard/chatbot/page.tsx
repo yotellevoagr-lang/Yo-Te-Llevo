@@ -1,4 +1,5 @@
 
+
 "use client"
 
 import { useState, useEffect, useRef } from "react";
@@ -18,21 +19,24 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getAllFromCollection_client, saveDocument, deleteDocument } from "@/lib/firestore-services";
-import type { ChatbotNode } from "@/lib/types";
+import type { ChatbotNode, ActionType } from "@/lib/types";
+import { actionDescriptions } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, PlusCircle, Trash2, Save, Bot, GripVertical } from "lucide-react";
+import { Loader2, PlusCircle, Trash2, Save, Bot, GripVertical, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 
-const availableActions = [
-  'fetchFeaturedTours', 'fetchAllTours', 'fetchPassengerByDNI', 
-  'fetchFamilyGroup', 'getFaqAnswer', 'fetchTripDetailsByName', 
-  'searchTripsByAttribute', 'fetchActiveReservations', 'fetchPaymentStatus', 
-  'fetchBoardingPass', 'getTripStatus', 'askForChildren', 
-  'calculatePrebookingPrice', 'fetchContactInfo', 'fetchAvailableTags'
-];
+const availableActions = Object.keys(actionDescriptions) as ActionType[];
 
 function ChatbotListView({ nodes, onNodeChange, onOptionChange, addOption, removeOption, handleSaveNode, handleDeleteNode, isSaving, originalNodeIds, addNewNode, onNodeClick, selectedNodeId }: any) {
+  const [selectedAction, setSelectedAction] = useState<ActionType | null>(null);
+
   return (
     <Card className="h-full flex flex-col">
       <CardHeader>
@@ -59,7 +63,7 @@ function ChatbotListView({ nodes, onNodeChange, onOptionChange, addOption, remov
               </AccordionTrigger>
               <AccordionContent className="p-4 pt-0 space-y-4">
                 <div className="space-y-2">
-                    <Label htmlFor={`id-${originalId}`}>ID del Nodo (en español, sin espacios)</Label>
+                    <Label htmlFor={`id-${originalId}`}>ID del Nodo</Label>
                     <Input 
                       id={`id-${originalId}`} 
                       value={node.id} 
@@ -91,12 +95,24 @@ function ChatbotListView({ nodes, onNodeChange, onOptionChange, addOption, remov
                                 </div>
                             </div>
                              <div className="space-y-1">
-                                <Label>Acción a Ejecutar (Opcional)</Label>
-                                <Select value={opt.action || ''} onValueChange={value => onOptionChange(originalId, index, 'action', value === 'none' ? undefined : value)}>
+                                <Label className="flex items-center gap-1.5">
+                                  Acción a Ejecutar (Opcional)
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Info className="w-3 h-3 text-muted-foreground cursor-pointer"/>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p className="max-w-xs">{opt.action && actionDescriptions[opt.action as ActionType] ? actionDescriptions[opt.action as ActionType].description : 'Selecciona una acción para ver su descripción.'}</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                </Label>
+                                <Select value={opt.action || ''} onValueChange={value => { onOptionChange(originalId, index, 'action', value === 'none' ? undefined : value); setSelectedAction(value as ActionType);}}>
                                     <SelectTrigger><SelectValue placeholder="Ninguna"/></SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="none">Ninguna</SelectItem>
-                                        {availableActions.map(act => <SelectItem key={act} value={act}>{act}</SelectItem>)}
+                                        {availableActions.map(act => <SelectItem key={act} value={act}>{actionDescriptions[act].label}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -312,7 +328,7 @@ export default function ChatbotEditorPage() {
       
       setIsSaving(originalId);
       try {
-          // The node object in state already has the updated position, so we save it directly.
+          
           const { id, ...dataToSave } = node;
           
           if (originalId && newId !== originalId) {
