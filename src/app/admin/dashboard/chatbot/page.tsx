@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -33,11 +33,15 @@ export default function ChatbotEditorPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState<string | null>(null);
   const { toast } = useToast();
+  const originalNodeIds = useRef(new Map<string, string>());
 
   const fetchNodes = async () => {
     setIsLoading(true);
     const nodesData = await getAllFromCollection_client<ChatbotNode>('chatbot_flows');
-    setNodes(nodesData.sort((a, b) => a.id.localeCompare(b.id)));
+    const sortedNodes = nodesData.sort((a, b) => a.id.localeCompare(b.id));
+    setNodes(sortedNodes);
+    originalNodeIds.current.clear();
+    sortedNodes.forEach(node => originalNodeIds.current.set(node.id, node.id));
     setIsLoading(false);
   }
 
@@ -45,13 +49,20 @@ export default function ChatbotEditorPage() {
     fetchNodes();
   }, []);
 
-  const handleNodeChange = (nodeId: string, field: keyof ChatbotNode, value: any) => {
-    setNodes(prev => prev.map(n => n.id === nodeId ? { ...n, [field]: value } : n));
+  const handleNodeChange = (originalId: string, field: keyof ChatbotNode, value: any) => {
+    setNodes(prev => prev.map(n => {
+        const nodeOriginalId = originalNodeIds.current.get(n.id) || n.id;
+        if(nodeOriginalId === originalId) {
+            return { ...n, [field]: value };
+        }
+        return n;
+    }));
   };
   
-  const handleOptionChange = (nodeId: string, optionIndex: number, field: string, value: any) => {
+  const handleOptionChange = (originalId: string, optionIndex: number, field: string, value: any) => {
       setNodes(prev => prev.map(n => {
-          if (n.id === nodeId) {
+          const nodeOriginalId = originalNodeIds.current.get(n.id) || n.id;
+          if (nodeOriginalId === originalId) {
               const newOptions = [...n.options];
               newOptions[optionIndex] = { ...newOptions[optionIndex], [field]: value };
               return { ...n, options: newOptions };
@@ -60,34 +71,68 @@ export default function ChatbotEditorPage() {
       }));
   }
   
-  const addOption = (nodeId: string) => {
-    setNodes(prev => prev.map(n => n.id === nodeId ? { ...n, options: [...n.options, { text: 'Nueva Opción', next: 'start' }] } : n));
+  const addOption = (originalId: string) => {
+    setNodes(prev => prev.map(n => {
+        const nodeOriginalId = originalNodeIds.current.get(n.id) || n.id;
+        if (nodeOriginalId === originalId) {
+            return { ...n, options: [...n.options, { text: 'Nueva Opción', next: 'start' }] }
+        }
+        return n;
+    }));
   }
   
-  const removeOption = (nodeId: string, optionIndex: number) => {
-    setNodes(prev => prev.map(n => n.id === nodeId ? { ...n, options: n.options.filter((_, i) => i !== optionIndex) } : n));
+  const removeOption = (originalId: string, optionIndex: number) => {
+    setNodes(prev => prev.map(n => {
+        const nodeOriginalId = originalNodeIds.current.get(n.id) || n.id;
+        if (nodeOriginalId === originalId) {
+            return { ...n, options: n.options.filter((_, i) => i !== optionIndex) }
+        }
+        return n;
+    }));
   }
   
   const addNewNode = () => {
-    const newNodeId = `new_node_${Date.now()}`;
+    const tempId = `new_node_${Date.now()}`;
     const newNode: ChatbotNode = {
-      id: newNodeId,
+      id: tempId,
       message: "Nuevo mensaje del bot.",
       options: [{ text: "Volver al inicio", next: "start" }],
     };
     setNodes(prev => [...prev, newNode].sort((a, b) => a.id.localeCompare(b.id)));
+    originalNodeIds.current.set(tempId, tempId);
   }
 
   const handleSaveNode = async (node: ChatbotNode) => {
-      setIsSaving(node.id);
+      const originalId = originalNodeIds.current.get(node.id) || node.id;
+      const newId = node.id;
+
+      if (!newId.trim()) {
+          toast({ title: "Error", description: "El ID del nodo no puede estar vacío.", variant: "destructive"});
+          return;
+      }
+      
+      setIsSaving(originalId);
       try {
           const { id, ...dataToSave } = node;
-          if (!id.trim()) {
-              toast({ title: "Error", description: "El ID del nodo no puede estar vacío.", variant: "destructive"});
-              return;
+          
+          if (originalId && newId !== originalId) {
+              // ID has changed, delete the old document
+              await deleteDocument('chatbot_flows', originalId);
           }
-          await saveDocument('chatbot_flows', dataToSave, id);
-          toast({ title: "¡Nodo Guardado!", description: `El paso "${id}" ha sido guardado correctamente.`});
+
+          await saveDocument('chatbot_flows', dataToSave, newId);
+          
+          // Update the original ID tracking
+          originalNodeIds.current.set(newId, newId);
+          if (originalId && newId !== originalId) {
+              originalNodeIds.current.delete(originalId);
+          }
+          
+          toast({ title: "¡Nodo Guardado!", description: `El paso "${newId}" ha sido guardado correctamente.`});
+
+          // A full refetch is the safest way to ensure UI consistency if IDs change
+          await fetchNodes();
+
       } catch (error) {
           console.error(error);
           toast({ title: "Error", description: "No se pudo guardar el nodo.", variant: "destructive"});
@@ -100,6 +145,7 @@ export default function ChatbotEditorPage() {
       if (confirm(`¿Estás seguro de que quieres eliminar el nodo "${nodeId}"? Esta acción no se puede deshacer.`)) {
           try {
               await deleteDocument('chatbot_flows', nodeId);
+              originalNodeIds.current.delete(nodeId);
               setNodes(prev => prev.filter(n => n.id !== nodeId));
               toast({ title: "Nodo Eliminado", variant: "destructive"});
           } catch (error) {
@@ -133,43 +179,49 @@ export default function ChatbotEditorPage() {
         <CardContent>
             {isLoading ? <div className="flex justify-center p-8"><Loader2 className="w-8 h-8 animate-spin"/></div> : (
               <Accordion type="single" collapsible className="w-full space-y-2">
-                {nodes.map(node => (
-                  <AccordionItem value={node.id} key={node.id} className="border rounded-lg">
+                {nodes.map(node => {
+                  const originalId = originalNodeIds.current.get(node.id) || node.id;
+                  return (
+                  <AccordionItem value={node.id} key={originalId} className="border rounded-lg">
                     <AccordionTrigger className="px-4 hover:no-underline text-base font-semibold">
                       {node.id}
                     </AccordionTrigger>
                     <AccordionContent className="p-4 pt-0 space-y-4">
                       <div className="space-y-2">
-                          <Label htmlFor={`id-${node.id}`}>ID del Nodo (no se puede cambiar)</Label>
-                          <Input id={`id-${node.id}`} value={node.id} disabled />
+                          <Label htmlFor={`id-${originalId}`}>ID del Nodo (¡Cuidado al cambiar!)</Label>
+                          <Input 
+                            id={`id-${originalId}`} 
+                            value={node.id} 
+                            onChange={e => handleNodeChange(originalId, 'id', e.target.value)}
+                           />
                       </div>
                       <div className="space-y-2">
-                          <Label htmlFor={`message-${node.id}`}>Mensaje del Bot</Label>
-                          <Textarea id={`message-${node.id}`} value={node.message} onChange={e => handleNodeChange(node.id, 'message', e.target.value)} />
+                          <Label htmlFor={`message-${originalId}`}>Mensaje del Bot</Label>
+                          <Textarea id={`message-${originalId}`} value={node.message} onChange={e => handleNodeChange(originalId, 'message', e.target.value)} />
                       </div>
                        <div className="flex items-center space-x-2">
-                          <Switch id={`isUserInput-${node.id}`} checked={!!node.isUserInput} onCheckedChange={checked => handleNodeChange(node.id, 'isUserInput', checked)} />
-                          <Label htmlFor={`isUserInput-${node.id}`}>Este paso espera una respuesta escrita del usuario</Label>
+                          <Switch id={`isUserInput-${originalId}`} checked={!!node.isUserInput} onCheckedChange={checked => handleNodeChange(originalId, 'isUserInput', checked)} />
+                          <Label htmlFor={`isUserInput-${originalId}`}>Este paso espera una respuesta escrita del usuario</Label>
                       </div>
 
                       <h4 className="font-semibold pt-4 border-t">Opciones (Botones)</h4>
                       <div className="space-y-3">
                           {node.options.map((opt, index) => (
                               <div key={index} className="p-3 border rounded-md space-y-3 bg-muted/50 relative">
-                                  <Button variant="ghost" size="icon" className="absolute top-1 right-1 h-7 w-7 text-destructive" onClick={() => removeOption(node.id, index)}><Trash2 className="w-4 h-4"/></Button>
+                                  <Button variant="ghost" size="icon" className="absolute top-1 right-1 h-7 w-7 text-destructive" onClick={() => removeOption(originalId, index)}><Trash2 className="w-4 h-4"/></Button>
                                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                       <div className="space-y-1">
                                           <Label>Texto del Botón</Label>
-                                          <Input value={opt.text} onChange={e => handleOptionChange(node.id, index, 'text', e.target.value)} />
+                                          <Input value={opt.text} onChange={e => handleOptionChange(originalId, index, 'text', e.target.value)} />
                                       </div>
                                       <div className="space-y-1">
                                           <Label>Siguiente Paso (ID)</Label>
-                                          <Input value={opt.next} onChange={e => handleOptionChange(node.id, index, 'next', e.target.value)} placeholder="ID del siguiente nodo" />
+                                          <Input value={opt.next} onChange={e => handleOptionChange(originalId, index, 'next', e.target.value)} placeholder="ID del siguiente nodo" />
                                       </div>
                                   </div>
                                    <div className="space-y-1">
                                       <Label>Acción a Ejecutar (Opcional)</Label>
-                                      <Select value={opt.action || ''} onValueChange={value => handleOptionChange(node.id, index, 'action', value === 'none' ? undefined : value)}>
+                                      <Select value={opt.action || ''} onValueChange={value => handleOptionChange(originalId, index, 'action', value === 'none' ? undefined : value)}>
                                           <SelectTrigger><SelectValue placeholder="Ninguna"/></SelectTrigger>
                                           <SelectContent>
                                               <SelectItem value="none">Ninguna</SelectItem>
@@ -179,21 +231,21 @@ export default function ChatbotEditorPage() {
                                   </div>
                               </div>
                           ))}
-                           <Button variant="outline" size="sm" onClick={() => addOption(node.id)}>
+                           <Button variant="outline" size="sm" onClick={() => addOption(originalId)}>
                               <PlusCircle className="mr-2 h-4 w-4"/> Añadir Opción
                           </Button>
                       </div>
 
                        <div className="flex justify-end gap-2 pt-4 border-t">
                            <Button variant="destructive" size="sm" onClick={() => handleDeleteNode(node.id)}>Eliminar Nodo</Button>
-                           <Button size="sm" onClick={() => handleSaveNode(node)} disabled={isSaving === node.id}>
-                               {isSaving === node.id ? <Loader2 className="animate-spin mr-2"/> : <Save className="mr-2 h-4 w-4"/>}
+                           <Button size="sm" onClick={() => handleSaveNode(node)} disabled={isSaving === originalId}>
+                               {isSaving === originalId ? <Loader2 className="animate-spin mr-2"/> : <Save className="mr-2 h-4 w-4"/>}
                                Guardar Cambios
                            </Button>
                        </div>
                     </AccordionContent>
                   </AccordionItem>
-                ))}
+                )})}
               </Accordion>
             )}
         </CardContent>
