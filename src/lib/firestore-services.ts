@@ -1,3 +1,4 @@
+
 import { db, auth } from './firebase';
 import { collection, doc, getDoc, getDocs, setDoc, deleteDoc, query, where, writeBatch, addDoc, updateDoc } from 'firebase/firestore';
 import { createUserWithEmailAndPassword, sendEmailVerification, signInWithEmailAndPassword, User as FirebaseAuthUser } from 'firebase/auth';
@@ -419,24 +420,31 @@ export const savePassenger = async (passengerData: Partial<Passenger>, id?: stri
     let finalId = id || passengerData.id;
     
     // Ensure DOB is a valid Date object or null before saving
+    let dobValue: Date | null = null;
     if (passengerData.dob) {
         const dob = passengerData.dob as any;
-        if (!(dob instanceof Date) && typeof dob.toDate !== 'function') {
+        if (dob instanceof Date) {
+            dobValue = dob;
+        } else if (typeof dob.toDate === 'function') {
+            dobValue = dob.toDate();
+        } else if (typeof dob === 'string' || typeof dob === 'number') {
             const parsedDate = new Date(dob);
             if (!isNaN(parsedDate.getTime())) {
-                passengerData.dob = parsedDate;
-            } else {
-                passengerData.dob = null; // Invalid date, save as null
+                dobValue = parsedDate;
             }
         }
     }
+    
+    const dataToSave = { ...passengerData, dob: dobValue };
 
     if (!finalId) {
-       finalId = (await addDoc(collection(db, collectionName), passengerData)).id;
+       finalId = (await addDoc(collection(db, collectionName), dataToSave)).id;
     } else {
-        await saveDocument(collectionName, passengerData as Passenger, finalId);
+        await saveDocument(collectionName, dataToSave as Passenger, finalId);
     }
     return finalId;
 };
 
 export const saveCommissionSettings = (settings: CommissionSettings): Promise<string> => saveDocument<CommissionSettings>('settings', settings, 'commissions');
+
+    
