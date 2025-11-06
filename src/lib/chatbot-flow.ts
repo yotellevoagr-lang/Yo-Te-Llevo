@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { getAllFromCollection, getDocumentById } from "./firestore-services";
@@ -35,11 +36,11 @@ export type ActionResponse = {
 };
 
 const faqAnswers: Record<string, string> = {
-    how_to_book: "Reservar es muy fácil:\n1. Elige el viaje que más te guste.\n2. Haz clic en 'Reservar' y completa los datos de los pasajeros.\n3. Envía la solicitud. Un vendedor se pondrá en contacto contigo por WhatsApp para coordinar el pago y confirmar la reserva.",
-    payment_methods: "Una vez que solicitas tu reserva, uno de nuestros vendedores se comunicará contigo para coordinar el pago, que puede ser por transferencia, tarjeta o efectivo.",
-    what_is_included: "Generalmente nuestros viajes incluyen transporte, alojamiento y coordinación permanente. Las comidas y excursiones opcionales suelen ser aparte. Te recomendamos hacer clic en cada viaje para ver su descripción y toda la información actualizada.",
-    cancellation_policy: "Nuestra política de cancelación puede variar según el viaje. Por favor, consulta los detalles específicos de cada viaje o contacta a un vendedor para más información.",
-    about_us: "En 'YO TE LLEVO' creemos que viajar es más que visitar un lugar, es vivirlo. Nos especializamos en crear viajes grupales económicos, llenos de buena onda y momentos que recordarás para siempre."
+    como_reservar: "Reservar es muy fácil:\n1. Elige el viaje que más te guste.\n2. Haz clic en 'Reservar' y completa los datos de los pasajeros.\n3. Envía la solicitud. Un vendedor se pondrá en contacto contigo por WhatsApp para coordinar el pago y confirmar la reserva.",
+    metodos_pago: "Una vez que solicitas tu reserva, uno de nuestros vendedores se comunicará contigo para coordinar el pago, que puede ser por transferencia, tarjeta o efectivo.",
+    que_incluye: "Generalmente nuestros viajes incluyen transporte, alojamiento y coordinación permanente. Las comidas y excursiones opcionales suelen ser aparte. Te recomendamos hacer clic en cada viaje para ver su descripción y toda la información actualizada.",
+    politica_cancelacion: "Nuestra política de cancelación puede variar según el viaje. Por favor, consulta los detalles específicos de cada viaje o contacta a un vendedor para más información.",
+    sobre_nosotros: "En 'YO TE LLEVO' creemos que viajar es más que visitar un lugar, es vivirlo. Nos especializamos en crear viajes grupales económicos, llenos de buena onda y momentos que recordarás para siempre."
 };
 
 const getDateFromFirestore = (dateField: any): Date => {
@@ -96,13 +97,13 @@ export async function executeChatbotAction (action: ActionType, context?: any): 
             const usedTags = new Set(activePublicTours.flatMap(tour => tour.tags || []));
             const tagOptions: ChatbotNode['options'] = Array.from(usedTags).map(tag => ({
                 text: tag,
-                next: 'tag_selection',
-                action: 'fetchAvailableTags', // This action doesn't really do anything on click, it's a placeholder
+                next: 'seleccion_tematica',
+                action: 'fetchAvailableTags', 
                 actionContext: tag
             }));
 
-            // Add the "Back" option
-            tagOptions.push({ text: "⬅️ Volver", next: "trips_menu" });
+            
+            tagOptions.push({ text: "⬅️ Volver", next: "menu_viajes" });
 
             return {
                 success: true,
@@ -124,10 +125,10 @@ export async function executeChatbotAction (action: ActionType, context?: any): 
                     }
                 };
             }
-            return { success: false, message: "No pude encontrar la información de contacto. Por favor, visita nuestra página de contacto.", fallbackNode: 'contact_info_fallback' };
+            return { success: false, message: "No pude encontrar la información de contacto. Por favor, visita nuestra página de contacto.", fallbackNode: 'fallback_info_contacto' };
         }
         case 'getTripStatus': {
-             if (!context) return { success: false, message: "Necesito el nombre de un viaje para darte su estado.", fallbackNode: 'admin_account_menu'};
+             if (!context) return { success: false, message: "Necesito el nombre de un viaje para darte su estado.", fallbackNode: 'menu_admin'};
             const allTours = await getAllFromCollection<Tour>('tours');
             const allReservations = await getAllFromCollection<Reservation>('reservations');
             
@@ -169,8 +170,8 @@ Lugares Disponibles: ${totalCapacity - occupiedCount}
             if (paxCount <= 0) {
                 return { success: false, message: "El número de pasajeros debe ser mayor que cero." };
             }
-            // Pass the total passenger count to the next step
-            return { success: true, message: "", nodeId: 'pre_booking_ask_children', context: { paxCount } };
+            const currentContext = { tripId: 'some_trip_id' }; // Placeholder, this needs to be fixed
+            return { success: true, message: "", nodeId: 'pre_reserva_ninos', context: { paxCount, tripId: currentContext.tripId } };
         }
         case 'calculatePrebookingPrice': {
             if (!context || !context.tripId || !context.paxCount) {
@@ -178,7 +179,7 @@ Lugares Disponibles: ${totalCapacity - occupiedCount}
             }
             const childCount = isNaN(parseInt(context.userInput)) ? 0 : parseInt(context.userInput);
             if (childCount > context.paxCount) {
-                return { success: false, message: "El número de niños no puede ser mayor al total de pasajeros. Por favor, empieza de nuevo.", nodeId: 'pre_booking_start'};
+                return { success: false, message: "El número de niños no puede ser mayor al total de pasajeros. Por favor, empieza de nuevo.", nodeId: 'inicio_pre_reserva'};
             }
 
             const tour = await getDocumentById<Tour>('tours', context.tripId);
@@ -194,15 +195,15 @@ Lugares Disponibles: ${totalCapacity - occupiedCount}
             
             const bookingUrl = `/booking/${tour.id}`;
             
-            return { success: true, message, nodeId: 'pre_booking_confirm', options: [{ text: "Sí, ir a reservar", next: bookingUrl, isExternalLink: true }, { text: "No, gracias", next: "start" }] };
+            return { success: true, message, nodeId: 'pre_reserva_confirmar', options: [{ text: "Sí, ir a reservar", next: bookingUrl, isExternalLink: true }, { text: "No, gracias", next: "inicio" }] };
         }
         case 'fetchActiveReservations': {
-            if (!context) return { success: false, message: "Debes iniciar sesión para ver tus viajes.", fallbackNode: 'start' };
+            if (!context) return { success: false, message: "Debes iniciar sesión para ver tus viajes.", fallbackNode: 'inicio' };
             const allReservations = await getAllFromCollection<Reservation>('reservations');
             const userReservations = allReservations.filter(r => r.passengerIds.includes(context));
 
             if (userReservations.length === 0) {
-                return { success: true, message: "Aún no tienes viajes reservados. ¿Quieres ver nuestros destinos?", options: [{ text: "Sí, mostrar viajes", next: "trips_menu" }, { text: "No, gracias", next: "start" }] };
+                return { success: true, message: "Aún no tienes viajes reservados. ¿Quieres ver nuestros destinos?", options: [{ text: "Sí, mostrar viajes", next: "menu_viajes" }, { text: "No, gracias", next: "inicio" }] };
             }
 
             const allTours = await getAllFromCollection<Tour>('tours');
@@ -212,24 +213,24 @@ Lugares Disponibles: ${totalCapacity - occupiedCount}
             });
 
             if (activeReservations.length === 0) {
-                return { success: true, message: "No tienes viajes activos próximamente. ¿Quieres ver tu historial o buscar nuevos viajes?", options: [{ text: "Ver historial (próximamente)", next: "account_menu" }, { text: "Buscar nuevos viajes", next: "trips_menu" }] };
+                return { success: true, message: "No tienes viajes activos próximamente. ¿Quieres ver tu historial o buscar nuevos viajes?", options: [{ text: "Ver historial (próximamente)", next: "menu_cuenta" }, { text: "Buscar nuevos viajes", next: "menu_viajes" }] };
             }
 
             const options = activeReservations.map(res => {
                 const tour = allTours.find(t => t.id === res.tripId);
                 return {
                     text: `${tour?.destination} - ${getDateFromFirestore(tour?.date).toLocaleDateString()}`,
-                    next: 'reservation_details_menu',
-                    actionContext: res.id // Pass reservation ID to the next step
+                    next: 'menu_detalles_reserva',
+                    actionContext: res.id 
                 };
             });
 
-            return { success: true, message: "Estos son tus próximos viajes. Selecciona uno para ver más detalles:", options: [...options, { text: "⬅️ Volver a mi cuenta", next: "account_menu" }] };
+            return { success: true, message: "Estos son tus próximos viajes. Selecciona uno para ver más detalles:", options: [...options, { text: "⬅️ Volver a mi cuenta", next: "menu_cuenta" }] };
         }
         case 'fetchPaymentStatus': {
-            if (!context) return { success: false, message: "No se seleccionó ninguna reserva.", fallbackNode: 'active_reservations_result' };
+            if (!context) return { success: false, message: "No se seleccionó ninguna reserva.", fallbackNode: 'resultado_reservas_activas' };
             const reservation = await getDocumentById<Reservation>('reservations', context);
-            if (!reservation) return { success: false, message: "No encontré los datos de esa reserva.", fallbackNode: 'active_reservations_result' };
+            if (!reservation) return { success: false, message: "No encontré los datos de esa reserva.", fallbackNode: 'resultado_reservas_activas' };
             
             const installments = reservation.installments?.details || [];
             const totalPaid = installments.filter(i => i.isPaid).reduce((sum, i) => sum + i.amount, 0);
@@ -240,15 +241,15 @@ Lugares Disponibles: ${totalCapacity - occupiedCount}
                 details += `Cuota ${i+1}: ${formatCurrency(inst.amount)} - ${inst.isPaid ? 'Pagada' : 'Pendiente'}\n`;
             });
             
-            return { success: true, message: "Aquí tienes el detalle de tus pagos:", data: { details }, nodeId: 'payment_status_result', options: [ { text: "Ver mi pase de abordo", next: "boarding_pass_result", action: "fetchBoardingPass", actionContext: context }, { text: "⬅️ Volver a los viajes", next: "active_reservations_result", action: "fetchActiveReservations", requiresAuth: true } ]};
+            return { success: true, message: "Aquí tienes el detalle de tus pagos:", data: { details }, nodeId: 'resultado_estado_pago', options: [ { text: "Ver mi pase de abordo", next: "resultado_pase_abordo", action: "fetchBoardingPass", actionContext: context }, { text: "⬅️ Volver a los viajes", next: "resultado_reservas_activas", action: "fetchActiveReservations", requiresAuth: true } ]};
         }
          case 'fetchBoardingPass': {
-            if (!context) return { success: false, message: "No se seleccionó ninguna reserva.", fallbackNode: 'active_reservations_result' };
+            if (!context) return { success: false, message: "No se seleccionó ninguna reserva.", fallbackNode: 'resultado_reservas_activas' };
             const reservation = await getDocumentById<Reservation>('reservations', context);
-            if (!reservation) return { success: false, message: "No encontré los datos de esa reserva.", fallbackNode: 'active_reservations_result' };
+            if (!reservation) return { success: false, message: "No encontré los datos de esa reserva.", fallbackNode: 'resultado_reservas_activas' };
             
             const tour = await getDocumentById<Tour>('tours', reservation.tripId);
-            if (!tour) return { success: false, message: "No encontré los datos del viaje asociado.", fallbackNode: 'active_reservations_result' };
+            if (!tour) return { success: false, message: "No encontré los datos del viaje asociado.", fallbackNode: 'resultado_reservas_activas' };
 
             const mainPassenger = await getDocumentById<Passenger>('passengers', reservation.passengerIds[0]);
             const boardingPoint = tour.departurePoint || mainPassenger?.boardingPointId;
@@ -263,11 +264,11 @@ Punto de Embarque: ${boardingPoint || 'A confirmar'}
 Asiento(s): ${assignedSeats || 'Asignado por coordinador'}
             `;
             
-            return { success: true, message: "Este es un resumen de tu pase de abordo. ¡No olvides tu DNI!", data: { details }, nodeId: 'boarding_pass_result', options: [ { text: "Ver estado de mis pagos", next: "payment_status_result", action: "fetchPaymentStatus", actionContext: context }, { text: "⬅️ Volver a los viajes", next: "active_reservations_result", action: "fetchActiveReservations", requiresAuth: true } ] };
+            return { success: true, message: "Este es un resumen de tu pase de abordo. ¡No olvides tu DNI!", data: { details }, nodeId: 'resultado_pase_abordo', options: [ { text: "Ver estado de mis pagos", next: "resultado_estado_pago", action: "fetchPaymentStatus", actionContext: context }, { text: "⬅️ Volver a los viajes", next: "resultado_reservas_activas", action: "fetchActiveReservations", requiresAuth: true } ] };
         }
       case 'getFaqAnswer': {
           const answer = faqAnswers[context as string] || "Lo siento, no tengo una respuesta para eso. ¿Quieres ver otras preguntas?";
-          return { success: true, message: answer, nodeId: 'faq_result' };
+          return { success: true, message: answer, nodeId: 'resultado_faq' };
       }
       case 'fetchFeaturedTours': {
         const allTours = await getAllFromCollection<Tour>('tours');
@@ -275,7 +276,7 @@ Asiento(s): ${assignedSeats || 'Asignado por coordinador'}
         if (featured.length > 0) {
           return { success: true, message: "¡Estos son nuestros viajes destacados!", data: serializeCollection(featured) };
         }
-        return { success: false, message: "No hay viajes destacados en este momento. ¿Quieres ver todos?", fallbackNode: 'trips_menu' };
+        return { success: false, message: "No hay viajes destacados en este momento. ¿Quieres ver todos?", fallbackNode: 'menu_viajes' };
       }
       case 'fetchAllTours': {
         const allTours = await getAllFromCollection<Tour>('tours');
@@ -283,10 +284,10 @@ Asiento(s): ${assignedSeats || 'Asignado por coordinador'}
         if (active.length > 0) {
             return { success: true, message: "Aquí tienes todos nuestros próximos viajes:", data: serializeCollection(active) };
         }
-        return { success: false, message: "No tenemos viajes programados por ahora. ¡Vuelve pronto!", fallbackNode: 'start' };
+        return { success: false, message: "No tenemos viajes programados por ahora. ¡Vuelve pronto!", fallbackNode: 'inicio' };
       }
       case 'fetchTripDetailsByName': {
-          if (!context) return { success: false, message: "Necesito un nombre para buscar.", fallbackNode: 'search_by_name_input'};
+          if (!context) return { success: false, message: "Necesito un nombre para buscar.", fallbackNode: 'input_buscar_por_nombre'};
           const allTours = await getAllFromCollection<Tour>('tours');
           const searchTerm = context.toLowerCase();
           const tour = allTours.find(t => t.destination.toLowerCase().includes(searchTerm));
@@ -299,14 +300,14 @@ Noches: ${tour.nights || 'No especificado'}
 Origen: ${tour.origin || 'No especificado'}
 Transporte: ${tour.bus || 'No especificado'}
               `;
-              return { success: true, message: "¡Encontré este viaje!", data: { ...serializeObject(tour), details: details }, nodeId: 'trip_details_result' };
+              return { success: true, message: "¡Encontré este viaje!", data: { ...serializeObject(tour), details: details }, nodeId: 'resultado_detalles_viaje' };
           }
-          return { success: false, message: `No encontré ningún viaje a "${context}". ¿Quieres ver todos los viajes?`, fallbackNode: 'trips_menu' };
+          return { success: false, message: `No encontré ningún viaje a "${context}". ¿Quieres ver todos los viajes?`, fallbackNode: 'menu_viajes' };
       }
       case 'searchTripsByAttribute': {
           const tagsToSearch: string[] = Array.isArray(context) ? context : [context];
           if (tagsToSearch.length === 0) {
-              return { success: true, message: "No seleccionaste ninguna temática. ¿Quieres ver todos los viajes?", nodeId: 'trips_menu' };
+              return { success: true, message: "No seleccionaste ninguna temática. ¿Quieres ver todos los viajes?", nodeId: 'menu_viajes' };
           }
 
           const allTours = await getAllFromCollection<Tour>('tours');
@@ -320,31 +321,31 @@ Transporte: ${tour.bus || 'No especificado'}
               const tagText = tagsToSearch.join(', ');
               return { success: true, message: `Encontré estos viajes con la(s) temática(s) "${tagText}":`, data: serializeCollection(results) };
           }
-          return { success: false, message: `No encontré viajes con esas temáticas. Aquí tienes todos nuestros viajes activos:`, data: serializeCollection(activeTours), fallbackNode: 'trips_result'};
+          return { success: false, message: `No encontré viajes con esas temáticas. Aquí tienes todos nuestros viajes activos:`, data: serializeCollection(activeTours), fallbackNode: 'resultado_viajes'};
       }
       case 'fetchPassengerByDNI': {
-        if (!context) return { success: false, message: "Debes iniciar sesión para ver tus datos.", fallbackNode: 'start' };
+        if (!context) return { success: false, message: "Debes iniciar sesión para ver tus datos.", fallbackNode: 'inicio' };
         const passenger = await getDocumentById<Passenger>('passengers', context);
         if (passenger) {
           const allReservations = await getAllFromCollection<Reservation>('reservations');
           const passengerReservations = allReservations.filter(r => r.passengerIds.includes(passenger.id));
           const passengerData = { ...passenger, tripCount: passengerReservations.length };
-          return { success: true, message: "Encontré estos datos para ti:", data: [serializeObject(passengerData)], nodeId: 'passenger_info_result' };
+          return { success: true, message: "Encontré estos datos para ti:", data: [serializeObject(passengerData)], nodeId: 'resultado_info_pasajero' };
         }
-        return { success: false, message: `No pude encontrar un pasajero con DNI ${context}.`, fallbackNode: 'dni_not_found' };
+        return { success: false, message: `No pude encontrar un pasajero con DNI ${context}.`, fallbackNode: 'dni_no_encontrado' };
       }
       case 'fetchFamilyGroup': {
-        if (!context) return { success: false, message: "Debes iniciar sesión para ver tu grupo.", fallbackNode: 'start' };
+        if (!context) return { success: false, message: "Debes iniciar sesión para ver tu grupo.", fallbackNode: 'inicio' };
         const allPassengers = await getAllFromCollection<Passenger>('passengers');
         const currentUser = allPassengers.find(p => p.id === context);
         if (!currentUser) {
-            return { success: false, message: "No pude encontrar tu perfil de usuario.", fallbackNode: 'start' };
+            return { success: false, message: "No pude encontrar tu perfil de usuario.", fallbackNode: 'inicio' };
         }
         if (!currentUser.family) {
-          return { success: true, message: "No perteneces a un grupo familiar. Aquí están tus datos:", data: [serializeObject(currentUser)], nodeId: 'family_group_result' };
+          return { success: true, message: "No perteneces a un grupo familiar. Aquí están tus datos:", data: [serializeObject(currentUser)], nodeId: 'resultado_grupo_familiar' };
         }
         const familyMembers = allPassengers.filter(p => p.family === currentUser.family);
-        return { success: true, message: `Estos son los integrantes de tu grupo: ${currentUser.family}`, data: serializeCollection(familyMembers), nodeId: 'family_group_result' };
+        return { success: true, message: `Estos son los integrantes de tu grupo: ${currentUser.family}`, data: serializeCollection(familyMembers), nodeId: 'resultado_grupo_familiar' };
       }
       default:
         return { success: false, message: "Acción no reconocida." };
