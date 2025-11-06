@@ -15,7 +15,7 @@ import { useToast } from "@/hooks/use-toast"
 import { getTourById, savePassenger, saveReservation, getAllFromCollection_client, getDocumentById } from "@/lib/firestore-services"
 import type { Tour, Reservation, Passenger, Seller, CustomLayoutConfig, LayoutCategory, CreatorContext } from "@/lib/types"
 import { DatePicker } from "@/components/ui/date-picker"
-import { ArrowLeft, CalendarIcon, ClockIcon, MapPinIcon, PlusIcon, TicketIcon, UsersIcon, HeartIcon, ArrowRight, ShieldCheck, Trash2, Loader2, InfoIcon, Video, Edit } from "lucide-react"
+import { ArrowLeft, CalendarIcon, ClockIcon, MapPinIcon, PlusIcon, TicketIcon, UsersIcon, HeartIcon, ArrowRight, ShieldCheck, Trash2, Loader2, InfoIcon, Video, Edit, ChevronsUpDown } from "lucide-react"
 import Link from "next/link"
 import { Checkbox } from "@/components/ui/checkbox"
 import { getDisplayUrl, cn } from "@/lib/utils"
@@ -86,6 +86,37 @@ const formatTimeWithUnit = (timeString?: string): string | null => {
     }
     
     return processedString;
+};
+
+const CollapsibleDescription = ({ text }: { text: string }) => {
+    const [isExpanded, setIsExpanded] = useState(false);
+
+    const splitIndex = text.indexOf("🗓 Salida:");
+    const hasSplitPoint = splitIndex !== -1;
+
+    const summaryText = hasSplitPoint ? text.substring(0, splitIndex) : text;
+    const fullText = text;
+
+    if (!text) {
+        return null;
+    }
+    
+    const displayText = isExpanded || !hasSplitPoint ? fullText : summaryText;
+
+    return (
+        <div
+            className="prose prose-sm max-w-none text-muted-foreground whitespace-pre-wrap cursor-pointer relative group"
+            onClick={() => setIsExpanded(!isExpanded)}
+        >
+            <p>{displayText}</p>
+            {hasSplitPoint && (
+                <div className="absolute -bottom-2 right-0 flex items-center gap-1 text-xs font-semibold text-primary/80 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <span>{isExpanded ? "Mostrar menos" : "Mostrar más"}</span>
+                    <ChevronsUpDown className={cn("w-3 h-3 transition-transform", isExpanded && "rotate-180")} />
+                </div>
+            )}
+        </div>
+    );
 };
 
 
@@ -494,7 +525,7 @@ export default function BookingPage() {
                                 {formattedPresentationTime && <div className="flex items-center gap-2"><ClockIcon className="w-5 h-5 text-primary" /><span>Presentación: {formattedPresentationTime}</span></div>}
                                 {formattedDepartureTime && <div className="flex items-center gap-2"><ClockIcon className="w-5 h-5 text-primary" /><span>Salida: {formattedDepartureTime}</span></div>}
                             </div>
-                            {tour.description && ( <p className="prose prose-sm max-w-none text-muted-foreground whitespace-pre-wrap">{tour.description}</p> )}
+                            {tour.description && <CollapsibleDescription text={tour.description} />}
                              {tour.gallery && tour.gallery.length > 0 && (
                                 <div className="mt-6">
                                     <div className="flex gap-2 overflow-x-auto pb-2">
