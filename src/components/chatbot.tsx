@@ -23,6 +23,8 @@ import { useAuth } from "./auth/auth-provider";
 import { TourCard } from "./tour-card";
 import { useRouter } from "next/navigation";
 import { Separator } from "./ui/separator";
+import { useToast } from "@/hooks/use-toast";
+
 
 interface Message {
   role: "bot" | "user";
@@ -33,8 +35,9 @@ interface Message {
 
 export default function Chatbot() {
   const { user, loading: authLoading } = useAuth();
+  const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
-  const [currentNode, setCurrentNode] = useState<ChatbotNode>(getChatbotFlow("start"));
+  const [currentNode, setCurrentNode] = useState<ChatbotNode | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -45,7 +48,7 @@ export default function Chatbot() {
   
   const startChat = useCallback(async () => {
     setIsLoading(true);
-    const initialNode = getChatbotFlow("start");
+    const initialNode = await getChatbotFlow("start");
     setCurrentNode(initialNode);
     setMessages([{ role: "bot", content: initialNode.message, nodeId: 'start' }]);
     setCurrentContext(null);
@@ -93,7 +96,7 @@ export default function Chatbot() {
         
       const response: ActionResponse = await executeChatbotAction(currentNode.action, contextForAction);
       const nextNodeId = response.nodeId || (response.success ? (currentNode.options[0]?.next || 'start') : (currentNode.options[1]?.next || 'start'));
-      let nextNode = getChatbotFlow(nextNodeId);
+      let nextNode = await getChatbotFlow(nextNodeId);
       
       if(response.context) {
           setCurrentContext(response.context);
@@ -180,7 +183,7 @@ export default function Chatbot() {
 
         const response = await executeChatbotAction(action, finalContext);
         const finalNodeId = response.fallbackNode || response.nodeId || nextNodeId;
-        const nextNode = {...getChatbotFlow(finalNodeId)};
+        const nextNode = {...(await getChatbotFlow(finalNodeId))};
         let botMessageContent: React.ReactNode = response.message;
         
         if(response.data) {
@@ -275,7 +278,7 @@ export default function Chatbot() {
       }
     }
 
-    const nextNode = {...getChatbotFlow(finalNextNodeId)};
+    const nextNode = {...(await getChatbotFlow(finalNextNodeId))};
     if (optionsForNextNode) {
         nextNode.options = optionsForNextNode;
     }
@@ -301,9 +304,9 @@ export default function Chatbot() {
     setIsLoading(false);
   }
 
-  const handleBack = (nodeId?: string) => {
+  const handleBack = async (nodeId?: string) => {
     if (!nodeId) {
-      startChat();
+      await startChat();
       return;
     }
     
@@ -313,7 +316,7 @@ export default function Chatbot() {
         const previousBotMessageIndex = messages.slice(0, currentNodeMessageIndex).findLastIndex(m => m.role === 'bot');
         if (previousBotMessageIndex !== -1) {
             const previousBotMessage = messages[previousBotMessageIndex];
-            const previousNode = getChatbotFlow(previousBotMessage.nodeId || 'start');
+            const previousNode = await getChatbotFlow(previousBotMessage.nodeId || 'start');
             setMessages(prev => prev.slice(0, previousBotMessageIndex + 1));
             setCurrentNode(previousNode);
             setCurrentContext(previousBotMessage.context);
@@ -324,7 +327,7 @@ export default function Chatbot() {
         }
     }
     
-    startChat();
+    await startChat();
   }
 
   return (

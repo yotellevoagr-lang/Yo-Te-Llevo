@@ -1,7 +1,7 @@
 import { db, auth } from './firebase';
 import { collection, doc, getDoc, getDocs, setDoc, deleteDoc, query, where, writeBatch, addDoc, updateDoc } from 'firebase/firestore';
 import { createUserWithEmailAndPassword, sendEmailVerification, signInWithEmailAndPassword, User as FirebaseAuthUser } from 'firebase/auth';
-import type { Tour, Passenger, Reservation, Seller, Employee, CommissionSettings, GeneralSettings } from "./types";
+import type { Tour, Passenger, Reservation, Seller, Employee, CommissionSettings, GeneralSettings, ChatbotNode } from "./types";
 import { getLayoutForType } from './layouts';
 
 // --- Generic Firestore Functions ---
@@ -74,6 +74,10 @@ export async function deleteDocument(collectionName: string, id: string): Promis
 
 
 // --- Specific Logic ---
+
+export async function getChatbotNode(nodeId: string): Promise<ChatbotNode | null> {
+    return getDocumentById<ChatbotNode>('chatbot_flows', nodeId);
+}
 
 export async function isUsernameUnique(username: string, currentUserId?: string): Promise<boolean> {
     if (!username) return false;
@@ -209,7 +213,7 @@ export async function handleLogin(identifier: string, password_provided: string)
     if (passengerUser) finalUserRecords.push({ user: passengerUser, role: 'client'});
 
     const availableRoles = [...new Set(finalUserRecords.map(r => r.role))];
-    const primaryRecord = finalUserRecords.find(r => r.role === 'admin') || finalUserRecords.find(r => r.role === 'employee') || finalUserRecords.find(r => r.id === mainUser.id) || finalUserRecords[0];
+    const primaryRecord = finalUserRecords.find(r => r.role === 'admin') || finalUserRecords.find(r => r.role === 'employee') || finalUserRecords.find(r => r.user.id === mainUser.id) || finalUserRecords[0];
     
     if (!primaryRecord) {
         throw new Error("No se pudo encontrar un perfil para el usuario autenticado.");

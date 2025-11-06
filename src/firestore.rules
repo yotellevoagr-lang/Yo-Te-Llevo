@@ -41,6 +41,12 @@ service cloud.firestore {
         match /pensions/{pensionId} { allow read: if true; allow write: if isSignedInAsRole('admin'); }
         match /room_types/{rtId} { allow read: if true; allow write: if isSignedInAsRole('admin'); }
 
+        // --- Chatbot Flow ---
+        match /chatbot_flows/{nodeId} {
+            allow read: if true;
+            allow write: if isSignedInAsRole('admin');
+        }
+
         // --- USER ROLES ---
         match /admin/{adminId} {
             allow read: if true;
@@ -94,6 +100,13 @@ service cloud.firestore {
         // --- EX EMPLEADOS ---
         match /ex_employees/{employeeId} {
             allow read, write: if isSignedInAsRole('admin');
+        }
+        
+        // --- FCM TOKENS ---
+        match /fcmTokens/{token} {
+            // Anyone can write their own token. Reading should be restricted.
+            allow write: if true;
+            allow read: if isSignedInAsRole('admin');
         }
     }
 }
