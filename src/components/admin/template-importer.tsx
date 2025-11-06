@@ -41,19 +41,44 @@ type ImportResult = {
 
 
 const excelDateToJSDate = (serial: any): Date | undefined => {
-   if (serial === undefined || serial === null || typeof serial !== 'number' || isNaN(serial) || serial < 1) {
-        return undefined;
-    }
-   // Excel's epoch starts on 1900-01-01, but it incorrectly thinks 1900 was a leap year.
-   // This formula correctly handles dates after 1900-02-28.
-   const utc_days  = Math.floor(serial - 25569);
-   const utc_value = utc_days * 86400;                                        
-   const date_info = new Date(utc_value * 1000);
-   
-   if(isNaN(date_info.getTime())) return undefined;
+    if (serial === undefined || serial === null) return undefined;
 
-   // Adjust for timezone offset
-   return new Date(date_info.getTime() + (date_info.getTimezoneOffset() * 60000));
+    // Handle Excel's numeric date format
+    if (typeof serial === 'number' && serial > 0) {
+        const utc_days  = Math.floor(serial - 25569);
+        const utc_value = utc_days * 86400;                                        
+        const date_info = new Date(utc_value * 1000);
+        if(isNaN(date_info.getTime())) return undefined;
+        return new Date(date_info.getTime() + (date_info.getTimezoneOffset() * 60000));
+    }
+
+    // Handle string date formats
+    if (typeof serial === 'string') {
+        const cleanedSerial = serial.replace(/[\/\.-]/g, '-');
+        const parts = cleanedSerial.split('-');
+        if (parts.length === 3) {
+            let [day, month, year] = parts;
+            // Handle yy format
+            if (year.length === 2) {
+                year = (parseInt(year) > 50 ? '19' : '20') + year;
+            }
+            // Ensure parts are numbers
+            if (!isNaN(parseInt(day)) && !isNaN(parseInt(month)) && !isNaN(parseInt(year))) {
+                // Month is 0-indexed in JS
+                const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+                if (!isNaN(date.getTime())) {
+                    return date;
+                }
+            }
+        }
+    }
+
+    // If it's already a Date object (less likely from xlsx but possible)
+    if (serial instanceof Date && !isNaN(serial.getTime())) {
+        return serial;
+    }
+
+    return undefined; // Return undefined if no valid format is found
 }
 
 const spanishMonths = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
