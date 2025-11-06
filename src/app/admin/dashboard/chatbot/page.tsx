@@ -20,9 +20,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { getAllFromCollection_client, saveDocument, deleteDocument } from "@/lib/firestore-services";
 import type { ChatbotNode } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, PlusCircle, Trash2, Save, Bot, List, Eye, GripVertical } from "lucide-react";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Loader2, PlusCircle, Trash2, Save, Bot, GripVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const availableActions = [
   'fetchFeaturedTours', 'fetchAllTours', 'fetchPassengerByDNI', 
@@ -32,14 +32,14 @@ const availableActions = [
   'calculatePrebookingPrice', 'fetchContactInfo', 'fetchAvailableTags'
 ];
 
-function ChatbotListView({ nodes, onNodeChange, onOptionChange, addOption, removeOption, handleSaveNode, handleDeleteNode, isSaving, originalNodeIds, addNewNode }: any) {
+function ChatbotListView({ nodes, onNodeChange, onOptionChange, addOption, removeOption, handleSaveNode, handleDeleteNode, isSaving, originalNodeIds, addNewNode, onNodeClick, selectedNodeId }: any) {
   return (
-    <Card>
+    <Card className="h-full flex flex-col">
       <CardHeader>
-          <CardTitle className="flex items-center gap-2"><Bot className="w-6 h-6"/> Flujos de Conversación</CardTitle>
-          <CardDescription>Cada sección es un "paso" en la conversación del bot. Edita su mensaje y las opciones que le da al usuario.</CardDescription>
+          <CardTitle className="flex items-center gap-2"><Bot className="w-6 h-6"/> Editor de Flujos</CardTitle>
+          <CardDescription>Crea, edita y elimina los pasos de la conversación del bot.</CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex-1 overflow-y-auto">
           <div className="flex justify-end mb-4">
              <Button onClick={addNewNode}>
                   <PlusCircle className="mr-2 h-4 w-4"/>
@@ -50,8 +50,11 @@ function ChatbotListView({ nodes, onNodeChange, onOptionChange, addOption, remov
           {nodes.map((node: any) => {
             const originalId = originalNodeIds.current.get(node.id) || node.id;
             return (
-            <AccordionItem value={node.id} key={originalId} className="border rounded-lg">
-              <AccordionTrigger className="px-4 hover:no-underline text-base font-semibold">
+            <AccordionItem value={node.id} key={originalId} className={cn("border rounded-lg", selectedNodeId === node.id && 'border-primary')}>
+              <AccordionTrigger 
+                className="px-4 hover:no-underline text-base font-semibold"
+                onClick={() => onNodeClick(node.id)}
+              >
                 {node.id}
               </AccordionTrigger>
               <AccordionContent className="p-4 pt-0 space-y-4">
@@ -157,10 +160,10 @@ function ChatbotVisualView({ nodes, onNodeClick, selectedNodeId, onDragEnd }: an
     const nodeMap = new Map(nodes.map((node: ChatbotNode) => [node.id, node]));
 
     return (
-        <Card className="h-[70vh] relative overflow-auto">
-             <CardHeader className="absolute top-0 left-0 z-20 bg-background/80 backdrop-blur-sm rounded-t-lg w-full">
-                <CardTitle>Editor Visual (En Construcción)</CardTitle>
-                <CardDescription>Arrastra los nodos para organizar el flujo. Haz clic para seleccionar.</CardDescription>
+        <Card className="h-full relative overflow-auto">
+             <CardHeader>
+                <CardTitle>Lienzo Visual</CardTitle>
+                <CardDescription>Arrastra los nodos para organizar el flujo. Haz clic para seleccionar y editar en el panel izquierdo.</CardDescription>
             </CardHeader>
             <DndContext onDragEnd={onDragEnd}>
                 <div className="w-full h-full bg-muted/30 rounded-b-lg relative">
@@ -218,7 +221,6 @@ export default function ChatbotEditorPage() {
   const [nodes, setNodes] = useState<ChatbotNode[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState<string | null>(null);
-  const [view, setView] = useState<'list' | 'visual'>('list');
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const { toast } = useToast();
   const originalNodeIds = useRef(new Map<string, string>());
@@ -230,7 +232,7 @@ export default function ChatbotEditorPage() {
 
     const nodesWithPositions = sortedNodes.map((node, index) => ({
       ...node,
-      position: node.position || { x: 50 + (index % 5) * 280, y: 150 + Math.floor(index / 5) * 150 }
+      position: node.position || { x: 50 + (index % 3) * 280, y: 50 + Math.floor(index / 3) * 150 }
     }));
 
     setNodes(nodesWithPositions);
@@ -292,10 +294,11 @@ export default function ChatbotEditorPage() {
       id: tempId,
       message: "Nuevo mensaje del bot.",
       options: [{ text: "Volver al inicio", next: "inicio" }],
-      position: { x: 50, y: 150 },
+      position: { x: 50, y: 50 },
     };
     setNodes(prev => [...prev, newNode].sort((a, b) => a.id.localeCompare(b.id)));
     originalNodeIds.current.set(tempId, tempId);
+    setSelectedNodeId(tempId);
   }
 
   const handleSaveNode = async (node: ChatbotNode) => {
@@ -365,45 +368,39 @@ export default function ChatbotEditorPage() {
     };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h2 className="text-2xl font-bold">Editor del Asistente Virtual</h2>
-          <p className="text-muted-foreground">
-            Personaliza los flujos de conversación, mensajes y acciones del chatbot.
-          </p>
+    <div className="h-[calc(100vh-10rem)] grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="md:col-span-1 h-full">
+            {isLoading ? (
+                 <div className="flex justify-center items-center h-full"><Loader2 className="w-8 h-8 animate-spin"/></div>
+            ) : (
+                <ChatbotListView 
+                    nodes={nodes}
+                    onNodeChange={handleNodeChange}
+                    onOptionChange={handleOptionChange}
+                    addOption={addOption}
+                    removeOption={removeOption}
+                    handleSaveNode={handleSaveNode}
+                    handleDeleteNode={handleDeleteNode}
+                    isSaving={isSaving}
+                    originalNodeIds={originalNodeIds}
+                    addNewNode={addNewNode}
+                    onNodeClick={setSelectedNodeId}
+                    selectedNodeId={selectedNodeId}
+                />
+            )}
         </div>
-        <Tabs value={view} onValueChange={(v) => setView(v as 'list' | 'visual')} className="w-auto">
-            <TabsList>
-                <TabsTrigger value="list"><List className="w-4 h-4 mr-2"/>Vista de Lista</TabsTrigger>
-                <TabsTrigger value="visual"><Eye className="w-4 h-4 mr-2"/>Vista Visual</TabsTrigger>
-            </TabsList>
-        </Tabs>
-      </div>
-      
-      {isLoading ? (
-        <div className="flex justify-center p-8"><Loader2 className="w-8 h-8 animate-spin"/></div>
-      ) : view === 'list' ? (
-        <ChatbotListView 
-            nodes={nodes}
-            onNodeChange={handleNodeChange}
-            onOptionChange={handleOptionChange}
-            addOption={addOption}
-            removeOption={removeOption}
-            handleSaveNode={handleSaveNode}
-            handleDeleteNode={handleDeleteNode}
-            isSaving={isSaving}
-            originalNodeIds={originalNodeIds}
-            addNewNode={addNewNode}
-        />
-      ) : (
-        <ChatbotVisualView 
-            nodes={nodes}
-            onNodeClick={setSelectedNodeId}
-            selectedNodeId={selectedNodeId}
-            onDragEnd={handleDragEnd}
-        />
-      )}
+        <div className="md:col-span-2 h-full">
+             {isLoading ? (
+                 <div className="flex justify-center items-center h-full"><Loader2 className="w-8 h-8 animate-spin"/></div>
+            ) : (
+                <ChatbotVisualView 
+                    nodes={nodes}
+                    onNodeClick={setSelectedNodeId}
+                    selectedNodeId={selectedNodeId}
+                    onDragEnd={handleDragEnd}
+                />
+            )}
+        </div>
     </div>
   );
 }
