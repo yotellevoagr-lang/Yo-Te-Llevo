@@ -1,27 +1,23 @@
-
 "use client"
 
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { UploadCloud, FileSpreadsheet, MessageSquarePlus, Download, Search } from "lucide-react";
+import { UploadCloud, MessageSquarePlus, Download } from "lucide-react";
 import { TemplateImporter } from "@/components/admin/template-importer";
 import { ReservationFromTextImporter } from "@/components/admin/reservation-from-text-importer";
 import { DataExporter } from "@/app/admin/dashboard/data-exporter";
-import { TemplateAnalyzer } from "@/components/admin/template-analyzer";
 
 export default function DashboardPage() {
   const [isImporterOpen, setIsImporterOpen] = useState(false);
   const [isTextImporterOpen, setIsTextImporterOpen] = useState(false);
   const [isExporterOpen, setIsExporterOpen] = useState(false);
-  const [isAnalyzerOpen, setIsAnalyzerOpen] = useState(false);
 
   return (
     <>
       <TemplateImporter isOpen={isImporterOpen} onOpenChange={setIsImporterOpen} />
       <ReservationFromTextImporter isOpen={isTextImporterOpen} onOpenChange={setIsTextImporterOpen} />
       <DataExporter isOpen={isExporterOpen} onOpenChange={setIsExporterOpen} />
-      <TemplateAnalyzer isOpen={isAnalyzerOpen} onOpenChange={setIsAnalyzerOpen} />
       
       <div className="space-y-6">
         <Card>
@@ -47,10 +43,6 @@ export default function DashboardPage() {
                  <Button variant="outline" onClick={() => setIsExporterOpen(true)}>
                   <Download className="mr-2 h-4 w-4" />
                   Exportar Datos
-                </Button>
-                 <Button variant="outline" onClick={() => setIsAnalyzerOpen(true)}>
-                  <Search className="mr-2 h-4 w-4" />
-                  Analizar Plantilla Excel
                 </Button>
             </div>
              <p className="text-sm text-muted-foreground pt-2">
