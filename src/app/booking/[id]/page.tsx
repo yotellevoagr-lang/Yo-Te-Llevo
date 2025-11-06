@@ -105,12 +105,12 @@ const CollapsibleDescription = ({ text }: { text: string }) => {
 
     return (
         <div
-            className="prose prose-sm max-w-none text-muted-foreground whitespace-pre-wrap cursor-pointer relative group"
+            className="prose prose-sm max-w-none text-muted-foreground whitespace-pre-wrap cursor-pointer relative group p-4 border rounded-lg shadow-sm bg-background"
             onClick={() => setIsExpanded(!isExpanded)}
         >
             <p>{displayText}</p>
             {hasSplitPoint && (
-                <div className="absolute -bottom-2 right-0 flex items-center gap-1 text-xs font-semibold text-primary/80 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="absolute -bottom-2 right-2 flex items-center gap-1 text-xs font-semibold text-primary/80 transition-opacity">
                     <span>{isExpanded ? "Mostrar menos" : "Mostrar más"}</span>
                     <ChevronsUpDown className={cn("w-3 h-3 transition-transform", isExpanded && "rotate-180")} />
                 </div>
