@@ -18,7 +18,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { getAllFromCollection_client, saveDocument, deleteDocument } from "@/lib/firestore-services";
 import type { ChatbotNode } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, PlusCircle, Trash2, Save, Bot } from "lucide-react";
+import { Loader2, PlusCircle, Trash2, Save, Bot, List, Eye } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const availableActions = [
   'fetchFeaturedTours', 'fetchAllTours', 'fetchPassengerByDNI', 
@@ -28,10 +29,115 @@ const availableActions = [
   'calculatePrebookingPrice', 'fetchContactInfo', 'fetchAvailableTags'
 ];
 
+function ChatbotListView({ nodes, onNodeChange, onOptionChange, addOption, removeOption, handleSaveNode, handleDeleteNode, isSaving, originalNodeIds, addNewNode }: any) {
+  return (
+    <Card>
+      <CardHeader>
+          <CardTitle className="flex items-center gap-2"><Bot className="w-6 h-6"/> Flujos de Conversación</CardTitle>
+          <CardDescription>Cada sección es un "paso" en la conversación del bot. Edita su mensaje y las opciones que le da al usuario.</CardDescription>
+      </CardHeader>
+      <CardContent>
+          <div className="flex justify-end mb-4">
+             <Button onClick={addNewNode}>
+                  <PlusCircle className="mr-2 h-4 w-4"/>
+                  Añadir Nuevo Paso
+              </Button>
+          </div>
+        <Accordion type="single" collapsible className="w-full space-y-2">
+          {nodes.map((node: any) => {
+            const originalId = originalNodeIds.current.get(node.id) || node.id;
+            return (
+            <AccordionItem value={node.id} key={originalId} className="border rounded-lg">
+              <AccordionTrigger className="px-4 hover:no-underline text-base font-semibold">
+                {node.id}
+              </AccordionTrigger>
+              <AccordionContent className="p-4 pt-0 space-y-4">
+                <div className="space-y-2">
+                    <Label htmlFor={`id-${originalId}`}>ID del Nodo</Label>
+                    <Input 
+                      id={`id-${originalId}`} 
+                      value={node.id} 
+                      onChange={e => onNodeChange(originalId, 'id', e.target.value)}
+                     />
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor={`message-${originalId}`}>Mensaje del Bot</Label>
+                    <Textarea id={`message-${originalId}`} value={node.message} onChange={e => onNodeChange(originalId, 'message', e.target.value)} />
+                </div>
+                 <div className="flex items-center space-x-2">
+                    <Switch id={`isUserInput-${originalId}`} checked={!!node.isUserInput} onCheckedChange={checked => onNodeChange(originalId, 'isUserInput', checked)} />
+                    <Label htmlFor={`isUserInput-${originalId}`}>Este paso espera una respuesta escrita del usuario</Label>
+                </div>
+
+                <h4 className="font-semibold pt-4 border-t">Opciones (Botones)</h4>
+                <div className="space-y-3">
+                    {node.options.map((opt: any, index: number) => (
+                        <div key={index} className="p-3 border rounded-md space-y-3 bg-muted/50 relative">
+                            <Button variant="ghost" size="icon" className="absolute top-1 right-1 h-7 w-7 text-destructive" onClick={() => removeOption(originalId, index)}><Trash2 className="w-4 h-4"/></Button>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div className="space-y-1">
+                                    <Label>Texto del Botón</Label>
+                                    <Input value={opt.text} onChange={e => onOptionChange(originalId, index, 'text', e.target.value)} />
+                                </div>
+                                <div className="space-y-1">
+                                    <Label>Siguiente Paso (ID)</Label>
+                                    <Input value={opt.next} onChange={e => onOptionChange(originalId, index, 'next', e.target.value)} placeholder="ID del siguiente nodo" />
+                                </div>
+                            </div>
+                             <div className="space-y-1">
+                                <Label>Acción a Ejecutar (Opcional)</Label>
+                                <Select value={opt.action || ''} onValueChange={value => onOptionChange(originalId, index, 'action', value === 'none' ? undefined : value)}>
+                                    <SelectTrigger><SelectValue placeholder="Ninguna"/></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="none">Ninguna</SelectItem>
+                                        {availableActions.map(act => <SelectItem key={act} value={act}>{act}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+                    ))}
+                     <Button variant="outline" size="sm" onClick={() => addOption(originalId)}>
+                        <PlusCircle className="mr-2 h-4 w-4"/> Añadir Opción
+                    </Button>
+                </div>
+
+                 <div className="flex justify-end gap-2 pt-4 border-t">
+                     <Button variant="destructive" size="sm" onClick={() => handleDeleteNode(node.id)}>Eliminar Nodo</Button>
+                     <Button size="sm" onClick={() => handleSaveNode(node)} disabled={isSaving === originalId}>
+                         {isSaving === originalId ? <Loader2 className="animate-spin mr-2"/> : <Save className="mr-2 h-4 w-4"/>}
+                         Guardar Cambios
+                     </Button>
+                 </div>
+              </AccordionContent>
+            </AccordionItem>
+          )})}
+        </Accordion>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ChatbotVisualView() {
+    return (
+        <Card className="h-[600px]">
+            <CardHeader>
+                <CardTitle>Editor Visual (En Construcción)</CardTitle>
+                <CardDescription>Próximamente: arrastra, suelta y conecta los nodos para construir tu flujo de conversación de forma visual.</CardDescription>
+            </CardHeader>
+            <CardContent className="h-full flex items-center justify-center bg-muted/30 rounded-b-lg">
+                <div className="text-center text-muted-foreground">
+                    <p>Lienzo del editor visual.</p>
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
+
 export default function ChatbotEditorPage() {
   const [nodes, setNodes] = useState<ChatbotNode[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState<string | null>(null);
+  const [view, setView] = useState<'list' | 'visual'>('list');
   const { toast } = useToast();
   const originalNodeIds = useRef(new Map<string, string>());
 
@@ -75,7 +181,7 @@ export default function ChatbotEditorPage() {
     setNodes(prev => prev.map(n => {
         const nodeOriginalId = originalNodeIds.current.get(n.id) || n.id;
         if (nodeOriginalId === originalId) {
-            return { ...n, options: [...n.options, { text: 'Nueva Opción', next: 'start' }] }
+            return { ...n, options: [...n.options, { text: 'Nueva Opción', next: 'inicio' }] }
         }
         return n;
     }));
@@ -92,11 +198,11 @@ export default function ChatbotEditorPage() {
   }
   
   const addNewNode = () => {
-    const tempId = `new_node_${Date.now()}`;
+    const tempId = `nuevo_nodo_${Date.now()}`;
     const newNode: ChatbotNode = {
       id: tempId,
       message: "Nuevo mensaje del bot.",
-      options: [{ text: "Volver al inicio", next: "start" }],
+      options: [{ text: "Volver al inicio", next: "inicio" }],
     };
     setNodes(prev => [...prev, newNode].sort((a, b) => a.id.localeCompare(b.id)));
     originalNodeIds.current.set(tempId, tempId);
@@ -115,8 +221,8 @@ export default function ChatbotEditorPage() {
       try {
           const { id, ...dataToSave } = node;
           
+          // ID has changed, need to delete the old document
           if (originalId && newId !== originalId) {
-              // ID has changed, delete the old document
               await deleteDocument('chatbot_flows', originalId);
           }
 
@@ -164,92 +270,32 @@ export default function ChatbotEditorPage() {
             Personaliza los flujos de conversación, mensajes y acciones del chatbot.
           </p>
         </div>
-        <div className="flex items-center gap-2 self-end sm:self-center">
-            <Button onClick={addNewNode}>
-                <PlusCircle className="mr-2 h-4 w-4"/>
-                Añadir Nuevo Paso
-            </Button>
-        </div>
+        <Tabs value={view} onValueChange={(v) => setView(v as 'list' | 'visual')} className="w-auto">
+            <TabsList>
+                <TabsTrigger value="list"><List className="w-4 h-4 mr-2"/>Vista de Lista</TabsTrigger>
+                <TabsTrigger value="visual"><Eye className="w-4 h-4 mr-2"/>Vista Visual</TabsTrigger>
+            </TabsList>
+        </Tabs>
       </div>
-      <Card>
-        <CardHeader>
-            <CardTitle className="flex items-center gap-2"><Bot className="w-6 h-6"/> Flujos de Conversación</CardTitle>
-            <CardDescription>Cada sección es un "paso" en la conversación del bot. Edita su mensaje y las opciones que le da al usuario.</CardDescription>
-        </CardHeader>
-        <CardContent>
-            {isLoading ? <div className="flex justify-center p-8"><Loader2 className="w-8 h-8 animate-spin"/></div> : (
-              <Accordion type="single" collapsible className="w-full space-y-2">
-                {nodes.map(node => {
-                  const originalId = originalNodeIds.current.get(node.id) || node.id;
-                  return (
-                  <AccordionItem value={node.id} key={originalId} className="border rounded-lg">
-                    <AccordionTrigger className="px-4 hover:no-underline text-base font-semibold">
-                      {node.id}
-                    </AccordionTrigger>
-                    <AccordionContent className="p-4 pt-0 space-y-4">
-                      <div className="space-y-2">
-                          <Label htmlFor={`id-${originalId}`}>ID del Nodo (¡Cuidado al cambiar!)</Label>
-                          <Input 
-                            id={`id-${originalId}`} 
-                            value={node.id} 
-                            onChange={e => handleNodeChange(originalId, 'id', e.target.value)}
-                           />
-                      </div>
-                      <div className="space-y-2">
-                          <Label htmlFor={`message-${originalId}`}>Mensaje del Bot</Label>
-                          <Textarea id={`message-${originalId}`} value={node.message} onChange={e => handleNodeChange(originalId, 'message', e.target.value)} />
-                      </div>
-                       <div className="flex items-center space-x-2">
-                          <Switch id={`isUserInput-${originalId}`} checked={!!node.isUserInput} onCheckedChange={checked => handleNodeChange(originalId, 'isUserInput', checked)} />
-                          <Label htmlFor={`isUserInput-${originalId}`}>Este paso espera una respuesta escrita del usuario</Label>
-                      </div>
-
-                      <h4 className="font-semibold pt-4 border-t">Opciones (Botones)</h4>
-                      <div className="space-y-3">
-                          {node.options.map((opt, index) => (
-                              <div key={index} className="p-3 border rounded-md space-y-3 bg-muted/50 relative">
-                                  <Button variant="ghost" size="icon" className="absolute top-1 right-1 h-7 w-7 text-destructive" onClick={() => removeOption(originalId, index)}><Trash2 className="w-4 h-4"/></Button>
-                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                      <div className="space-y-1">
-                                          <Label>Texto del Botón</Label>
-                                          <Input value={opt.text} onChange={e => handleOptionChange(originalId, index, 'text', e.target.value)} />
-                                      </div>
-                                      <div className="space-y-1">
-                                          <Label>Siguiente Paso (ID)</Label>
-                                          <Input value={opt.next} onChange={e => handleOptionChange(originalId, index, 'next', e.target.value)} placeholder="ID del siguiente nodo" />
-                                      </div>
-                                  </div>
-                                   <div className="space-y-1">
-                                      <Label>Acción a Ejecutar (Opcional)</Label>
-                                      <Select value={opt.action || ''} onValueChange={value => handleOptionChange(originalId, index, 'action', value === 'none' ? undefined : value)}>
-                                          <SelectTrigger><SelectValue placeholder="Ninguna"/></SelectTrigger>
-                                          <SelectContent>
-                                              <SelectItem value="none">Ninguna</SelectItem>
-                                              {availableActions.map(act => <SelectItem key={act} value={act}>{act}</SelectItem>)}
-                                          </SelectContent>
-                                      </Select>
-                                  </div>
-                              </div>
-                          ))}
-                           <Button variant="outline" size="sm" onClick={() => addOption(originalId)}>
-                              <PlusCircle className="mr-2 h-4 w-4"/> Añadir Opción
-                          </Button>
-                      </div>
-
-                       <div className="flex justify-end gap-2 pt-4 border-t">
-                           <Button variant="destructive" size="sm" onClick={() => handleDeleteNode(node.id)}>Eliminar Nodo</Button>
-                           <Button size="sm" onClick={() => handleSaveNode(node)} disabled={isSaving === originalId}>
-                               {isSaving === originalId ? <Loader2 className="animate-spin mr-2"/> : <Save className="mr-2 h-4 w-4"/>}
-                               Guardar Cambios
-                           </Button>
-                       </div>
-                    </AccordionContent>
-                  </AccordionItem>
-                )})}
-              </Accordion>
-            )}
-        </CardContent>
-      </Card>
+      
+      {isLoading ? (
+        <div className="flex justify-center p-8"><Loader2 className="w-8 h-8 animate-spin"/></div>
+      ) : view === 'list' ? (
+        <ChatbotListView 
+            nodes={nodes}
+            onNodeChange={handleNodeChange}
+            onOptionChange={handleOptionChange}
+            addOption={addOption}
+            removeOption={removeOption}
+            handleSaveNode={handleSaveNode}
+            handleDeleteNode={handleDeleteNode}
+            isSaving={isSaving}
+            originalNodeIds={originalNodeIds}
+            addNewNode={addNewNode}
+        />
+      ) : (
+        <ChatbotVisualView />
+      )}
     </div>
   );
 }
