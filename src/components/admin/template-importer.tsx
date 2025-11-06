@@ -1,5 +1,4 @@
 
-
 "use client"
 
 import { useState, useMemo, useEffect } from "react"
@@ -23,8 +22,8 @@ import { DatePicker } from "../ui/date-picker"
 import { getAllFromCollection, saveDocument, savePassenger, getDocumentById } from "@/lib/firestore-services"
 
 interface TemplateImporterProps {
-  isOpen: boolean
-  onOpenChange: (isOpen: boolean) => void
+  isOpen: boolean;
+  onOpenChange: (isOpen: boolean) => void;
 }
 
 type ImportResult = {
@@ -62,6 +61,25 @@ const spanishMonths = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'j
 const toTitleCase = (str: string): string => {
   if (!str || typeof str !== 'string') return '';
   return str.toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.substring(1)).join(' ').trim();
+}
+
+const cleanTripName = (fileName: string): string => {
+    // 1. Remove file extension
+    let cleanedName = fileName.replace(/\.[^/.]+$/, "");
+
+    // 2. Remove month names (case-insensitive)
+    const monthRegex = new RegExp(`\\b(${spanishMonths.join('|')})\\b`, 'gi');
+    cleanedName = cleanedName.replace(monthRegex, '');
+
+    // 3. Remove date-like patterns (e.g., 16-11, 16/11, 16 11) and standalone numbers
+    cleanedName = cleanedName.replace(/\b\d{1,2}[\s\-/]\d{1,2}\b/g, ''); // dd-mm or dd/mm or dd mm
+    cleanedName = cleanedName.replace(/\b\d{1,4}\b/g, ''); // Remove standalone numbers (days, years)
+    
+    // 4. Clean up separators and extra spaces
+    cleanedName = cleanedName.replace(/[\-_]/g, ' '); // Replace separators with space
+    cleanedName = cleanedName.replace(/\s+/g, ' ').trim(); // Collapse multiple spaces and trim
+
+    return toTitleCase(cleanedName);
 }
 
 const mapPaymentMethod = (methodChar: string): PaymentMethod | undefined => {
@@ -325,10 +343,7 @@ export function TemplateImporter({ isOpen, onOpenChange }: TemplateImporterProps
             const sheetName = workbook.SheetNames[0];
             const worksheet = workbook.Sheets[sheetName];
             
-            const rawTripName = file.name.replace(/\.[^/.]+$/, "");
-            const cleanedTripName = toTitleCase(
-                spanishMonths.reduce((acc, month) => acc.replace(new RegExp(`\\b${month}\\b`, 'gi'), ''), rawTripName)
-            );
+            const cleanedTripName = cleanTripName(file.name);
 
             let allTours: Tour[] = await getAllFromCollection<Tour>('tours');
             let trip = allTours.find(t => t.destination.toLowerCase() === cleanedTripName.toLowerCase());
@@ -476,7 +491,7 @@ export function TemplateImporter({ isOpen, onOpenChange }: TemplateImporterProps
                 <Label htmlFor="template-file">Archivo Excel</Label>
                 <Input id="template-file" type="file" onChange={handleFileChange} accept=".xlsx, .xls" />
                 <DialogDescription className="text-xs pt-2">
-                    El nombre del viaje se toma del nombre del archivo (se ignorarán los meses). Si el viaje no existe, se creará uno nuevo. Las familias se agrupan por el color de fondo de la celda "PASAJERO".
+                    El nombre del viaje se toma del nombre del archivo. Si el viaje no existe, se creará uno nuevo. Las familias se agrupan por el color de fondo de la celda "PASAJERO".
                 </DialogDescription>
             </div>
         )
