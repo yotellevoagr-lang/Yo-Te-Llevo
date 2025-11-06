@@ -1,5 +1,8 @@
 
+import { getDoc, doc, collection, getDocs, writeBatch } from "firebase/firestore";
+import { db } from './firebase';
 import type { ActionType } from "./chatbot-flow";
+import { getChatbotNode } from "./firestore-services";
 
 export interface ChatbotNode {
   id: string;
@@ -16,7 +19,7 @@ export interface ChatbotNode {
   action?: ActionType;
 }
 
-const chatbotFlow: Record<string, ChatbotNode> = {
+const initialChatbotFlow: Record<string, ChatbotNode> = {
   start: {
     id: "start",
     message: "¡Hola! Soy tu asistente virtual. ¿Cómo puedo ayudarte hoy?",
@@ -27,7 +30,6 @@ const chatbotFlow: Record<string, ChatbotNode> = {
       { text: "❓ Preguntas Frecuentes", next: "faq_menu" },
     ],
   },
-  // --- Ayuda para Registro ---
   why_register: {
     id: "why_register",
     message: "¡Registrarse es una gran idea! Al crear una cuenta, tus datos se guardan para que tus futuras reservas sean mucho más rápidas. Además, podrás ver tu historial de viajes. ¿Quieres registrarte ahora?",
@@ -36,7 +38,6 @@ const chatbotFlow: Record<string, ChatbotNode> = {
         { text: "No, solo quiero explorar", next: "start" },
     ]
   },
-  // --- Ayuda y Contacto / Preguntas Frecuentes ---
   faq_menu: {
     id: "faq_menu",
     message: "Claro, aquí tienes algunas preguntas frecuentes. ¿Sobre qué quieres saber?",
@@ -74,7 +75,6 @@ const chatbotFlow: Record<string, ChatbotNode> = {
         { text: "⬅️ Volver", next: "faq_menu" },
       ]
   },
-  // --- Viajes ---
   trips_menu: {
     id: "trips_menu",
     message: "¡Excelente! ¿Cómo quieres buscar tu próximo viaje?",
@@ -89,7 +89,6 @@ const chatbotFlow: Record<string, ChatbotNode> = {
       id: "tag_selection",
       message: "Selecciona una o más temáticas de tu interés y luego presiona 'Buscar'.",
       options: [
-          // Options will be dynamically populated by fetchAvailableTags action.
       ]
   },
   trips_result: {
@@ -110,7 +109,6 @@ const chatbotFlow: Record<string, ChatbotNode> = {
         { text: "Volver al inicio", next: "start" },
     ]
   },
-  // --- Flujo de Pre-Reserva ---
   pre_booking_start: {
     id: 'pre_booking_start',
     message: '¡Genial! Empecemos tu pre-reserva. Primero, ¿cuántas personas van a viajar en total (incluyéndote a ti)?',
@@ -129,10 +127,8 @@ const chatbotFlow: Record<string, ChatbotNode> = {
       id: 'pre_booking_confirm',
       message: 'El precio se ha calculado. ¿Continuamos a la página de reserva para cargar los datos?',
       options: [
-          // Se llena dinámicamente por la acción
       ]
   },
-  // --- Cuenta de Usuario (Cliente) ---
   account_menu: {
     id: "account_menu",
     message: "Estás en tu cuenta. ¿Qué información quieres consultar?",
@@ -147,7 +143,6 @@ const chatbotFlow: Record<string, ChatbotNode> = {
     id: "active_reservations_result",
     message: "Estos son tus próximos viajes. Selecciona uno para ver más detalles.",
     options: [
-      // Options will be dynamically populated by the action
       { text: "⬅️ Volver a mi cuenta", next: "account_menu" },
     ],
   },
@@ -192,7 +187,6 @@ const chatbotFlow: Record<string, ChatbotNode> = {
         { text: "⬅️ Volver", next: "account_menu" },
     ],
   },
-  // --- Admin ---
   admin_account_menu: {
     id: "admin_account_menu",
     message: "Panel de Administrador. ¿Qué deseas hacer?",
@@ -226,6 +220,44 @@ const chatbotFlow: Record<string, ChatbotNode> = {
   }
 };
 
-export function getChatbotFlow(id: string): ChatbotNode {
-  return chatbotFlow[id] || chatbotFlow["start"];
-};
+/**
+ * Seeds the initial chatbot flow data into Firestore if it doesn't exist.
+ */
+async function seedChatbotFlow() {
+    const chatbotFlowsCol = collection(db, 'chatbot_flows');
+    const snapshot = await getDocs(chatbotFlowsCol);
+    if (snapshot.empty) {
+        console.log("Chatbot flow not found in Firestore, seeding initial data...");
+        const batch = writeBatch(db);
+        Object.entries(initialChatbotFlow).forEach(([id, nodeData]) => {
+            const docRef = doc(db, 'chatbot_flows', id);
+            batch.set(docRef, nodeData);
+        });
+        await batch.commit();
+        console.log("Chatbot flow seeded successfully.");
+    }
+}
+
+// Call this once, maybe during app initialization or first time the bot is opened.
+// A good place is inside the getChatbotFlow function itself.
+let isSeeding = false;
+let hasSeeded = false;
+
+export async function getChatbotFlow(id: string): Promise<ChatbotNode> {
+    if (!hasSeeded && !isSeeding) {
+        isSeeding = true;
+        await seedChatbotFlow();
+        isSeeding = false;
+        hasSeeded = true;
+    }
+    
+    const node = await getChatbotNode(id);
+    if (node) {
+        return node;
+    }
+
+    console.warn(`Chatbot node "${id}" not found in Firestore. Falling back to default 'start' node.`);
+    // Fallback to the default start node if a node is not found
+    const startNode = await getChatbotNode('start');
+    return startNode || initialChatbotFlow['start'];
+}
