@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useState, useEffect, useMemo, useCallback } from "react"
+import { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import Image from "next/image"
 import { SiteHeader } from "@/components/site-header"
@@ -13,13 +13,14 @@ import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { useToast } from "@/hooks/use-toast"
 import { getTourById, savePassenger, saveReservation, getAllFromCollection_client, getDocumentById } from "@/lib/firestore-services"
-import type { Tour, Reservation, Passenger, Seller, CustomLayoutConfig, LayoutCategory, CreatorContext } from "@/lib/types"
+import type { Tour, Reservation, Passenger, Seller, CustomLayoutConfig, LayoutCategory, CreatorContext, GalleryItem } from "@/lib/types"
 import { DatePicker } from "@/components/ui/date-picker"
 import { ArrowLeft, CalendarIcon, ClockIcon, MapPinIcon, PlusIcon, TicketIcon, UsersIcon, HeartIcon, ArrowRight, ShieldCheck, Trash2, Loader2, InfoIcon, Video, Edit, ChevronsUpDown } from "lucide-react"
 import Link from "next/link"
 import { Checkbox } from "@/components/ui/checkbox"
 import { getDisplayUrl, cn } from "@/lib/utils"
 import { useAuth } from "@/components/auth/auth-provider"
+import Autoplay from "embla-carousel-autoplay"
 import {
   Dialog,
   DialogContent,
@@ -132,6 +133,10 @@ export default function BookingPage() {
   const router = useRouter();
   const { toast } = useToast()
   const { user: loggedInUser, userRole } = useAuth();
+  
+  const autoplay = useRef(
+    Autoplay({ delay: 5000, stopOnInteraction: true })
+  )
 
 
   const [tour, setTour] = useState<Tour | null>(null)
@@ -491,6 +496,11 @@ export default function BookingPage() {
     )
   }
   
+  const allMedia: GalleryItem[] = tour.gallery || [];
+  if (tour.backgroundImage && !allMedia.some(item => item.url === tour.backgroundImage)) {
+      allMedia.unshift({ id: 'bg-main', url: tour.backgroundImage, type: 'image' });
+  }
+  
   const formattedPresentationTime = formatTimeWithUnit(tour.presentationTime);
   const formattedDepartureTime = formatTimeWithUnit(tour.departureTime);
   const totalPassengers = bookingPassengers.length;
@@ -520,48 +530,27 @@ export default function BookingPage() {
             <div className="lg:col-span-2 space-y-8">
                 <Card className="overflow-hidden shadow-lg">
                     <CardContent className="p-0">
-                        <div className="relative w-full aspect-video bg-muted">
-                            {activeMedia?.type === 'image' && ( <Image src={getDisplayUrl(activeMedia.url)} alt={tour.destination} layout="fill" objectFit="cover" className="transition-opacity duration-300" priority /> )}
-                            {activeMedia?.type === 'video' && ( <video src={getDisplayUrl(activeMedia.url)} className="w-full h-full object-cover" controls autoPlay /> )}
-                        </div>
-                        {tour.gallery && tour.gallery.length > 0 && (
-                             <div className="p-4 bg-card">
-                               <Carousel
-                                  opts={{
-                                    align: "start",
-                                    loop: true,
-                                  }}
-                                  className="w-full"
-                                >
-                                  <CarouselContent className="-ml-2">
-                                    {tour.gallery.map((item, index) => (
-                                      <CarouselItem key={`${item.id}-${index}`} className="basis-1/4 md:basis-1/5 pl-2">
-                                        <div onClick={() => handleViewMedia(item)}>
-                                            <div className={cn(
-                                                "relative aspect-video rounded-md overflow-hidden cursor-pointer border-2 transition-all",
-                                                activeMedia?.url === item.url ? "border-primary" : "border-transparent hover:border-primary/50"
-                                            )}>
-                                                {item.type === 'image' ? (
-                                                  <Image src={getDisplayUrl(item.url)} alt="Miniatura de galería" layout="fill" objectFit="cover" />
-                                                ) : (
-                                                  <video src={getDisplayUrl(item.url)} className="w-full h-full object-cover" />
-                                                )}
-                                                {item.type === 'video' && (
-                                                    <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                                                        <Video className="w-6 h-6 text-white"/>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                      </CarouselItem>
-                                    ))}
-                                  </CarouselContent>
-                                  <CarouselPrevious className="hidden sm:flex" />
-                                  <CarouselNext className="hidden sm:flex" />
-                                </Carousel>
-                              </div>
-                        )}
-                        <div className="p-6 bg-card">
+                         <Carousel 
+                            className="w-full group"
+                            plugins={[autoplay.current]}
+                            onMouseEnter={autoplay.current.stop}
+                            onMouseLeave={autoplay.current.reset}
+                        >
+                          <CarouselContent>
+                              {allMedia.map((item, index) => (
+                                  <CarouselItem key={item.id}>
+                                      <div className="relative w-full aspect-video bg-muted">
+                                          {item.type === 'image' && ( <Image src={getDisplayUrl(item.url)} alt={`${tour.destination} - ${index + 1}`} layout="fill" objectFit="cover" priority={index === 0} /> )}
+                                          {item.type === 'video' && ( <video src={getDisplayUrl(item.url)} className="w-full h-full object-cover" controls autoPlay={false} muted loop /> )}
+                                      </div>
+                                  </CarouselItem>
+                              ))}
+                          </CarouselContent>
+                          <CarouselPrevious className="absolute left-4 top-1/2 -translate-y-1/2 opacity-0 transition-opacity group-hover:opacity-100" />
+                          <CarouselNext className="absolute right-4 top-1/2 -translate-y-1/2 opacity-0 transition-opacity group-hover:opacity-100" />
+                        </Carousel>
+                        
+                        <div className="p-4 bg-card">
                              <h1 className="text-3xl sm:text-4xl font-headline text-primary mb-4">{tour.destination}</h1>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-muted-foreground mb-6">
                                 {tour.origin && <div className="flex items-center gap-2"><MapPinIcon className="w-5 h-5 text-primary" /><span>Salida desde {tour.origin}</span></div>}
@@ -640,8 +629,7 @@ export default function BookingPage() {
                                         </div>
                                     )}
 
-                                    {bookingPassengers.length < availableSeats && <Button variant="outline" onClick={addPassenger}><PlusIcon className="mr-2 h-4 w-4"/> Añadir Acompañante</Button>}
-                                </CardContent>
+                                    {bookingPassengers.length < availableSeats && <Button variant="outline" onClick={addPassenger}><PlusIcon className="mr-2 h-4 w-4"/> Añadir Acompañante</Button>}</CardContent>
                             )}
                         </Card>
                     </fieldset>
@@ -710,3 +698,5 @@ export default function BookingPage() {
     </div>
   )
 }
+
+    
