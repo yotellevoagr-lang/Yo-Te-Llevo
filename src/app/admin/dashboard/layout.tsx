@@ -19,7 +19,8 @@ import {
   Briefcase,
   Calendar,
   Receipt,
-  Archive
+  Archive,
+  Bot
 } from "lucide-react";
 
 import {
@@ -63,6 +64,7 @@ export default function DashboardLayout({
     { href: "/admin/dashboard/passengers", label: t('admin_nav.passengers'), icon: Users },
     { href: "/admin/dashboard/employees", label: t('admin_nav.employees'), icon: Briefcase },
     { href: "/admin/dashboard/sellers", label: t('admin_nav.sellers'), icon: PercentSquare },
+    { href: "/admin/dashboard/chatbot", label: t('admin_nav.chatbot'), icon: Bot },
     { href: "/admin/dashboard/tickets", label: t('admin_nav.tickets'), icon: TicketCheck },
     { href: "/admin/dashboard/receipts", label: t('admin_nav.receipts'), icon: Receipt },
     { href: "/admin/dashboard/reports", label: t('admin_nav.reports'), icon: BarChart3 },
