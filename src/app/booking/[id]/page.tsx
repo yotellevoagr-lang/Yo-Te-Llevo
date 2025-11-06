@@ -517,6 +517,23 @@ export default function BookingPage() {
                             {activeMedia?.type === 'image' && ( <Image src={getDisplayUrl(activeMedia.url)} alt={tour.destination} layout="fill" objectFit="cover" className="transition-opacity duration-300" priority /> )}
                             {activeMedia?.type === 'video' && ( <video src={getDisplayUrl(activeMedia.url)} className="w-full h-full object-cover" controls autoPlay /> )}
                         </div>
+                        {tour.gallery && tour.gallery.length > 0 && (
+                            <div className="bg-card p-4">
+                                <div className="flex gap-2 overflow-x-auto pb-2">
+                                    {tour.gallery.map((item, index) => {
+                                        const isActive = activeMedia?.url === item.url;
+                                        return (
+                                            <div key={`${item.id}-${index}`} className="flex-shrink-0" onClick={() => handleViewMedia(item)}>
+                                                <div className={cn("relative w-24 h-16 rounded-md overflow-hidden cursor-pointer border-2 transition-all", isActive ? "border-primary scale-105" : "border-transparent hover:border-primary/50")}>
+                                                    {item.type === 'image' ? ( <Image src={getDisplayUrl(item.url)} alt="Miniatura de galería" layout="fill" objectFit="cover" /> ) : ( <video src={getDisplayUrl(item.url)} className="w-full h-full object-cover" /> )}
+                                                    {item.type === 'video' && <div className="absolute inset-0 flex items-center justify-center bg-black/30"><Video className="w-6 h-6 text-white"/></div>}
+                                                </div>
+                                            </div>
+                                        )
+                                    })}
+                                </div>
+                            </div>
+                        )}
                         <div className="p-6 bg-card">
                              <h1 className="text-3xl sm:text-4xl font-headline text-primary mb-4">{tour.destination}</h1>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-muted-foreground mb-6">
@@ -526,23 +543,6 @@ export default function BookingPage() {
                                 {formattedDepartureTime && <div className="flex items-center gap-2"><ClockIcon className="w-5 h-5 text-primary" /><span>Salida: {formattedDepartureTime}</span></div>}
                             </div>
                             {tour.description && <CollapsibleDescription text={tour.description} />}
-                             {tour.gallery && tour.gallery.length > 0 && (
-                                <div className="mt-6">
-                                    <div className="flex gap-2 overflow-x-auto pb-2">
-                                        {tour.gallery.map((item, index) => {
-                                            const isActive = activeMedia?.url === item.url;
-                                            return (
-                                                <div key={`${item.id}-${index}`} className="flex-shrink-0" onClick={() => handleViewMedia(item)}>
-                                                    <div className={cn("relative w-24 h-16 rounded-md overflow-hidden cursor-pointer border-2 transition-all", isActive ? "border-primary scale-105" : "border-transparent hover:border-primary/50")}>
-                                                        {item.type === 'image' ? ( <Image src={getDisplayUrl(item.url)} alt="Miniatura de galería" layout="fill" objectFit="cover" /> ) : ( <video src={getDisplayUrl(item.url)} className="w-full h-full object-cover" /> )}
-                                                        {item.type === 'video' && <div className="absolute inset-0 flex items-center justify-center bg-black/30"><Video className="w-6 h-6 text-white"/></div>}
-                                                    </div>
-                                                </div>
-                                            )
-                                        })}
-                                    </div>
-                                </div>
-                            )}
                         </div>
                     </CardContent>
                 </Card>
