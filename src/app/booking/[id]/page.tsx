@@ -531,6 +531,9 @@ export default function BookingPage() {
                 <Card className="overflow-hidden shadow-lg">
                     <CardContent className="p-0">
                          <Carousel 
+                            opts={{
+                                loop: true,
+                            }}
                             className="w-full group"
                             plugins={[autoplay.current]}
                             onMouseEnter={autoplay.current.stop}
@@ -698,5 +701,3 @@ export default function BookingPage() {
     </div>
   )
 }
-
-    
