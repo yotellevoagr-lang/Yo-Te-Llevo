@@ -1,5 +1,4 @@
 
-
 import type { Layout, Cell } from './layouts';
 
 export type LayoutCategory = 'vehicles' | 'airplanes' | 'cruises';
@@ -363,6 +362,7 @@ export interface ChatbotNode {
   }[];
   isUserInput?: boolean;
   action?: ActionType;
+  position?: { x: number, y: number };
 }
 
 export interface ChatbotState {
