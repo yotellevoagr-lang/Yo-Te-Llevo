@@ -127,7 +127,7 @@ export function TemplateAnalyzer({ isOpen, onOpenChange }: TemplateAnalyzerProps
                 
                 <div className="space-y-2">
                     <h4 className="font-semibold flex items-center gap-2"><Users className="w-4 h-4"/> Muestra de Datos de Pasajeros (primeras 5 filas)</h4>
-                    <div className="border rounded-md">
+                    <div className="border rounded-md overflow-x-auto">
                         <Table>
                             <TableHeader><TableRow>{Object.keys(analysisResult.headers).map(h => <TableHead key={h} className="text-xs p-1 whitespace-nowrap">{h}</TableHead>)}</TableRow></TableHeader>
                             <TableBody>
