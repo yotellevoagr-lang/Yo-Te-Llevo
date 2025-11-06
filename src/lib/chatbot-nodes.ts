@@ -20,202 +20,202 @@ export interface ChatbotNode {
 }
 
 const initialChatbotFlow: Record<string, ChatbotNode> = {
-  start: {
-    id: "start",
+  inicio: {
+    id: "inicio",
     message: "¡Hola! Soy tu asistente virtual. ¿Cómo puedo ayudarte hoy?",
     options: [
-      { text: "✈️ Ver Viajes", next: "trips_menu" },
-      { text: "👤 Mi Cuenta", next: "account_menu", requiresAuth: true },
-      { text: "📝 Registrarse", next: "why_register" },
-      { text: "❓ Preguntas Frecuentes", next: "faq_menu" },
+      { text: "✈️ Ver Viajes", next: "menu_viajes" },
+      { text: "👤 Mi Cuenta", next: "menu_cuenta", requiresAuth: true },
+      { text: "📝 Registrarse", next: "acerca_registro" },
+      { text: "❓ Preguntas Frecuentes", next: "menu_faq" },
     ],
   },
-  why_register: {
-    id: "why_register",
+  acerca_registro: {
+    id: "acerca_registro",
     message: "¡Registrarse es una gran idea! Al crear una cuenta, tus datos se guardan para que tus futuras reservas sean mucho más rápidas. Además, podrás ver tu historial de viajes. ¿Quieres registrarte ahora?",
     options: [
         { text: "Sí, ¡vamos a registrarnos!", next: "/login?mode=register", isExternalLink: true },
-        { text: "No, solo quiero explorar", next: "start" },
+        { text: "No, solo quiero explorar", next: "inicio" },
     ]
   },
-  faq_menu: {
-    id: "faq_menu",
+  menu_faq: {
+    id: "menu_faq",
     message: "Claro, aquí tienes algunas preguntas frecuentes. ¿Sobre qué quieres saber?",
     options: [
-        { text: "🎟️ ¿Cómo se reserva?", next: "faq_result", action: 'getFaqAnswer', actionContext: 'how_to_book' },
-        { text: "💳 Métodos de Pago", next: "faq_result", action: 'getFaqAnswer', actionContext: 'payment_methods' },
-        { text: "🧳 ¿Qué incluye el viaje?", next: "faq_result", action: 'getFaqAnswer', actionContext: 'what_is_included' },
-        { text: "🚫 Política de Cancelación", next: "faq_result", action: 'getFaqAnswer', actionContext: 'cancellation_policy' },
-        { text: "🏢 Sobre Nosotros", next: "faq_result", action: 'getFaqAnswer', actionContext: 'about_us' },
-        { text: "📞 Contacto Directo", next: "contact_info", action: 'fetchContactInfo' },
-        { text: "⬅️ Volver", next: "start" },
+        { text: "🎟️ ¿Cómo se reserva?", next: "resultado_faq", action: 'getFaqAnswer', actionContext: 'how_to_book' },
+        { text: "💳 Métodos de Pago", next: "resultado_faq", action: 'getFaqAnswer', actionContext: 'payment_methods' },
+        { text: "🧳 ¿Qué incluye el viaje?", next: "resultado_faq", action: 'getFaqAnswer', actionContext: 'what_is_included' },
+        { text: "🚫 Política de Cancelación", next: "resultado_faq", action: 'getFaqAnswer', actionContext: 'cancellation_policy' },
+        { text: "🏢 Sobre Nosotros", next: "resultado_faq", action: 'getFaqAnswer', actionContext: 'about_us' },
+        { text: "📞 Contacto Directo", next: "info_contacto", action: 'fetchContactInfo' },
+        { text: "⬅️ Volver", next: "inicio" },
     ]
   },
-  faq_result: {
-    id: "faq_result",
+  resultado_faq: {
+    id: "resultado_faq",
     message: "Aquí tienes la información:", // This message will be replaced by the action's response
     options: [
-        { text: "Ver otras preguntas", next: "faq_menu" },
-        { text: "Gracias, volver al inicio", next: "start" },
+        { text: "Ver otras preguntas", next: "menu_faq" },
+        { text: "Gracias, volver al inicio", next: "inicio" },
     ],
   },
-  contact_info: {
-    id: "contact_info",
+  info_contacto: {
+    id: "info_contacto",
     message: "¡Claro! Puedes contactarnos a través de nuestra página de contacto o por nuestras redes sociales.",
     options: [
       { text: "Ir a la Página de Contacto", next: "/contact", isExternalLink: true },
-      { text: "⬅️ Volver", next: "faq_menu" },
+      { text: "⬅️ Volver", next: "menu_faq" },
     ],
   },
-  contact_info_fallback: {
-      id: "contact_info_fallback",
+  fallback_info_contacto: {
+      id: "fallback_info_contacto",
       message: "No pude obtener la información de contacto, pero puedes encontrarla aquí:",
       options: [
         { text: "Ir a la Página de Contacto", next: "/contact", isExternalLink: true },
-        { text: "⬅️ Volver", next: "faq_menu" },
+        { text: "⬅️ Volver", next: "menu_faq" },
       ]
   },
-  trips_menu: {
-    id: "trips_menu",
+  menu_viajes: {
+    id: "menu_viajes",
     message: "¡Excelente! ¿Cómo quieres buscar tu próximo viaje?",
     options: [
-      { text: "⭐ Destacados", next: "trips_result", action: 'fetchFeaturedTours' },
-      { text: "🗺️ Ver Catálogo Completo", next: "trips_result", action: 'fetchAllTours' },
-      { text: "🔎 Buscar por temática", next: "tag_selection", action: 'fetchAvailableTags' },
-      { text: "⬅️ Volver", next: "start" },
+      { text: "⭐ Destacados", next: "resultado_viajes", action: 'fetchFeaturedTours' },
+      { text: "🗺️ Ver Catálogo Completo", next: "resultado_viajes", action: 'fetchAllTours' },
+      { text: "🔎 Buscar por temática", next: "seleccion_tematica", action: 'fetchAvailableTags' },
+      { text: "⬅️ Volver", next: "inicio" },
     ],
   },
-  tag_selection: {
-      id: "tag_selection",
+  seleccion_tematica: {
+      id: "seleccion_tematica",
       message: "Selecciona una o más temáticas de tu interés y luego presiona 'Buscar'.",
       options: [
       ]
   },
-  trips_result: {
-    id: "trips_result",
+  resultado_viajes: {
+    id: "resultado_viajes",
     message: "Aquí tienes. Puedes hacer clic en 'Reservar' o pedirme más detalles de un viaje.",
     options: [
-        { text: "Buscar de nuevo", next: "trips_menu" },
-        { text: "Volver al inicio", next: "start" },
+        { text: "Buscar de nuevo", next: "menu_viajes" },
+        { text: "Volver al inicio", next: "inicio" },
     ],
   },
-   trip_details_result: {
-    id: "trip_details_result",
+   resultado_detalles_viaje: {
+    id: "resultado_detalles_viaje",
     message: "Aquí tienes los detalles del viaje:",
     options: [
-        { text: "Hacer Pre-reserva", next: "pre_booking_start" },
+        { text: "Hacer Pre-reserva", next: "inicio_pre_reserva" },
         { text: "Reservar en la web", next: "", isExternalLink: true }, // The 'next' will be populated dynamically
-        { text: "Ver otros viajes", next: "trips_menu" },
-        { text: "Volver al inicio", next: "start" },
+        { text: "Ver otros viajes", next: "menu_viajes" },
+        { text: "Volver al inicio", next: "inicio" },
     ]
   },
-  pre_booking_start: {
-    id: 'pre_booking_start',
+  inicio_pre_reserva: {
+    id: 'inicio_pre_reserva',
     message: '¡Genial! Empecemos tu pre-reserva. Primero, ¿cuántas personas van a viajar en total (incluyéndote a ti)?',
     isUserInput: true,
     action: 'askForChildren',
     options: [],
   },
-  pre_booking_ask_children: {
-    id: 'pre_booking_ask_children',
+  pre_reserva_ninos: {
+    id: 'pre_reserva_ninos',
     message: 'Entendido. De ese total, ¿cuántos son niños (menores de 12 años)? Si no hay niños, escribe 0.',
     isUserInput: true,
     action: 'calculatePrebookingPrice',
     options: [],
   },
-  pre_booking_confirm: {
-      id: 'pre_booking_confirm',
+  pre_reserva_confirmar: {
+      id: 'pre_reserva_confirmar',
       message: 'El precio se ha calculado. ¿Continuamos a la página de reserva para cargar los datos?',
       options: [
       ]
   },
-  account_menu: {
-    id: "account_menu",
+  menu_cuenta: {
+    id: "menu_cuenta",
     message: "Estás en tu cuenta. ¿Qué información quieres consultar?",
     options: [
-      { text: "✈️ Mis Próximos Viajes", next: "active_reservations_result", action: 'fetchActiveReservations', requiresAuth: true },
-      { text: "👤 Mis Datos Personales", next: "passenger_info_result", action: 'fetchPassengerByDNI', requiresAuth: true },
-      { text: "👨‍👩‍👧‍👦 Mi Grupo Familiar", next: "family_group_result", action: 'fetchFamilyGroup', requiresAuth: true },
-      { text: "⬅️ Volver", next: "start" },
+      { text: "✈️ Mis Próximos Viajes", next: "resultado_reservas_activas", action: 'fetchActiveReservations', requiresAuth: true },
+      { text: "👤 Mis Datos Personales", next: "resultado_info_pasajero", action: 'fetchPassengerByDNI', requiresAuth: true },
+      { text: "👨‍👩‍👧‍👦 Mi Grupo Familiar", next: "resultado_grupo_familiar", action: 'fetchFamilyGroup', requiresAuth: true },
+      { text: "⬅️ Volver", next: "inicio" },
     ],
   },
-  active_reservations_result: {
-    id: "active_reservations_result",
+  resultado_reservas_activas: {
+    id: "resultado_reservas_activas",
     message: "Estos son tus próximos viajes. Selecciona uno para ver más detalles.",
     options: [
-      { text: "⬅️ Volver a mi cuenta", next: "account_menu" },
+      { text: "⬅️ Volver a mi cuenta", next: "menu_cuenta" },
     ],
   },
-  reservation_details_menu: {
-      id: "reservation_details_menu",
+  menu_detalles_reserva: {
+      id: "menu_detalles_reserva",
       message: "Perfecto. ¿Qué quieres saber sobre este viaje?",
       options: [
-          { text: "💳 Estado de mis pagos", next: "payment_status_result", action: "fetchPaymentStatus" },
-          { text: "🎟️ Ver mi pase de abordo", next: "boarding_pass_result", action: "fetchBoardingPass" },
-          { text: "⬅️ Ver otros viajes", next: "active_reservations_result", action: 'fetchActiveReservations', requiresAuth: true },
+          { text: "💳 Estado de mis pagos", next: "resultado_estado_pago", action: "fetchPaymentStatus" },
+          { text: "🎟️ Ver mi pase de abordo", next: "resultado_pase_abordo", action: "fetchBoardingPass" },
+          { text: "⬅️ Ver otros viajes", next: "resultado_reservas_activas", action: 'fetchActiveReservations', requiresAuth: true },
       ]
   },
-  payment_status_result: {
-      id: "payment_status_result",
+  resultado_estado_pago: {
+      id: "resultado_estado_pago",
       message: "Aquí tienes el detalle de tus pagos:",
       options: [
-          { text: "Ver mi pase de abordo", next: "boarding_pass_result", action: "fetchBoardingPass" },
-          { text: "⬅️ Volver a los detalles", next: "reservation_details_menu" },
+          { text: "Ver mi pase de abordo", next: "resultado_pase_abordo", action: "fetchBoardingPass" },
+          { text: "⬅️ Volver a los detalles", next: "menu_detalles_reserva" },
       ]
   },
-  boarding_pass_result: {
-      id: "boarding_pass_result",
+  resultado_pase_abordo: {
+      id: "resultado_pase_abordo",
       message: "Este es un resumen de tu pase de abordo. ¡No olvides tu DNI!",
       options: [
-          { text: "Ver estado de mis pagos", next: "payment_status_result", action: "fetchPaymentStatus" },
-          { text: "⬅️ Volver a los detalles", next: "reservation_details_menu" },
+          { text: "Ver estado de mis pagos", next: "resultado_estado_pago", action: "fetchPaymentStatus" },
+          { text: "⬅️ Volver a los detalles", next: "menu_detalles_reserva" },
       ]
   },
-  passenger_info_result: {
-    id: "passenger_info_result",
+  resultado_info_pasajero: {
+    id: "resultado_info_pasajero",
     message: "Estos son los datos que tenemos registrados:",
     options: [
-        { text: "Ver mis próximos viajes", next: "active_reservations_result", action: 'fetchActiveReservations', requiresAuth: true },
-        { text: "⬅️ Volver", next: "account_menu" },
+        { text: "Ver mis próximos viajes", next: "resultado_reservas_activas", action: 'fetchActiveReservations', requiresAuth: true },
+        { text: "⬅️ Volver", next: "menu_cuenta" },
     ],
   },
-   family_group_result: {
-    id: "family_group_result",
+   resultado_grupo_familiar: {
+    id: "resultado_grupo_familiar",
     message: "Estos son los integrantes de tu grupo:",
     options: [
-        { text: "Ver mis próximos viajes", next: "active_reservations_result", action: 'fetchActiveReservations', requiresAuth: true },
-        { text: "⬅️ Volver", next: "account_menu" },
+        { text: "Ver mis próximos viajes", next: "resultado_reservas_activas", action: 'fetchActiveReservations', requiresAuth: true },
+        { text: "⬅️ Volver", next: "menu_cuenta" },
     ],
   },
-  admin_account_menu: {
-    id: "admin_account_menu",
+  menu_admin: {
+    id: "menu_admin",
     message: "Panel de Administrador. ¿Qué deseas hacer?",
     options: [
-      { text: "Buscar Pasajero por DNI", next: "admin_search_dni_input" },
-      { text: "Estado de un Viaje", next: "admin_trip_status_input" },
-      { text: "⬅️ Volver", next: "start" },
+      { text: "Buscar Pasajero por DNI", next: "input_dni_admin" },
+      { text: "Estado de un Viaje", next: "input_viaje_admin" },
+      { text: "⬅️ Volver", next: "inicio" },
     ],
   },
-  admin_trip_status_input: {
-      id: "admin_trip_status_input",
+  input_viaje_admin: {
+      id: "input_viaje_admin",
       message: "Ingresa el nombre del destino para ver su estado.",
       isUserInput: true,
       action: 'getTripStatus',
       options: [],
   },
-  admin_search_dni_input: {
-    id: "admin_search_dni_input",
+  input_dni_admin: {
+    id: "input_dni_admin",
     message: "Por favor, ingresa el número de DNI para buscar la información del pasajero.",
     options: [],
     isUserInput: true,
     action: 'fetchPassengerByDNI',
   },
-  dni_not_found: {
-    id: "dni_not_found",
+  dni_no_encontrado: {
+    id: "dni_no_encontrado",
     message: "No encontré un pasajero con ese DNI. ¿Quieres intentar con otro?",
     options: [
-        { text: "Buscar de nuevo", next: "admin_search_dni_input" },
-        { text: "⬅️ Volver", next: "start" },
+        { text: "Buscar de nuevo", next: "input_dni_admin" },
+        { text: "⬅️ Volver", next: "inicio" },
     ]
   }
 };
@@ -256,8 +256,8 @@ export async function getChatbotFlow(id: string): Promise<ChatbotNode> {
         return node;
     }
 
-    console.warn(`Chatbot node "${id}" not found in Firestore. Falling back to default 'start' node.`);
+    console.warn(`Chatbot node "${id}" not found in Firestore. Falling back to default 'inicio' node.`);
     // Fallback to the default start node if a node is not found
-    const startNode = await getChatbotNode('start');
-    return startNode || initialChatbotFlow['start'];
+    const startNode = await getChatbotNode('inicio');
+    return startNode || initialChatbotFlow['inicio'];
 }
