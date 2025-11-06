@@ -120,20 +120,24 @@ function ChatbotListView({ nodes, onNodeChange, onOptionChange, addOption, remov
   );
 }
 
-function DraggableNode({ node, position, onNodeClick, isSelected }: { node: ChatbotNode, position: { x: number, y: number }, onNodeClick: (id: string) => void, isSelected: boolean }) {
+function DraggableNode({ node, onNodeClick, isSelected }: { node: ChatbotNode, onNodeClick: (id: string) => void, isSelected: boolean }) {
     const {attributes, listeners, setNodeRef, transform} = useDraggable({
         id: node.id,
     });
     
-    const style = transform ? {
+    const style: React.CSSProperties = transform ? {
         transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
+        position: 'absolute',
+        left: node.position?.x || 50,
+        top: node.position?.y || 50,
     } : {
-        left: `${position.x}px`,
-        top: `${position.y}px`,
+        position: 'absolute',
+        left: node.position?.x || 50,
+        top: node.position?.y || 50,
     };
 
     return (
-        <div ref={setNodeRef} style={style} className="absolute z-10" onClick={() => onNodeClick(node.id)}>
+        <div ref={setNodeRef} style={style} className="z-10" onClick={() => onNodeClick(node.id)}>
              <Card className={cn("w-64 bg-background shadow-lg hover:shadow-2xl transition-shadow border-2", isSelected && "border-primary")}>
                 <CardHeader className="p-2 border-b cursor-move" {...listeners} {...attributes}>
                     <CardTitle className="text-sm flex items-center gap-2">
@@ -149,7 +153,7 @@ function DraggableNode({ node, position, onNodeClick, isSelected }: { node: Chat
     );
 }
 
-function ChatbotVisualView({ nodes, nodePositions, handleDragEnd, onNodeClick, selectedNodeId }: any) {
+function ChatbotVisualView({ nodes, onNodeClick, selectedNodeId, onDragEnd }: any) {
     const nodeMap = new Map(nodes.map((node: ChatbotNode) => [node.id, node]));
 
     return (
@@ -158,7 +162,7 @@ function ChatbotVisualView({ nodes, nodePositions, handleDragEnd, onNodeClick, s
                 <CardTitle>Editor Visual (En Construcción)</CardTitle>
                 <CardDescription>Arrastra los nodos para organizar el flujo. Haz clic para seleccionar.</CardDescription>
             </CardHeader>
-            <DndContext onDragEnd={handleDragEnd}>
+            <DndContext onDragEnd={onDragEnd}>
                 <div className="w-full h-full bg-muted/30 rounded-b-lg relative">
                     <svg className="absolute inset-0 w-full h-full pointer-events-none">
                         <defs>
@@ -167,12 +171,12 @@ function ChatbotVisualView({ nodes, nodePositions, handleDragEnd, onNodeClick, s
                             </marker>
                         </defs>
                          {nodes.map((node: ChatbotNode) => {
-                             const startPos = nodePositions[node.id];
+                             const startPos = node.position;
                              if (!startPos) return null;
                              
                              return node.options.map((opt, index) => {
                                  const endNode = nodeMap.get(opt.next);
-                                 const endPos = endNode ? nodePositions[endNode.id] : null;
+                                 const endPos = endNode?.position;
 
                                  if (!endPos) return null;
                                  
@@ -200,7 +204,6 @@ function ChatbotVisualView({ nodes, nodePositions, handleDragEnd, onNodeClick, s
                         <DraggableNode 
                             key={node.id} 
                             node={node} 
-                            position={nodePositions[node.id] || { x: 50, y: 50 }} 
                             onNodeClick={onNodeClick}
                             isSelected={selectedNodeId === node.id}
                         />
@@ -216,7 +219,6 @@ export default function ChatbotEditorPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState<string | null>(null);
   const [view, setView] = useState<'list' | 'visual'>('list');
-  const [nodePositions, setNodePositions] = useState<Record<string, {x: number, y: number}>>({});
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const { toast } = useToast();
   const originalNodeIds = useRef(new Map<string, string>());
@@ -225,23 +227,16 @@ export default function ChatbotEditorPage() {
     setIsLoading(true);
     const nodesData = await getAllFromCollection_client<ChatbotNode>('chatbot_flows');
     const sortedNodes = nodesData.sort((a, b) => a.id.localeCompare(b.id));
-    setNodes(sortedNodes);
 
-    // Initialize positions for visual editor
-    setNodePositions(prevPos => {
-        const newPos: Record<string, {x: number, y: number}> = {};
-        sortedNodes.forEach((node, index) => {
-            if (prevPos[node.id]) {
-                newPos[node.id] = prevPos[node.id];
-            } else {
-                newPos[node.id] = { x: 50 + (index % 5) * 280, y: 150 + Math.floor(index / 5) * 150 };
-            }
-        });
-        return newPos;
-    });
+    const nodesWithPositions = sortedNodes.map((node, index) => ({
+      ...node,
+      position: node.position || { x: 50 + (index % 5) * 280, y: 150 + Math.floor(index / 5) * 150 }
+    }));
+
+    setNodes(nodesWithPositions);
 
     originalNodeIds.current.clear();
-    sortedNodes.forEach(node => originalNodeIds.current.set(node.id, node.id));
+    nodesWithPositions.forEach(node => originalNodeIds.current.set(node.id, node.id));
     setIsLoading(false);
   }
 
@@ -297,6 +292,7 @@ export default function ChatbotEditorPage() {
       id: tempId,
       message: "Nuevo mensaje del bot.",
       options: [{ text: "Volver al inicio", next: "inicio" }],
+      position: { x: 50, y: 150 },
     };
     setNodes(prev => [...prev, newNode].sort((a, b) => a.id.localeCompare(b.id)));
     originalNodeIds.current.set(tempId, tempId);
@@ -313,24 +309,21 @@ export default function ChatbotEditorPage() {
       
       setIsSaving(originalId);
       try {
+          // The node object in state already has the updated position, so we save it directly.
           const { id, ...dataToSave } = node;
           
-          // ID has changed, need to delete the old document
           if (originalId && newId !== originalId) {
               await deleteDocument('chatbot_flows', originalId);
           }
 
           await saveDocument('chatbot_flows', dataToSave, newId);
           
-          // Update the original ID tracking
           originalNodeIds.current.set(newId, newId);
           if (originalId && newId !== originalId) {
               originalNodeIds.current.delete(originalId);
           }
           
           toast({ title: "¡Nodo Guardado!", description: `El paso "${newId}" ha sido guardado correctamente.`});
-
-          // A full refetch is the safest way to ensure UI consistency if IDs change
           await fetchNodes();
 
       } catch (error) {
@@ -355,16 +348,21 @@ export default function ChatbotEditorPage() {
       }
   }
   
-  const handleDragEnd = (event: any) => {
+    const handleDragEnd = async (event: any) => {
       const {active, delta} = event;
-      setNodePositions(prev => ({
-          ...prev,
-          [active.id]: {
-              x: (prev[active.id]?.x || 0) + delta.x,
-              y: (prev[active.id]?.y || 0) + delta.y,
+      setNodes(prevNodes => 
+        prevNodes.map(node => {
+          if (node.id === active.id) {
+            const newPosition = {
+              x: (node.position?.x || 50) + delta.x,
+              y: (node.position?.y || 50) + delta.y,
+            };
+            return { ...node, position: newPosition };
           }
-      }));
-  }
+          return node;
+        })
+      );
+    };
 
   return (
     <div className="space-y-6">
@@ -401,10 +399,9 @@ export default function ChatbotEditorPage() {
       ) : (
         <ChatbotVisualView 
             nodes={nodes}
-            nodePositions={nodePositions}
-            handleDragEnd={handleDragEnd}
             onNodeClick={setSelectedNodeId}
             selectedNodeId={selectedNodeId}
+            onDragEnd={handleDragEnd}
         />
       )}
     </div>
