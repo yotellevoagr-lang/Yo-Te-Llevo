@@ -56,7 +56,7 @@ function ChatbotListView({ nodes, onNodeChange, onOptionChange, addOption, remov
               </AccordionTrigger>
               <AccordionContent className="p-4 pt-0 space-y-4">
                 <div className="space-y-2">
-                    <Label htmlFor={`id-${originalId}`}>ID del Nodo</Label>
+                    <Label htmlFor={`id-${originalId}`}>ID del Nodo (en español, sin espacios)</Label>
                     <Input 
                       id={`id-${originalId}`} 
                       value={node.id} 
@@ -372,3 +372,5 @@ export default function ChatbotEditorPage() {
     </div>
   );
 }
+
+    
