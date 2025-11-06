@@ -2,6 +2,8 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react";
+import { DndContext, useDraggable } from '@dnd-kit/core';
+import { CSS } from '@dnd-kit/utilities';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,8 +20,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { getAllFromCollection_client, saveDocument, deleteDocument } from "@/lib/firestore-services";
 import type { ChatbotNode } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, PlusCircle, Trash2, Save, Bot, List, Eye } from "lucide-react";
+import { Loader2, PlusCircle, Trash2, Save, Bot, List, Eye, GripVertical } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { cn } from "@/lib/utils";
 
 const availableActions = [
   'fetchFeaturedTours', 'fetchAllTours', 'fetchPassengerByDNI', 
@@ -117,18 +120,55 @@ function ChatbotListView({ nodes, onNodeChange, onOptionChange, addOption, remov
   );
 }
 
-function ChatbotVisualView() {
+function DraggableNode({ node, position, onNodeClick, isSelected }: { node: ChatbotNode, position: { x: number, y: number }, onNodeClick: (id: string) => void, isSelected: boolean }) {
+    const {attributes, listeners, setNodeRef, transform} = useDraggable({
+        id: node.id,
+    });
+    
+    const style = transform ? {
+        transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
+    } : {
+        left: `${position.x}px`,
+        top: `${position.y}px`,
+    };
+
     return (
-        <Card className="h-[600px]">
-            <CardHeader>
+        <div ref={setNodeRef} style={style} className="absolute" onClick={() => onNodeClick(node.id)}>
+             <Card className={cn("w-64 bg-background shadow-lg hover:shadow-2xl transition-shadow border-2", isSelected && "border-primary")}>
+                <CardHeader className="p-2 border-b cursor-move" {...listeners} {...attributes}>
+                    <CardTitle className="text-sm flex items-center gap-2">
+                        <GripVertical className="text-muted-foreground" />
+                        {node.id}
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="p-3 text-xs">
+                    <p className="line-clamp-3">{node.message}</p>
+                </CardContent>
+            </Card>
+        </div>
+    );
+}
+
+function ChatbotVisualView({ nodes, nodePositions, handleDragEnd, onNodeClick, selectedNodeId }: any) {
+    return (
+        <Card className="h-[70vh] relative overflow-hidden">
+             <CardHeader className="absolute top-0 left-0 z-10 bg-background/80 backdrop-blur-sm rounded-t-lg w-full">
                 <CardTitle>Editor Visual (En Construcción)</CardTitle>
-                <CardDescription>Próximamente: arrastra, suelta y conecta los nodos para construir tu flujo de conversación de forma visual.</CardDescription>
+                <CardDescription>Arrastra los nodos para organizar el flujo. Próximamente: conecta los nodos y edítalos aquí.</CardDescription>
             </CardHeader>
-            <CardContent className="h-full flex items-center justify-center bg-muted/30 rounded-b-lg">
-                <div className="text-center text-muted-foreground">
-                    <p>Lienzo del editor visual.</p>
+            <DndContext onDragEnd={handleDragEnd}>
+                <div className="w-full h-full bg-muted/30 rounded-b-lg">
+                    {nodes.map((node: ChatbotNode) => (
+                        <DraggableNode 
+                            key={node.id} 
+                            node={node} 
+                            position={nodePositions[node.id] || { x: 50, y: 50 }} 
+                            onNodeClick={onNodeClick}
+                            isSelected={selectedNodeId === node.id}
+                        />
+                    ))}
                 </div>
-            </CardContent>
+            </DndContext>
         </Card>
     );
 }
@@ -138,6 +178,8 @@ export default function ChatbotEditorPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState<string | null>(null);
   const [view, setView] = useState<'list' | 'visual'>('list');
+  const [nodePositions, setNodePositions] = useState<Record<string, {x: number, y: number}>>({});
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const { toast } = useToast();
   const originalNodeIds = useRef(new Map<string, string>());
 
@@ -146,6 +188,20 @@ export default function ChatbotEditorPage() {
     const nodesData = await getAllFromCollection_client<ChatbotNode>('chatbot_flows');
     const sortedNodes = nodesData.sort((a, b) => a.id.localeCompare(b.id));
     setNodes(sortedNodes);
+
+    // Initialize positions for visual editor
+    setNodePositions(prevPos => {
+        const newPos: Record<string, {x: number, y: number}> = {};
+        sortedNodes.forEach((node, index) => {
+            if (prevPos[node.id]) {
+                newPos[node.id] = prevPos[node.id];
+            } else {
+                newPos[node.id] = { x: 50 + (index % 5) * 280, y: 150 + Math.floor(index / 5) * 150 };
+            }
+        });
+        return newPos;
+    });
+
     originalNodeIds.current.clear();
     sortedNodes.forEach(node => originalNodeIds.current.set(node.id, node.id));
     setIsLoading(false);
@@ -260,6 +316,17 @@ export default function ChatbotEditorPage() {
           }
       }
   }
+  
+  const handleDragEnd = (event: any) => {
+      const {active, delta} = event;
+      setNodePositions(prev => ({
+          ...prev,
+          [active.id]: {
+              x: prev[active.id].x + delta.x,
+              y: prev[active.id].y + delta.y,
+          }
+      }));
+  }
 
   return (
     <div className="space-y-6">
@@ -294,7 +361,13 @@ export default function ChatbotEditorPage() {
             addNewNode={addNewNode}
         />
       ) : (
-        <ChatbotVisualView />
+        <ChatbotVisualView 
+            nodes={nodes}
+            nodePositions={nodePositions}
+            handleDragEnd={handleDragEnd}
+            onNodeClick={setSelectedNodeId}
+            selectedNodeId={selectedNodeId}
+        />
       )}
     </div>
   );
