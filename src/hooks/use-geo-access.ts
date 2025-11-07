@@ -1,11 +1,10 @@
-
 "use client"
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import type { GeoSettings, GeneralSettings } from "@/lib/types";
 import { getDocumentById } from "@/lib/firestore-services";
 
-type GeoAccessStatus = "loading" | "allowed" | "denied";
+type GeoAccessStatus = "loading" | "allowed" | "denied" | "prompting" | "checking";
 
 // Haversine formula to calculate distance between two lat/lon points
 const getDistanceInKm = (lat1: number, lon1: number, lat2: number, lon2: number) => {
@@ -20,73 +19,77 @@ const getDistanceInKm = (lat1: number, lon1: number, lat2: number, lon2: number)
   return R * c;
 };
 
+// List of allowed cities (simplified check)
+const allowedCities = [
+    "san lorenzo", "rosario", "santa fe", "parana", "granadero baigorria", 
+    "capitan bermudez", "fray luis beltran", "puerto general san martin",
+    "ricardone", "timbues", "villa constitucion"
+];
+
 export const useGeoAccess = () => {
   const [status, setStatus] = useState<GeoAccessStatus>("loading");
   const [mainWhatsappNumber, setMainWhatsappNumber] = useState<string | undefined>();
-  
+  const [geoSettings, setGeoSettings] = useState<GeoSettings | null>(null);
+
   useEffect(() => {
-    const checkGeoAccess = async () => {
-      const generalSettings = await getDocumentById<GeneralSettings>('settings', 'general');
-      const geoSettings = await getDocumentById<GeoSettings>('settings', 'geo');
-      
-      if(generalSettings) setMainWhatsappNumber(generalSettings.mainWhatsappNumber);
+    const fetchSettings = async () => {
+        const [general, geo] = await Promise.all([
+            getDocumentById<GeneralSettings>('settings', 'general'),
+            getDocumentById<GeoSettings>('settings', 'geo')
+        ]);
+        if(general) setMainWhatsappNumber(general.mainWhatsappNumber);
+        if(geo) setGeoSettings(geo);
 
-      if (!geoSettings || !geoSettings.radiusKm || geoSettings.radiusKm <= 0) {
-        setStatus("allowed");
-        return;
-      }
-      
-      const setStatusFromCoords = (lat: number, lon: number) => {
-        const distance = getDistanceInKm(
-          lat,
-          lon,
-          geoSettings.latitude,
-          geoSettings.longitude
-        );
-        setStatus(distance <= geoSettings.radiusKm ? "allowed" : "denied");
-      };
-
-      const fallbackToIp = async () => {
-         try {
-            const response = await fetch('https://get.geojs.io/v1/ip/geo.json');
-            const data = await response.json();
-            const userLat = parseFloat(data.latitude);
-            const userLon = parseFloat(data.longitude);
-
-            if (isNaN(userLat) || isNaN(userLon)) {
-              setStatus("denied");
-            } else {
-              setStatusFromCoords(userLat, userLon);
-            }
-          } catch (error) {
-            console.warn("Error getting user location via IP:", error);
-            setStatus("denied");
-          }
-      };
-
-      if ("geolocation" in navigator) {
-          navigator.geolocation.getCurrentPosition(
-              (position) => {
-                  setStatusFromCoords(position.coords.latitude, position.coords.longitude);
-              },
-              (error) => {
-                  console.warn(`Geolocation error (${error.code}): ${error.message}. Falling back to IP.`);
-                  fallbackToIp();
-              },
-              {
-                  enableHighAccuracy: false,
-                  timeout: 10000,
-                  maximumAge: 0
-              }
-          );
-      } else {
-          fallbackToIp();
-      }
+        // Initial check: if no geo settings, everyone is allowed.
+        if (!geo) {
+            setStatus("allowed");
+        } else {
+            // If settings exist, prompt user.
+            setStatus("prompting");
+        }
     };
-
-    checkGeoAccess();
-
+    fetchSettings();
   }, []);
 
-  return { status, mainWhatsappNumber };
+  const checkBrowserPermission = useCallback(async () => {
+    if (!geoSettings) {
+        setStatus("allowed");
+        return;
+    }
+    setStatus("checking");
+    if ("geolocation" in navigator) {
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                const distance = getDistanceInKm(
+                    position.coords.latitude,
+                    position.coords.longitude,
+                    geoSettings.latitude,
+                    geoSettings.longitude
+                );
+                setStatus(distance <= geoSettings.radiusKm ? "allowed" : "denied");
+            },
+            () => {
+                // User denied or error occurred
+                setStatus("denied"); 
+            }
+        );
+    } else {
+        setStatus("denied"); // Geolocation not supported
+    }
+  }, [geoSettings]);
+
+  const checkManualLocation = useCallback((province: string, city: string) => {
+    setStatus("checking");
+    // Simplified check: Allow if province is Santa Fe or city is in the allowed list
+    const isAllowed = province.toLowerCase().includes("santa fe") || allowedCities.includes(city.toLowerCase());
+    setTimeout(() => { // Simulate network delay
+        setStatus(isAllowed ? "allowed" : "denied");
+    }, 500);
+  }, []);
+
+  const denyAccess = () => {
+      setStatus('denied');
+  }
+
+  return { status, mainWhatsappNumber, checkBrowserPermission, checkManualLocation, denyAccess };
 };
