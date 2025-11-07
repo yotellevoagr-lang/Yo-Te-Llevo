@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -5,6 +6,7 @@ import * as SelectPrimitive from "@radix-ui/react-select"
 import { Check, ChevronDown, ChevronUp } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import { ScrollArea } from "./scroll-area"
 
 const Select = SelectPrimitive.Root
 
@@ -83,15 +85,17 @@ const SelectContent = React.forwardRef<
       position={position}
       {...props}
     >
-      <SelectPrimitive.Viewport
-        className={cn(
-          "p-1",
-          position === "popper" &&
-            "h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)]"
-        )}
-      >
-        {children}
-      </SelectPrimitive.Viewport>
+      <ScrollArea>
+        <SelectPrimitive.Viewport
+          className={cn(
+            "p-1",
+            position === "popper" &&
+              "h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)]"
+          )}
+        >
+          {children}
+        </SelectPrimitive.Viewport>
+      </ScrollArea>
     </SelectPrimitive.Content>
   </SelectPrimitive.Portal>
 ))
