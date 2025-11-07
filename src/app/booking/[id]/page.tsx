@@ -26,6 +26,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription
 } from "@/components/ui/dialog"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { PassengerForm } from "@/components/admin/passenger-form"
@@ -204,7 +205,7 @@ function GeoVerificationCard({ onAllow, onManualSubmit }: { onAllow: () => void;
     }, [province]);
 
     return (
-        <Card className="border-primary bg-primary/5">
+        <Card className="border-0 shadow-none">
             <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-primary">
                     <MapPinIcon className="w-6 h-6"/>
@@ -255,9 +256,9 @@ export default function BookingPage() {
   const router = useRouter();
   const { toast } = useToast()
   const { user: loggedInUser, userRole } = useAuth();
-  const { status: geoStatus, mainWhatsappNumber, checkBrowserPermission, checkManualLocation, denyAccess } = useGeoAccess();
+  const { status: geoStatus, checkBrowserPermission, checkManualLocation } = useGeoAccess();
 
-  
+  const [isGeoDialogOpen, setIsGeoDialogOpen] = useState(false);
   const autoplay = useRef(
     Autoplay({ delay: 5000, stopOnInteraction: true })
   )
@@ -374,6 +375,12 @@ export default function BookingPage() {
           addPassenger();
       }
   }, [isLoading, loggedInUser, allPassengers, addPassenger]);
+  
+  useEffect(() => {
+    if (geoStatus === 'allowed' && isGeoDialogOpen) {
+        setIsGeoDialogOpen(false);
+    }
+  }, [geoStatus, isGeoDialogOpen])
   
   const existingReservationForUser = useMemo(() => {
     if (!loggedInUser || !tour || reservations.length === 0) return null;
@@ -630,6 +637,7 @@ export default function BookingPage() {
   const totalPassengers = bookingPassengers.length;
   const allPassengersDataComplete = bookingPassengers.every(p => isProfileComplete(p));
   
+  const isBookingDisabled = isSoldOut || isSubmitting || geoStatus !== 'allowed';
 
   return (
     <div className="flex flex-col min-h-screen bg-muted/20">
@@ -643,6 +651,14 @@ export default function BookingPage() {
               hideFamilyInput={true}
           />
       )}
+      <Dialog open={isGeoDialogOpen} onOpenChange={setIsGeoDialogOpen}>
+        <DialogContent>
+            <GeoVerificationCard 
+                onAllow={checkBrowserPermission}
+                onManualSubmit={checkManualLocation}
+            />
+        </DialogContent>
+      </Dialog>
       <SiteHeader />
       <main className="flex-1 py-12">
         <div className="container">
@@ -698,78 +714,67 @@ export default function BookingPage() {
                         </AlertDescription>
                     </Alert>
                 ) : (
-                    <fieldset disabled={isSoldOut || isSubmitting || geoStatus !== 'allowed'}>
-                        <Card className={cn("shadow-lg", (isSoldOut || geoStatus !== 'allowed') && "bg-muted/50")}>
+                    <fieldset disabled={isBookingDisabled}>
+                        <Card className={cn("shadow-lg", isBookingDisabled && "bg-muted/50")}>
                             <CardHeader>
                             <CardTitle className="flex items-center gap-3 text-2xl"><UsersIcon className="w-8 h-8 text-primary"/> Datos de los Pasajeros</CardTitle>
                             <CardDescription>
-                                {isSoldOut ? 'Este viaje está agotado.' : geoStatus === 'allowed' ? 'Selecciona quiénes viajan. Si faltan datos, te pediremos que los completes.' : 'Completa la verificación de zona para poder reservar.'}
+                                {isSoldOut ? 'Este viaje está agotado.' : 'Selecciona quiénes viajan. Si faltan datos, te pediremos que los completes.'}
                             </CardDescription>
                             </CardHeader>
                             
-                            {geoStatus !== 'allowed' && (
-                                <CardContent>
-                                     <GeoVerificationCard 
-                                        onAllow={checkBrowserPermission}
-                                        onManualSubmit={checkManualLocation}
-                                    />
-                                </CardContent>
-                            )}
-                            
-                            {geoStatus === 'allowed' && !isSoldOut && (
-                                <CardContent className="space-y-6">
-                                    {bookingPassengers.map((passenger, index) => {
-                                        const isMainPassenger = index === 0;
-                                        return (
-                                            <div key={passenger.id} className="p-4 border rounded-lg bg-background">
-                                                <div className="flex justify-between items-center mb-2">
-                                                    <h3 className="font-semibold text-lg">{isMainPassenger ? 'Pasajero Principal' : 'Acompañante'}</h3>
-                                                    {!isMainPassenger && (
-                                                        <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive hover:bg-destructive/10" onClick={() => removePassenger(passenger.id)}><Trash2 className="w-4 h-4"/></Button>
-                                                    )}
-                                                </div>
-                                                {isProfileComplete(passenger) ? (
-                                                    <div className="flex items-center justify-between">
-                                                        <p>{passenger.fullName}</p>
-                                                        <Button variant="link" onClick={() => setEditingMember(passenger)}>Editar</Button>
-                                                    </div>
-                                                ) : (
-                                                    <div className="space-y-4 pt-2">
-                                                        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                                                            <div className="space-y-2"><Label>Nombre Completo</Label><Input value={passenger.fullName} onChange={(e) => handlePassengerChange(passenger.id, 'fullName', e.target.value)} placeholder="Ej: Juan Carlos Pérez" /></div>
-                                                            <div className="space-y-2"><Label>DNI</Label><Input value={passenger.dni} onChange={(e) => handlePassengerChange(passenger.id, 'dni', e.target.value)} placeholder="Sin puntos ni espacios" /></div>
-                                                            {isMainPassenger && <div className="space-y-2"><Label>Teléfono (Obligatorio)</Label><Input value={passenger.phone || ''} onChange={(e) => handlePassengerChange(passenger.id, 'phone', e.target.value)} placeholder="Ej: 1122334455" /></div>}
-                                                            <div className="space-y-2"><Label>Fecha de nacimiento</Label><DatePicker date={passenger.dob} setDate={(d) => handlePassengerChange(passenger.id, 'dob', d)} placeholder="Seleccionar fecha" captionLayout="dropdown-buttons" fromYear={new Date().getFullYear() - 100} toYear={new Date().getFullYear()} /></div>
-                                                        </div>
-                                                    </div>
+                            <CardContent className="space-y-6">
+                                {bookingPassengers.map((passenger, index) => {
+                                    const isMainPassenger = index === 0;
+                                    return (
+                                        <div key={passenger.id} className="p-4 border rounded-lg bg-background">
+                                            <div className="flex justify-between items-center mb-2">
+                                                <h3 className="font-semibold text-lg">{isMainPassenger ? 'Pasajero Principal' : 'Acompañante'}</h3>
+                                                {!isMainPassenger && (
+                                                    <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive hover:bg-destructive/10" onClick={() => removePassenger(passenger.id)}><Trash2 className="w-4 h-4"/></Button>
                                                 )}
                                             </div>
-                                        )
-                                    })}
-                                    
-                                    {familyMembers.length > 0 && (
-                                        <div className="p-4 border rounded-lg space-y-3">
-                                            <Label className="font-semibold">Añadir desde mi grupo familiar</Label>
-                                            {familyMembers.map(member => {
-                                                const isMemberComplete = isProfileComplete(member);
-                                                const isSelected = bookingPassengers.some(bp => bp.id === member.id);
-                                                return (
-                                                    <div key={member.id} className="flex items-center justify-between p-2 rounded-md hover:bg-muted/50">
-                                                        <div className="flex items-center gap-2">
-                                                            <Checkbox id={`member-${member.id}`} checked={isSelected} onCheckedChange={(checked) => checked ? addFamilyMemberToBooking(member) : removePassenger(member.id)} />
-                                                            <Label htmlFor={`member-${member.id}`} className="font-normal cursor-pointer">{member.fullName}</Label>
-                                                        </div>
-                                                        {!isMemberComplete && (
-                                                            <Button variant="outline" size="sm" onClick={() => setEditingMember(member as BookingPassenger)}>Completar Datos</Button>
-                                                        )}
+                                            {isProfileComplete(passenger) ? (
+                                                <div className="flex items-center justify-between">
+                                                    <p>{passenger.fullName}</p>
+                                                    <Button variant="link" onClick={() => setEditingMember(passenger)}>Editar</Button>
+                                                </div>
+                                            ) : (
+                                                <div className="space-y-4 pt-2">
+                                                    <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                                                        <div className="space-y-2"><Label>Nombre Completo</Label><Input value={passenger.fullName} onChange={(e) => handlePassengerChange(passenger.id, 'fullName', e.target.value)} placeholder="Ej: Juan Carlos Pérez" /></div>
+                                                        <div className="space-y-2"><Label>DNI</Label><Input value={passenger.dni} onChange={(e) => handlePassengerChange(passenger.id, 'dni', e.target.value)} placeholder="Sin puntos ni espacios" /></div>
+                                                        {isMainPassenger && <div className="space-y-2"><Label>Teléfono (Obligatorio)</Label><Input value={passenger.phone || ''} onChange={(e) => handlePassengerChange(passenger.id, 'phone', e.target.value)} placeholder="Ej: 1122334455" /></div>}
+                                                        <div className="space-y-2"><Label>Fecha de nacimiento</Label><DatePicker date={passenger.dob} setDate={(d) => handlePassengerChange(passenger.id, 'dob', d)} placeholder="Seleccionar fecha" captionLayout="dropdown-buttons" fromYear={new Date().getFullYear() - 100} toYear={new Date().getFullYear()} /></div>
                                                     </div>
-                                                )
-                                            })}
+                                                </div>
+                                            )}
                                         </div>
-                                    )}
+                                    )
+                                })}
+                                
+                                {familyMembers.length > 0 && (
+                                    <div className="p-4 border rounded-lg space-y-3">
+                                        <Label className="font-semibold">Añadir desde mi grupo familiar</Label>
+                                        {familyMembers.map(member => {
+                                            const isMemberComplete = isProfileComplete(member);
+                                            const isSelected = bookingPassengers.some(bp => bp.id === member.id);
+                                            return (
+                                                <div key={member.id} className="flex items-center justify-between p-2 rounded-md hover:bg-muted/50">
+                                                    <div className="flex items-center gap-2">
+                                                        <Checkbox id={`member-${member.id}`} checked={isSelected} onCheckedChange={(checked) => checked ? addFamilyMemberToBooking(member) : removePassenger(member.id)} />
+                                                        <Label htmlFor={`member-${member.id}`} className="font-normal cursor-pointer">{member.fullName}</Label>
+                                                    </div>
+                                                    {!isMemberComplete && (
+                                                        <Button variant="outline" size="sm" onClick={() => setEditingMember(member as BookingPassenger)}>Completar Datos</Button>
+                                                    )}
+                                                </div>
+                                            )
+                                        })}
+                                    </div>
+                                )}
 
-                                    {bookingPassengers.length < availableSeats && <Button variant="outline" onClick={addPassenger}><PlusIcon className="mr-2 h-4 w-4"/> Añadir Acompañante</Button>}</CardContent>
-                            )}
+                                {bookingPassengers.length < availableSeats && <Button variant="outline" onClick={addPassenger}><PlusIcon className="mr-2 h-4 w-4"/> Añadir Acompañante</Button>}</CardContent>
                         </Card>
                     </fieldset>
                 )}
@@ -817,10 +822,14 @@ export default function BookingPage() {
                     </div>
                     {isSoldOut ? (
                         <Button className="w-full text-lg h-14 rounded-xl" size="lg" disabled> AGOTADO </Button>
-                        ) : (
+                    ) : geoStatus !== 'allowed' ? (
+                        <Button className="w-full text-lg h-14 rounded-xl" size="lg" onClick={() => setIsGeoDialogOpen(true)}>
+                            Verificar Ubicación para Reservar
+                        </Button>
+                    ) : (
                         <>
                             <p className="text-xs text-muted-foreground text-center">El pago se coordina por WhatsApp luego de enviar la solicitud.</p>
-                            <Button className="w-full text-lg h-14 rounded-xl group" size="lg" onClick={handleConfirmReservation} disabled={totalPassengers === 0 || isSubmitting || !allPassengersDataComplete || geoStatus !== 'allowed'}>
+                            <Button className="w-full text-lg h-14 rounded-xl group" size="lg" onClick={handleConfirmReservation} disabled={totalPassengers === 0 || isSubmitting || !allPassengersDataComplete}>
                                 {isSubmitting ? <Loader2 className="w-6 h-6 animate-spin"/> : 'Solicitar Reserva'}
                                 {!isSubmitting && <ArrowRight className="w-5 h-5 ml-2 transition-transform duration-300 group-hover:translate-x-1" />}
                             </Button>
@@ -837,5 +846,7 @@ export default function BookingPage() {
     </div>
   )
 }
+
+    
 
     
