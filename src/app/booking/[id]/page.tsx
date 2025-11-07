@@ -130,33 +130,61 @@ const CollapsibleDescription = ({ text }: { text: string }) => {
 };
 
 
-function OutOfZoneNotification({ whatsappNumber, onVote }: { whatsappNumber?: string, onVote: () => void }) {
-    const whatsappLink = whatsappNumber 
-        ? `https://wa.me/${whatsappNumber.replace(/\D/g, '')}?text=${encodeURIComponent("Hola! Estoy fuera de la zona de servicio pero me gustaría viajar con ustedes.")}`
-        : "";
+function GeoVerificationCard({ onAllow, onManualSubmit }: { onAllow: () => void; onManualSubmit: (province: string, city: string) => void; }) {
+    const { user } = useAuth();
+    const [province, setProvince] = useState("Santa Fe");
+    const [city, setCity] = useState("");
+
+    const handleManualSubmit = () => {
+        if (province && city) {
+            onManualSubmit(province, city);
+        }
+    };
 
     return (
-        <CardContent>
-            <Alert variant="destructive" className="border-amber-500 text-amber-800">
-                <MapPinIcon className="h-4 w-4 text-amber-600" />
-                <AlertDescription className="text-amber-700 space-y-3">
-                    <p className="font-semibold">Estás fuera de nuestra zona de servicio para reservas online.</p>
-                    <p>¡Pero no te preocupes! Puedes contactarnos directamente para consultar por tu caso, o votar para que lleguemos a tu ciudad.</p>
-                     <div className="flex flex-col sm:flex-row gap-2 pt-2">
-                        {whatsappLink && (
-                            <Button asChild variant="outline" className="border-amber-400 hover:bg-amber-100">
-                                <a href={whatsappLink} target="_blank" rel="noopener noreferrer">Contactar</a>
-                            </Button>
-                        )}
-                        <Button variant="outline" onClick={onVote} className="border-amber-400 hover:bg-amber-100">
-                            <ThumbsUp className="mr-2"/> ¡Quiero que vengan a mi zona!
-                        </Button>
+        <Card className="border-primary bg-primary/5">
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-primary">
+                    <MapPin className="w-6 h-6"/>
+                    Verificación de Zona de Servicio
+                </CardTitle>
+                <CardDescription className="text-primary/90">
+                    Nuestra venta online está habilitada principalmente para la zona de San Lorenzo, Santa Fe y alrededores. 
+                    Para poder solicitar tu reserva, por favor, ayúdanos a confirmar tu ubicación.
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <Button onClick={onAllow} size="lg" className="w-full">
+                    Usar mi ubicación actual
+                </Button>
+                <Separator />
+                <div className="space-y-3">
+                    <Label className="font-semibold text-center block">O ingresa tu ubicación manualmente:</Label>
+                     {!user && (
+                        <p className="text-xs text-muted-foreground italic text-center">
+                            ¿Quieres guardar tu dirección? 
+                            <Link href="/login?mode=register" className="font-semibold text-primary hover:underline"> Regístrate</Link>, ¡es rápido y fácil!
+                        </p>
+                    )}
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                            <Label htmlFor="province">Provincia</Label>
+                            <Input id="province" value={province} onChange={(e) => setProvince(e.target.value)} />
+                        </div>
+                        <div className="space-y-1">
+                            <Label htmlFor="city">Localidad</Label>
+                            <Input id="city" value={city} onChange={(e) => setCity(e.target.value)} />
+                        </div>
                     </div>
-                </AlertDescription>
-            </Alert>
-        </CardContent>
+                    <Button onClick={handleManualSubmit} variant="secondary" className="w-full">
+                        Comprobar Ubicación Manual
+                    </Button>
+                </div>
+            </CardContent>
+        </Card>
     );
 }
+
 
 
 export default function BookingPage() {
@@ -615,24 +643,16 @@ export default function BookingPage() {
                                 {isSoldOut ? 'Este viaje está agotado.' : geoStatus === 'allowed' ? 'Selecciona quiénes viajan. Si faltan datos, te pediremos que los completes.' : 'Completa la verificación de zona para poder reservar.'}
                             </CardDescription>
                             </CardHeader>
-                            {(geoStatus === 'checking' || geoStatus === 'loading') && (
-                                <CardContent className="flex justify-center items-center h-40">
-                                    <Loader2 className="w-10 h-10 animate-spin text-primary"/>
-                                </CardContent>
-                            )}
-                             {geoStatus === 'prompting' && (
+                            
+                            {geoStatus !== 'allowed' && (
                                 <CardContent>
-                                    <GeoAccessPrompt 
-                                        isOpen={true}
+                                     <GeoVerificationCard 
                                         onAllow={checkBrowserPermission}
                                         onManualSubmit={checkManualLocation}
-                                        onDeny={denyAccess}
                                     />
                                 </CardContent>
                             )}
-                            {geoStatus === 'denied' && (
-                                <OutOfZoneNotification whatsappNumber={mainWhatsappNumber} onVote={() => toast({ title: "¡Voto registrado!", description: "Gracias por tu interés." })} />
-                            )}
+                            
                             {geoStatus === 'allowed' && !isSoldOut && (
                                 <CardContent className="space-y-6">
                                     {bookingPassengers.map((passenger, index) => {
