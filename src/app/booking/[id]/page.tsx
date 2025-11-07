@@ -1,4 +1,5 @@
 
+
 "use client"
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react"
@@ -12,10 +13,10 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { useToast } from "@/hooks/use-toast"
-import { getTourById, savePassenger, saveReservation, getAllFromCollection_client, getDocumentById } from "@/lib/firestore-services"
-import type { Tour, Reservation, Passenger, Seller, CustomLayoutConfig, LayoutCategory, CreatorContext, GalleryItem } from "@/lib/types"
+import { getTourById, savePassenger, saveReservation, getAllFromCollection_client, getDocumentById, saveDocument } from "@/lib/firestore-services"
+import type { Tour, Reservation, Passenger, Seller, CustomLayoutConfig, LayoutCategory, CreatorContext, GalleryItem, LocationVote, GeneralSettings } from "@/lib/types"
 import { DatePicker } from "@/components/ui/date-picker"
-import { ArrowLeft, CalendarIcon, ClockIcon, MapPin, PlusIcon, TicketIcon, UsersIcon, HeartIcon, ArrowRight, ShieldCheck, Trash2, Loader2, InfoIcon, Video, Edit, ChevronsUpDown, ThumbsUp } from "lucide-react"
+import { ArrowLeft, CalendarIcon, ClockIcon, MapPin, PlusIcon, TicketIcon, UsersIcon, HeartIcon, ArrowRight, ShieldCheck, Trash2, Loader2, InfoIcon, Video, Edit, ChevronsUpDown, ThumbsUp, MessageSquare } from "lucide-react"
 import Link from "next/link"
 import { Checkbox } from "@/components/ui/checkbox"
 import { getDisplayUrl, cn } from "@/lib/utils"
@@ -43,24 +44,30 @@ interface GeoVerificationCardProps {
     status: 'prompting' | 'denied' | 'checking';
     onAllow: () => void;
     onManualSubmit: (province: string, city: string) => void;
+    manualLocation: { province: string; city: string };
+    mainWhatsappNumber?: string;
 }
 
-function GeoVerificationCard({ status, onAllow, onManualSubmit }: GeoVerificationCardProps) {
+function GeoVerificationCard({ status, onAllow, onManualSubmit, manualLocation, mainWhatsappNumber }: GeoVerificationCardProps) {
     const { user } = useAuth();
-    const [province, setProvince] = useState("");
-    const [city, setCity] = useState("");
+    const [province, setProvince] = useState(manualLocation.province);
+    const [city, setCity] = useState(manualLocation.city);
     const [localities, setLocalities] = useState<string[]>([]);
+    const [voteState, setVoteState] = useState<'idle' | 'voted' | 'voting'>('idle');
 
     useEffect(() => {
         if (province) {
             const provinceData = argentinaGeoData.localidades as Record<string, string[]>;
             setLocalities(provinceData[province] || []);
-            setCity("");
+            // Don't reset city if it already exists for this province
+            if (!provinceData[province]?.includes(city)) {
+                 setCity("");
+            }
         } else {
             setLocalities([]);
             setCity("");
         }
-    }, [province]);
+    }, [province, city]);
 
     const handleManualSubmit = () => {
         if (province && city) {
@@ -68,7 +75,27 @@ function GeoVerificationCard({ status, onAllow, onManualSubmit }: GeoVerificatio
         }
     };
     
-    const isLoading = status === 'checking';
+    const handleVote = async () => {
+        setVoteState('voting');
+        try {
+            const vote: Omit<LocationVote, 'id'> = {
+                province: manualLocation.province,
+                city: manualLocation.city,
+                createdAt: new Date()
+            };
+            await saveDocument('location_votes', vote);
+            setVoteState('voted');
+        } catch (error) {
+            console.error("Error saving vote:", error);
+            setVoteState('idle');
+        }
+    }
+    
+    const whatsappLink = mainWhatsappNumber 
+    ? `https://wa.me/${mainWhatsappNumber.replace(/\D/g, '')}?text=${encodeURIComponent(`Hola! Me gustaría saber si hay alternativas para viajar desde ${manualLocation.city}, ${manualLocation.province}.`)}`
+    : null;
+
+    const isLoading = status === 'checking' || voteState === 'voting';
 
     if (status === 'denied') {
         return (
@@ -79,14 +106,32 @@ function GeoVerificationCard({ status, onAllow, onManualSubmit }: GeoVerificatio
                         Fuera de la Zona de Servicio
                     </CardTitle>
                     <CardDescription className="text-destructive/90">
-                        Actualmente, las reservas online sólo están disponibles para nuestra área de cobertura principal.
+                        Lo sentimos, actualmente las reservas online sólo están disponibles para nuestra área de cobertura principal.
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4 text-center">
-                    <p className="font-semibold">¿Te gustaría que lleguemos a tu zona?</p>
-                    <Button variant="secondary" className="w-full" disabled>
-                        ¡Déjanos tu sugerencia! (Próximamente)
-                    </Button>
+                    {voteState === 'idle' ? (
+                        <>
+                            <p className="font-semibold">¿Te gustaría que lleguemos a tu zona?</p>
+                            <Button variant="secondary" className="w-full" onClick={handleVote} disabled={isLoading}>
+                                {isLoading ? <Loader2 className="animate-spin w-4 h-4 mr-2"/> : <ThumbsUp className="w-4 h-4 mr-2"/>}
+                                ¡Sí, quiero que lleguen a mi zona!
+                            </Button>
+                        </>
+                    ) : (
+                        <div className="space-y-3 animate-fade-in-up">
+                            <p className="font-semibold text-primary">¡Gracias por tu voto!</p>
+                            <p className="text-sm text-muted-foreground">Si quieres, puedes comunicarte con nosotros para ver si podemos coordinar una alternativa para tu viaje.</p>
+                            {whatsappLink && (
+                                <Button asChild className="w-full">
+                                    <a href={whatsappLink} target="_blank" rel="noopener noreferrer">
+                                        <MessageSquare className="w-4 h-4 mr-2"/>
+                                        Contactar por WhatsApp
+                                    </a>
+                                </Button>
+                            )}
+                        </div>
+                    )}
                 </CardContent>
             </Card>
         );
@@ -245,7 +290,7 @@ export default function BookingPage() {
   const router = useRouter();
   const { toast } = useToast()
   const { user: loggedInUser, userRole } = useAuth();
-  const { status: geoStatus, checkBrowserPermission, checkManualLocation } = useGeoAccess();
+  const { status: geoStatus, checkBrowserPermission, checkManualLocation, manualLocation, mainWhatsappNumber } = useGeoAccess();
 
   const autoplay = useRef(
     Autoplay({ delay: 5000, stopOnInteraction: true })
@@ -579,9 +624,7 @@ export default function BookingPage() {
     const basePrice = bookingPassengers.reduce((total, p) => {
         const age = calculateAge(p.dob);
         let tierPrice = tour.price;
-        if (childTier && age < 12) {
-            tierPrice = childTier.price;
-        }
+        if (childTier && age < 12) { tierPrice = childTier.price; }
         return total + tierPrice;
     }, 0);
     const insuranceCost = (tour.insurance?.active ? insuredGuestIds.length * tour.insurance.cost : 0);
@@ -693,6 +736,8 @@ export default function BookingPage() {
                         status={geoStatus}
                         onAllow={checkBrowserPermission}
                         onManualSubmit={checkManualLocation}
+                        manualLocation={manualLocation}
+                        mainWhatsappNumber={mainWhatsappNumber}
                     />
                 ) : (
                     <fieldset disabled={isSubmitting}>
