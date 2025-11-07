@@ -1,4 +1,3 @@
-
 {
   "provincias": [
     { "nombre": "Buenos Aires" },
@@ -26,28 +25,28 @@
     { "nombre": "Tucumán" }
   ],
   "localidades": {
-    "Buenos Aires": ["La Plata", "Mar del Plata", "Quilmes", "Bahía Blanca", "Pilar", "San Isidro", "Tigre", "Vicente López"],
-    "Catamarca": ["San Fernando del Valle de Catamarca", "Belén", "Santa María", "Andalgalá"],
-    "Chaco": ["Resistencia", "Barranqueras", "Presidencia Roque Sáenz Peña"],
-    "Chubut": ["Rawson", "Comodoro Rivadavia", "Puerto Madryn", "Trelew", "Esquel"],
-    "Córdoba": ["Córdoba", "Villa Carlos Paz", "Río Cuarto", "Villa María"],
-    "Corrientes": ["Corrientes", "Goya", "Paso de los Libres"],
-    "Entre Ríos": ["Paraná", "Concordia", "Gualeguaychú", "Concepción del Uruguay"],
-    "Formosa": ["Formosa", "Clorinda"],
-    "Jujuy": ["San Salvador de Jujuy", "Libertador General San Martín", "Palpalá"],
-    "La Pampa": ["Santa Rosa", "General Pico"],
-    "La Rioja": ["La Rioja", "Chilecito"],
-    "Mendoza": ["Mendoza", "San Rafael", "Godoy Cruz", "Luján de Cuyo"],
-    "Misiones": ["Posadas", "Puerto Iguazú", "Oberá"],
-    "Neuquén": ["Neuquén", "San Martín de los Andes", "Villa La Angostura"],
-    "Río Negro": ["Viedma", "San Carlos de Bariloche", "Cipolletti"],
-    "Salta": ["Salta", "San Ramón de la Nueva Orán", "Cafayate"],
-    "San Juan": ["San Juan", "Rivadavia", "Chimbas"],
-    "San Luis": ["San Luis", "Villa Mercedes", "Merlo"],
-    "Santa Cruz": ["Río Gallegos", "Caleta Olivia", "El Calafate"],
-    "Santa Fe": ["Santa Fe", "Rosario", "Venado Tuerto", "Rafaela", "San Lorenzo", "Reconquista", "Vera"],
-    "Santiago del Estero": ["Santiago del Estero", "La Banda", "Termas de Río Hondo"],
-    "Tierra del Fuego, Antártida e Islas del Atlántico Sur": ["Ushuaia", "Río Grande"],
-    "Tucumán": ["San Miguel de Tucumán", "Yerba Buena", "Tafí Viejo"]
+    "Buenos Aires": ["La Plata", "Mar del Plata", "Quilmes", "Bahía Blanca", "Pilar", "San Isidro", "Tigre", "Vicente López", "Avellaneda", "Lanús", "Lomas de Zamora", "Almirante Brown", "Esteban Echeverría", "Ezeiza", "Florencio Varela", "Berazategui", "Ensenada", "Berisso", "La Matanza", "Morón", "Tres de Febrero", "San Martín", "San Fernando", "San Miguel", "José C. Paz", "Malvinas Argentinas", "Moreno", "Merlo", "Ituzaingó", "Hurlingham", "Escobar", "Zárate", "Campana", "Pergamino", "San Nicolás de los Arroyos", "Junín", "Tandil", "Olavarría", "Azul", "Necochea", "Tres Arroyos", "Chivilcoy", "Bragado", "Mercedes"],
+    "Catamarca": ["San Fernando del Valle de Catamarca", "Belén", "Santa María", "Andalgalá", "Tinogasta", "Recreo", "Fiambalá", "San Isidro", "Santa Rosa"],
+    "Chaco": ["Resistencia", "Barranqueras", "Fontana", "Presidencia Roque Sáenz Peña", "Villa Ángela", "General San Martín", "Juan José Castelli", "Charata"],
+    "Chubut": ["Rawson", "Comodoro Rivadavia", "Puerto Madryn", "Trelew", "Esquel", "Sarmiento", "Gaiman", "Trevelin", "Rada Tilly"],
+    "Córdoba": ["Córdoba", "Villa Carlos Paz", "Río Cuarto", "Villa María", "San Francisco", "Alta Gracia", "Jesús María", "La Calera", "Villa Allende", "Cosquín", "La Falda", "Mina Clavero"],
+    "Corrientes": ["Corrientes", "Goya", "Paso de los Libres", "Curuzú Cuatiá", "Mercedes", "Santo Tomé", "Monte Caseros", "Esquina"],
+    "Entre Ríos": ["Paraná", "Concordia", "Gualeguaychú", "Concepción del Uruguay", "Colón", "Villaguay", "La Paz", "Federación", "Chajarí"],
+    "Formosa": ["Formosa", "Clorinda", "Pirané", "El Colorado", "Ingeniero Juárez"],
+    "Jujuy": ["San Salvador de Jujuy", "Libertador General San Martín", "Palpalá", "San Pedro de Jujuy", "La Quiaca", "Humahuaca", "Tilcara"],
+    "La Pampa": ["Santa Rosa", "General Pico", "Toay", "General Acha", "Eduardo Castex", "Victorica"],
+    "La Rioja": ["La Rioja", "Chilecito", "Aimogasta", "Chamical", "Chepes"],
+    "Mendoza": ["Mendoza", "San Rafael", "Godoy Cruz", "Luján de Cuyo", "Maipú", "Las Heras", "Guaymallén", "Malargüe", "Tunuyán"],
+    "Misiones": ["Posadas", "Puerto Iguazú", "Oberá", "Eldorado", "San Vicente", "Apóstoles", "Leandro N. Alem"],
+    "Neuquén": ["Neuquén", "San Martín de los Andes", "Villa La Angostura", "Cutral Có", "Plaza Huincul", "Centenario", "Plottier", "Zapala"],
+    "Río Negro": ["Viedma", "San Carlos de Bariloche", "Cipolletti", "General Roca", "Villa Regina", "Allen", "El Bolsón", "Las Grutas"],
+    "Salta": ["Salta", "San Ramón de la Nueva Orán", "Cafayate", "Tartagal", "Joaquín V. González", "Rosario de Lerma", "General Güemes", "Metán"],
+    "San Juan": ["San Juan", "Rivadavia", "Chimbas", "Santa Lucía", "Pocito", "Caucete", "Jáchal", "Albardón", "Villa Krause"],
+    "San Luis": ["San Luis", "Villa Mercedes", "Merlo", "La Punta", "Justo Daract", "Quines"],
+    "Santa Cruz": ["Río Gallegos", "Caleta Olivia", "El Calafate", "Pico Truncado", "Puerto Deseado", "Las Heras", "El Chaltén"],
+    "Santa Fe": ["Santa Fe", "Rosario", "Venado Tuerto", "Rafaela", "San Lorenzo", "Reconquista", "Vera", "Granadero Baigorria", "Capitán Bermúdez", "Fray Luis Beltrán", "Puerto General San Martín", "Ricardone", "Timbúes", "Santo Tomé", "Villa Gobernador Gálvez", "Sunchales", "Cañada de Gómez", "Casilda"],
+    "Santiago del Estero": ["Santiago del Estero", "La Banda", "Termas de Río Hondo", "Añatuya", "Frías", "Fernández"],
+    "Tierra del Fuego, Antártida e Islas del Atlántico Sur": ["Ushuaia", "Río Grande", "Tolhuin"],
+    "Tucumán": ["San Miguel de Tucumán", "Yerba Buena", "Tafí Viejo", "Concepción", "Banda del Río Salí", "Aguilares", "Monteros", "Lules"]
   }
 }
