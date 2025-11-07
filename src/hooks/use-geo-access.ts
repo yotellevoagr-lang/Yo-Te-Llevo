@@ -6,7 +6,7 @@ import type { GeoSettings, GeneralSettings } from "@/lib/types";
 import { getDocumentById, savePassenger } from "@/lib/firestore-services";
 import { useAuth } from "@/components/auth/auth-provider";
 
-type GeoAccessStatus = "loading" | "allowed" | "denied" | "prompting" | "checking";
+export type GeoAccessStatus = "loading" | "allowed" | "denied" | "prompting" | "checking";
 
 const getDistanceInKm = (lat1: number, lon1: number, lat2: number, lon2: number) => {
   const R = 6371;
@@ -30,7 +30,7 @@ export const useGeoAccess = () => {
   const [status, setStatus] = useState<GeoAccessStatus>("loading");
   const [mainWhatsappNumber, setMainWhatsappNumber] = useState<string | undefined>();
   const [geoSettings, setGeoSettings] = useState<GeoSettings | null>(null);
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
 
   const fetchSettings = useCallback(async () => {
     const [general, geo] = await Promise.all([
@@ -43,49 +43,47 @@ export const useGeoAccess = () => {
   }, []);
 
   const checkAccess = useCallback(async () => {
+    if (authLoading) return;
+
     const settings = geoSettings || await fetchSettings();
     if (!settings) {
-      // If no geo-settings are defined, allow everyone.
       setStatus("allowed");
       return;
     }
-
-    try {
-      // Always perform IP check first.
-      const response = await fetch('https://ipapi.co/json/');
-      if (!response.ok) throw new Error('IP API response not ok');
-      const ipData = await response.json();
-      const { latitude, longitude } = ipData;
-
-      if (latitude && longitude) {
-        const distance = getDistanceInKm(latitude, longitude, settings.latitude, settings.longitude);
-        setStatus(distance <= settings.radiusKm ? "allowed" : "prompting");
-      } else {
-        // If IP API fails to provide coordinates, prompt the user.
-        setStatus("prompting");
-      }
-    } catch (error) {
-      console.warn("IP-based geolocation failed, defaulting to prompt:", error);
-      setStatus("prompting");
+    
+    // 1. Check for logged-in user with location data
+    if (user?.province && user?.city) {
+      const isAllowed = user.province.toLowerCase().includes("santa fe") || allowedCities.includes(user.city.toLowerCase());
+      setStatus(isAllowed ? "allowed" : "denied");
+      return;
     }
-  }, [geoSettings, fetchSettings]);
+    
+    // 2. Check for location stored in session for non-logged-in users
+    const sessionLocation = sessionStorage.getItem('ytl_manual_location');
+    if (sessionLocation) {
+        const { province, city } = JSON.parse(sessionLocation);
+        const isAllowed = province.toLowerCase().includes("santa fe") || allowedCities.includes(city.toLowerCase());
+        setStatus(isAllowed ? "allowed" : "denied");
+        return;
+    }
+    
+    // 3. Check for browser permission status
+    if ('permissions' in navigator) {
+        const permissionStatus = await navigator.permissions.query({ name: 'geolocation' });
+        if (permissionStatus.state === 'granted') {
+            checkBrowserPermission(); // This will automatically get location and set status
+            return;
+        }
+    }
+
+    // 4. If none of the above, prompt the user
+    setStatus("prompting");
+
+  }, [geoSettings, fetchSettings, user, authLoading]);
 
   useEffect(() => {
+    // Run check on initial load or when user logs in/out
     checkAccess();
-    
-    // Re-validate when the tab becomes visible again to catch changes.
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        setStatus("loading");
-        checkAccess();
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-
   }, [checkAccess]);
 
   const checkBrowserPermission = useCallback(async () => {
@@ -120,12 +118,16 @@ export const useGeoAccess = () => {
     // Simplified check: allow if province is Santa Fe or city is in the allowed list.
     const isAllowed = province.toLowerCase().includes("santa fe") || allowedCities.includes(city.toLowerCase());
     
-    if (isAllowed && user?.id) {
+    if (user?.id) {
+        // If user is logged in, save to their profile
         try {
             await savePassenger({ province, city }, user.id);
         } catch (error) {
             console.error("Failed to save user location:", error);
         }
+    } else {
+        // If user is not logged in, save to session storage
+        sessionStorage.setItem('ytl_manual_location', JSON.stringify({ province, city }));
     }
 
     // Give visual feedback before changing status
