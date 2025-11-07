@@ -50,13 +50,11 @@ const excelDateToJSDate = (serial: any): Date | undefined => {
         if (parts.length >= 3) {
             let [day, month, year] = parts.map(p => p.trim());
             
-            // Basic check for common Euro/Latin format DD-MM-YYYY
             if (parseInt(day) > 12 && parseInt(month) <= 12) {
-                 // It's likely DD-MM-YYYY
+                 // Format is likely DD-MM-YYYY
             } else if (parseInt(month) > 12 && parseInt(day) <= 12) {
-                 // It's likely MM-DD-YYYY, swap them
                  [day, month] = [month, day];
-            } // If both are <= 12, we can't be sure, assume DD-MM for now.
+            } 
 
             if (year && year.length === 2) {
                 year = (parseInt(year) > 50 ? '19' : '20') + year;
@@ -290,12 +288,12 @@ export function TemplateImporter({ isOpen, onOpenChange }: TemplateImporterProps
                     }
                 }
                 
-                // Determine paxCount, finalPrice, and pricing tiers
                 const pricingTierSlots: string[] = [];
                 let totalPaxCount = 0;
-                let finalPrice = mainPayerRow[colMap['VALOR']] || 0;
-
+                let finalPrice = mainPayerRow[colMap['VALOR']] ? parseFloat(String(mainPayerRow[colMap['VALOR']])) || 0 : 0;
+                
                 const rowsWithQuantities = rowsForReservation.filter(r => r[colMap['CANTIDAD']] && parseInt(String(r[colMap['CANTIDAD']])) > 0);
+                
                 if (rowsWithQuantities.length > 0) {
                      for (const row of rowsWithQuantities) {
                         const count = parseInt(String(row[colMap['CANTIDAD']]));
@@ -359,13 +357,13 @@ export function TemplateImporter({ isOpen, onOpenChange }: TemplateImporterProps
                 resultCounts.newReservations++;
             };
 
-            // Process main group first
-            if (mainGroupRows.length > 0) {
-                await processReservation(mainGroupRows, false);
-            }
-            // Process individual payers
+            // Process individual payers first to ensure their data is up-to-date
             for (const individualRow of individualPayers) {
                 await processReservation([individualRow], true);
+            }
+            // Process main group if it exists
+            if (mainGroupRows.length > 0) {
+                await processReservation(mainGroupRows, false);
             }
         }
         return resultCounts;
@@ -574,3 +572,5 @@ export function TemplateImporter({ isOpen, onOpenChange }: TemplateImporterProps
         </Dialog>
     )
 }
+
+    
