@@ -20,6 +20,7 @@ import { Alert, AlertDescription, AlertTitle } from "../ui/alert"
 import { CheckCircle, Loader2, UploadCloud, Calendar as CalendarIcon, Save } from "lucide-react"
 import { DatePicker } from "../ui/date-picker"
 import { getAllFromCollection, saveDocument, savePassenger, getDocumentById } from "@/lib/firestore-services"
+import { toTitleCase } from "@/lib/utils"
 
 interface TemplateImporterProps {
   isOpen: boolean;
@@ -43,20 +44,24 @@ type ImportResult = {
 const excelDateToJSDate = (serial: any): Date | undefined => {
     if (serial === undefined || serial === null || String(serial).trim() === "") return undefined;
 
-    // Handle string date formats first
     if (typeof serial === 'string') {
-        // Replace common separators with a standard one
         const cleanedSerial = serial.replace(/[\/\.]/g, '-');
-        const parts = cleanedSerial.split('-');
-        if (parts.length === 3) {
+        const parts = cleanedSerial.split(/[\s-]/);
+        if (parts.length >= 3) {
             let [day, month, year] = parts.map(p => p.trim());
-            // Handle yy format
-            if (year.length === 2) {
+            
+            // Basic check for common Euro/Latin format DD-MM-YYYY
+            if (parseInt(day) > 12 && parseInt(month) <= 12) {
+                 // It's likely DD-MM-YYYY
+            } else if (parseInt(month) > 12 && parseInt(day) <= 12) {
+                 // It's likely MM-DD-YYYY, swap them
+                 [day, month] = [month, day];
+            } // If both are <= 12, we can't be sure, assume DD-MM for now.
+
+            if (year && year.length === 2) {
                 year = (parseInt(year) > 50 ? '19' : '20') + year;
             }
-            // Ensure parts are numbers
             if (!isNaN(parseInt(day)) && !isNaN(parseInt(month)) && !isNaN(parseInt(year))) {
-                // Month is 0-indexed in JS
                 const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
                 if (!isNaN(date.getTime())) {
                     return date;
@@ -65,10 +70,7 @@ const excelDateToJSDate = (serial: any): Date | undefined => {
         }
     }
     
-    // Handle Excel's numeric date format if string parsing fails or it's a number
     if (typeof serial === 'number' && serial > 0) {
-        // Excel's epoch starts on 1900-01-01, but has a bug where it thinks 1900 is a leap year.
-        // The serial number 25569 corresponds to 1970-01-01.
         const utc_days  = Math.floor(serial - 25569);
         const utc_value = utc_days * 86400;                                        
         const date_info = new Date(utc_value * 1000);
@@ -77,44 +79,30 @@ const excelDateToJSDate = (serial: any): Date | undefined => {
         }
     }
 
-    // If it's already a Date object (less likely from xlsx but possible)
     if (serial instanceof Date && !isNaN(serial.getTime())) {
         return serial;
     }
 
-    return undefined; // Return undefined if no valid format is found
+    return undefined;
 }
 
 const spanishMonths = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 
-const toTitleCase = (str: string): string => {
-  if (!str || typeof str !== 'string') return '';
-  return str.toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.substring(1)).join(' ').trim();
-}
-
 const cleanTripName = (fileName: string): string => {
-    // 1. Remove file extension
     let cleanedName = fileName.replace(/\.[^/.]+$/, "");
-
-    // 2. Remove month names (case-insensitive)
     const monthRegex = new RegExp(`\\b(${spanishMonths.join('|')})\\b`, 'gi');
     cleanedName = cleanedName.replace(monthRegex, '');
-
-    // 3. Remove date-like patterns (e.g., 16-11, 16/11, 16 11) and standalone numbers
-    cleanedName = cleanedName.replace(/\b\d{1,2}[\s\-/]\d{1,2}\b/g, ''); // dd-mm or dd/mm or dd mm
-    cleanedName = cleanedName.replace(/\b\d{1,4}\b/g, ''); // Remove standalone numbers (days, years)
-    
-    // 4. Clean up separators and extra spaces
-    cleanedName = cleanedName.replace(/[\-_]/g, ' '); // Replace separators with space
-    cleanedName = cleanedName.replace(/\s+/g, ' ').trim(); // Collapse multiple spaces and trim
-
+    cleanedName = cleanedName.replace(/\b\d{1,2}[\s\-/]\d{1,2}\b/g, ''); 
+    cleanedName = cleanedName.replace(/\b\d{1,4}\b/g, ''); 
+    cleanedName = cleanedName.replace(/[\-_]/g, ' '); 
+    cleanedName = cleanedName.replace(/\s+/g, ' ').trim(); 
     return toTitleCase(cleanedName);
 }
 
 const mapPaymentMethod = (methodChar: string): PaymentMethod | undefined => {
     const m = (methodChar || '').toUpperCase();
     if (m === 'TJ') return 'Tarjeta';
-    if (m === 'TRN') return 'Transferencia';
+    if (m === 'TRN' || m === 'TR') return 'Transferencia';
     if (m === 'EF') return 'Efectivo';
     return undefined;
 }
@@ -167,7 +155,6 @@ export function TemplateImporter({ isOpen, onOpenChange }: TemplateImporterProps
         let allSellers: Seller[] = await getAllFromCollection<Seller>('sellers');
         let allPensions: Pension[] = await getAllFromCollection<Pension>('pensions');
         
-        // --- PROCESS & SAVE NEW ENTITIES (Sellers, Boarding Points, Room Types, Pensions) ---
         for (const name of sellerNames) {
             const cleanName = toTitleCase(name);
             if (cleanName && !allSellers.some(s => toTitleCase(s.name) === cleanName)) {
@@ -234,132 +221,156 @@ export function TemplateImporter({ isOpen, onOpenChange }: TemplateImporterProps
         const updatedPassengersMap = new Map<string, Passenger>();
 
         for (const groupRows of familyGroups.values()) {
-            const mainPayerRow = groupRows.find(r => r[colMap['CANTIDAD']] || r[colMap['VALOR']]) || groupRows[0];
-            if (!mainPayerRow) continue;
+            const individualPayers = groupRows.filter(r => r[colMap['VALOR']] && parseFloat(String(r[colMap['VALOR']])) > 0);
+            const mainGroupRows = groupRows.filter(r => !r[colMap['VALOR']] || parseFloat(String(r[colMap['VALOR']])) <= 0);
 
-            const mainPayerDNI = String(mainPayerRow[colMap['DNI']] || '').replace(/\D/g, '');
-            if (!mainPayerDNI) continue;
+            const processReservation = async (rowsForReservation: any[], isIndividual: boolean) => {
+                const mainPayerRow = rowsForReservation.find(r => r[colMap['CANTIDAD']] || r[colMap['VALOR']]) || rowsForReservation[0];
+                if (!mainPayerRow) return;
 
-            const reservationPaxCount = mainPayerRow[colMap['CANTIDAD']] || 1;
-            const reservationMembers: Passenger[] = [];
-            
-            for (const row of groupRows) {
-                const passengerName = toTitleCase(row[colMap['PASAJERO']]);
-                const passengerDNI = String(row[colMap['DNI']] || '').replace(/\D/g, '');
-                if (!passengerName || !passengerDNI) continue;
-                
-                let passenger = allPassengers.find(p => p.dni === passengerDNI) || updatedPassengersMap.get(passengerDNI);
-                
-                const dobFromExcel = row[colMap['FECHA NAC']];
-                const dobValue = excelDateToJSDate(dobFromExcel);
-                
-                const boardingPointRaw = row[colMap['EMBARQUE']];
-                let boardingPointId = null;
-                if (boardingPointRaw) {
-                    const bpMatch = String(boardingPointRaw).match(/^([A-Z])-?/i);
-                    if (bpMatch) {
-                        boardingPointId = bpMatch[1].toUpperCase();
+                const reservationMembers: Passenger[] = [];
+                for (const row of rowsForReservation) {
+                    const passengerName = toTitleCase(row[colMap['PASAJERO']]);
+                    const passengerDNI = String(row[colMap['DNI']] || '').replace(/\D/g, '');
+                    if (!passengerName || !passengerDNI) continue;
+
+                    let passenger = allPassengers.find(p => p.dni === passengerDNI) || updatedPassengersMap.get(passengerDNI);
+                    const passengerExisted = !!passenger;
+                    
+                    const dobFromExcel = row[colMap['FECHA NAC']];
+                    const dobValue = excelDateToJSDate(dobFromExcel);
+                    
+                    const boardingPointRaw = row[colMap['EMBARQUE']];
+                    let boardingPointId = null;
+                    if (boardingPointRaw) {
+                        const bpMatch = String(boardingPointRaw).match(/^([A-Z])-?/i);
+                        if (bpMatch) {
+                            boardingPointId = bpMatch[1].toUpperCase();
+                        } else {
+                            const existingBp = allBoardingPoints.find(bp => toTitleCase(bp.name) === toTitleCase(boardingPointRaw));
+                            if(existingBp) boardingPointId = existingBp.id;
+                        }
+                    }
+                    
+                    const phoneRaw = row[colMap['TELÉFONO O CELULAR']];
+                    const phoneCleaned = phoneRaw ? String(phoneRaw).replace(/\D/g, '') : null;
+
+                    const passengerUpdate: Partial<Passenger> = {
+                        fullName: passengerName,
+                        dob: dobValue || null,
+                        phone: phoneCleaned || null,
+                        boardingPointId: boardingPointId || undefined,
+                    };
+
+                    if (passenger) {
+                        const updatedPassenger = { ...passenger, ...passengerUpdate };
+                        await savePassenger(updatedPassenger, passenger.id);
+                        if (!updatedPassengersMap.has(passengerDNI)) resultCounts.updatedPassengers++;
+                        passenger = updatedPassenger;
                     } else {
-                        const existingBp = allBoardingPoints.find(bp => toTitleCase(bp.name) === toTitleCase(boardingPointRaw));
-                        if(existingBp) boardingPointId = existingBp.id;
+                        const newPassengerData = { dni: passengerDNI, nationality: "Argentina", ...passengerUpdate };
+                        const newId = await savePassenger(newPassengerData);
+                        passenger = { id: newId, ...newPassengerData } as Passenger;
+                        resultCounts.newPassengers++;
+                    }
+                    updatedPassengersMap.set(passenger.dni, passenger);
+                    reservationMembers.push(passenger);
+                }
+
+                if (reservationMembers.length === 0) return;
+
+                const mainPayer = reservationMembers[0];
+                const familyName = mainPayer.family || (mainPayer.lastName ? `Familia ${mainPayer.lastName}` : `Familia ${mainPayer.fullName.split(' ').pop()}`);
+
+                for (const member of reservationMembers) {
+                    if (!member.family) {
+                        member.family = familyName;
+                        await savePassenger({ family: familyName }, member.id);
+                        updatedPassengersMap.set(member.dni, member);
                     }
                 }
                 
-                const phoneRaw = row[colMap['TELÉFONO O CELULAR']];
-                const phoneCleaned = phoneRaw ? String(phoneRaw).replace(/\D/g, '') : null;
+                // Determine paxCount, finalPrice, and pricing tiers
+                const pricingTierSlots: string[] = [];
+                let totalPaxCount = 0;
+                let finalPrice = mainPayerRow[colMap['VALOR']] || 0;
 
-                const passengerUpdate: Partial<Passenger> = {
-                    fullName: passengerName,
-                    dob: dobValue || null,
-                    phone: phoneCleaned || null,
-                    boardingPointId: boardingPointId || undefined,
+                const rowsWithQuantities = rowsForReservation.filter(r => r[colMap['CANTIDAD']] && parseInt(String(r[colMap['CANTIDAD']])) > 0);
+                if (rowsWithQuantities.length > 0) {
+                     for (const row of rowsWithQuantities) {
+                        const count = parseInt(String(row[colMap['CANTIDAD']]));
+                        const tierName = toTitleCase(row[colMap['GRUPO ETARIO']] || 'adulto');
+                        const tier = trip.pricingTiers?.find(t => toTitleCase(t.name) === tierName);
+                        const tierId = tier?.id || 'adult';
+                        for (let i = 0; i < count; i++) {
+                            pricingTierSlots.push(tierId);
+                        }
+                        totalPaxCount += count;
+                    }
+                } else {
+                    totalPaxCount = reservationMembers.length;
+                    const defaultTier = trip.pricingTiers?.find(t => t.name.toLowerCase() === 'adulto')?.id || 'adult';
+                    for (let i = 0; i < totalPaxCount; i++) pricingTierSlots.push(defaultTier);
+                }
+                
+                reservationMembers.forEach((member, index) => {
+                    member.tierId = pricingTierSlots[index] || 'adult';
+                });
+
+                if(finalPrice === 0) {
+                    finalPrice = reservationMembers.reduce((sum, member) => {
+                        const tier = trip.pricingTiers?.find(t => t.id === member.tierId);
+                        return sum + (tier?.price ?? trip.price);
+                    }, 0);
+                }
+
+
+                const installmentData = [
+                    { amount: mainPayerRow[colMap['CUOTA 1']], method: mainPayerRow[colMap['M']] },
+                    { amount: mainPayerRow[colMap['CUOTA 2']], method: mainPayerRow[colMap['M.1']] },
+                    { amount: mainPayerRow[colMap['CUOTA 3']], method: mainPayerRow[colMap['M.2']] },
+                    { amount: mainPayerRow[colMap['CUOTA 4']], method: mainPayerRow[colMap['M.3']] },
+                ];
+                const installments: Installment[] = installmentData
+                    .map(inst => ({ amount: inst.amount && !isNaN(parseFloat(String(inst.amount))) ? parseFloat(String(inst.amount)) : undefined, isPaid: inst.amount && !isNaN(parseFloat(String(inst.amount))) ? parseFloat(String(inst.amount)) > 0 : false, paymentMethod: mapPaymentMethod(inst.method) }))
+                    .filter(inst => inst.amount !== undefined && inst.amount > 0).map(inst => ({...inst, amount: inst.amount!}));
+                const paidAmount = installments.reduce((sum, i) => sum + i.amount, 0);
+
+                const sellerName = toTitleCase(mainPayerRow[colMap['VENDEDOR']]);
+                const seller = allSellers.find(s => toTitleCase(s.name) === sellerName);
+                const roomTypeName = toTitleCase(mainPayerRow[colMap['ROOMING']]);
+                const roomType = allRoomTypes.find(rt => toTitleCase(rt.name) === roomTypeName);
+                const pensionNameRaw = mainPayerRow[colMap['PENSIÓN']] || mainPayerRow[colMap['E']];
+                const pensionName = pensionNameRaw ? toTitleCase(pensionNameRaw) : undefined;
+                const pension = pensionName ? allPensions.find(p => toTitleCase(p.name) === pensionName) : undefined;
+                const isInsured = String(mainPayerRow[colMap['SEGURO']] || '').toUpperCase() === 'SI';
+                const isReleased = String(mainPayerRow[colMap['LIBERADO']] || '').toUpperCase() === 'SI';
+
+                const reservationData: Omit<Reservation, 'id'> = {
+                    tripId: trip!.id, passenger: mainPayer.fullName, passengerIds: reservationMembers.map(m => m.id), paxCount: totalPaxCount,
+                    status: 'Confirmado', paymentStatus: finalPrice > 0 ? (paidAmount >= finalPrice ? "Pagado" : (paidAmount > 0 ? "Parcial" : "Pendiente")) : "Pendiente",
+                    finalPrice: finalPrice, installments: { count: installments.length || 1, details: installments.length > 0 ? installments : [{ amount: finalPrice, isPaid: false }] },
+                    sellerId: seller?.id || 'unassigned', boardingPointId: mainPayer.boardingPointId || null, roomTypeId: roomType?.id || null, pensionId: pension?.id || null,
+                    assignedSeats: [], assignedCabins: [],
+                    insuredPassengerIds: isInsured ? reservationMembers.map(m => m.id) : [], releasedPassengerIds: isReleased ? reservationMembers.map(m => m.id) : []
                 };
 
-                if (passenger) {
-                    const existingPassengerId = passenger.id;
-                    passenger = { ...passenger, ...passengerUpdate };
-                    await savePassenger(passenger, existingPassengerId);
-                    if(!updatedPassengersMap.has(passenger.dni)) resultCounts.updatedPassengers++;
-                } else {
-                    const newPassengerData = { dni: passengerDNI, nationality: "Argentina", tierId: "adult", ...passengerUpdate };
-                    const newId = await savePassenger(newPassengerData);
-                    passenger = { id: newId, ...newPassengerData } as Passenger;
-                    resultCounts.newPassengers++;
-                }
-                updatedPassengersMap.set(passenger.dni, passenger);
-                reservationMembers.push(passenger);
-            }
-
-            const mainPayer = updatedPassengersMap.get(mainPayerDNI);
-            if (!mainPayer) continue;
-
-            const nameParts = mainPayer.fullName.split(' ');
-            const familyName = nameParts.length > 1 ? `Familia ${nameParts[nameParts.length - 1]}` : `Familia ${mainPayer.fullName}`;
-
-            for (const member of reservationMembers) {
-                if (!member.family) {
-                    member.family = familyName;
-                    await savePassenger({ family: familyName }, member.id);
-                    updatedPassengersMap.set(member.dni, member);
-                }
-            }
-            
-            const finalPrice = mainPayerRow[colMap['VALOR']] || 0;
-            const installmentData = [
-                { amount: mainPayerRow[colMap['CUOTA 1']], method: mainPayerRow[colMap['M']] },
-                { amount: mainPayerRow[colMap['CUOTA 2']], method: mainPayerRow[colMap['M.1']] },
-                { amount: mainPayerRow[colMap['CUOTA 3']], method: mainPayerRow[colMap['M.2']] },
-                { amount: mainPayerRow[colMap['CUOTA 4']], method: mainPayerRow[colMap['M.3']] },
-            ];
-
-             const installments: Installment[] = installmentData
-                .map(inst => ({
-                    amount: inst.amount && !isNaN(parseFloat(String(inst.amount))) ? parseFloat(String(inst.amount)) : undefined,
-                    isPaid: inst.amount && !isNaN(parseFloat(String(inst.amount))) ? parseFloat(String(inst.amount)) > 0 : false,
-                    paymentMethod: mapPaymentMethod(inst.method)
-                }))
-                .filter(inst => inst.amount !== undefined && inst.amount > 0)
-                .map(inst => ({...inst, amount: inst.amount!}));
-            
-            const paidAmount = installments.reduce((sum, i) => sum + i.amount, 0);
-            
-            const sellerName = toTitleCase(mainPayerRow[colMap['VENDEDOR']]);
-            const seller = allSellers.find(s => toTitleCase(s.name) === sellerName);
-            
-            const roomTypeName = toTitleCase(mainPayerRow[colMap['ROOMING']]);
-            const roomType = allRoomTypes.find(rt => toTitleCase(rt.name) === roomTypeName);
-            
-            const pensionNameRaw = mainPayerRow[colMap['PENSIÓN']] || mainPayerRow[colMap['E']]; // Use column E as fallback
-            const pensionName = pensionNameRaw ? toTitleCase(pensionNameRaw) : undefined;
-            const pension = pensionName ? allPensions.find(p => toTitleCase(p.name) === pensionName) : undefined;
-            
-            const isInsured = String(mainPayerRow[colMap['SEGURO']] || '').toUpperCase() === 'SI';
-            const isReleased = String(mainPayerRow[colMap['LIBERADO']] || '').toUpperCase() === 'SI';
-
-            const reservationData: Omit<Reservation, 'id'> = {
-                tripId: trip!.id,
-                passenger: mainPayer.fullName,
-                passengerIds: reservationMembers.slice(0, reservationPaxCount).map(m => m.id),
-                paxCount: reservationPaxCount,
-                status: 'Confirmado',
-                paymentStatus: finalPrice > 0 ? (paidAmount >= finalPrice ? "Pagado" : (paidAmount > 0 ? "Parcial" : "Pendiente")) : "Pendiente",
-                finalPrice: finalPrice,
-                installments: { count: installments.length || 1, details: installments.length > 0 ? installments : [{ amount: finalPrice, isPaid: false }] },
-                sellerId: seller?.id || 'unassigned',
-                boardingPointId: mainPayer.boardingPointId || null,
-                roomTypeId: roomType?.id || null,
-                pensionId: pension?.id || null,
-                assignedSeats: [], 
-                assignedCabins: [],
-                insuredPassengerIds: isInsured ? reservationMembers.slice(0, reservationPaxCount).map(m => m.id) : [],
-                releasedPassengerIds: isReleased ? reservationMembers.slice(0, reservationPaxCount).map(m => m.id) : []
+                await saveDocument('reservations', reservationData);
+                resultCounts.newReservations++;
             };
 
-            await saveDocument('reservations', reservationData);
-            resultCounts.newReservations++;
+            // Process main group first
+            if (mainGroupRows.length > 0) {
+                await processReservation(mainGroupRows, false);
+            }
+            // Process individual payers
+            for (const individualRow of individualPayers) {
+                await processReservation([individualRow], true);
+            }
         }
         return resultCounts;
     }
+
 
     const handleImport = async () => {
         if (!file) {
@@ -381,7 +392,6 @@ export function TemplateImporter({ isOpen, onOpenChange }: TemplateImporterProps
             let trip = allTours.find(t => t.destination.toLowerCase() === cleanedTripName.toLowerCase());
 
             if (!trip) {
-                 // The trip doesn't exist, so we enter the new trip flow.
                  const pricingData: any[] = XLSX.utils.sheet_to_json(worksheet, { header: 1, range: "AZ179:BA184" });
                  const newPricingTiers: PricingTier[] = pricingData.map((row: any[], index: number) => ({
                     id: `T-imported-${index}`, name: row[0] || 'Desconocido', price: parseFloat(row[1]) || 0
@@ -389,12 +399,10 @@ export function TemplateImporter({ isOpen, onOpenChange }: TemplateImporterProps
                 
                 const basePrice = newPricingTiers.find(t => t.name.toUpperCase() === 'ADULTO')?.price || 0;
                 
-                // Create a placeholder trip ID to use in the state
                 const placeholderId = `NEW_TRIP_${Date.now()}`;
                 
                 setImportResult({ newTours: 1, newReservations: 0, newPassengers: 0, updatedPassengers: 0, newBoardingPoints: 0, newRoomTypes: 0, newSellers: 0, newPensions: 0, createdTripId: placeholderId, isNewTripFlow: true });
                 
-                // Store the necessary data to continue after date selection
                 sessionStorage.setItem('tempImportData', JSON.stringify({
                     tripName: cleanedTripName,
                     price: basePrice,
@@ -407,6 +415,7 @@ export function TemplateImporter({ isOpen, onOpenChange }: TemplateImporterProps
             
             const results = await processAndSaveData(trip, worksheet);
             setImportResult({ ...results, isNewTripFlow: false });
+            window.dispatchEvent(new Event('storage'));
 
         } catch (error) {
             console.error("Error al importar el archivo:", error);
@@ -434,11 +443,9 @@ export function TemplateImporter({ isOpen, onOpenChange }: TemplateImporterProps
                 date: newTripDate,
                 pricingTiers: pricingTiers,
                 transportUnits: [],
-                isPublic: false, // Default to not public
+                isPublic: false,
             };
             const newTripId = await saveDocument('tours', newTripData);
-
-            // CRITICAL FIX: Fetch the newly created trip to get the full object with ID
             const createdTrip = await getDocumentById<Tour>('tours', newTripId);
             if (!createdTrip) {
                 throw new Error("Failed to retrieve the newly created trip from the database.");
@@ -451,6 +458,7 @@ export function TemplateImporter({ isOpen, onOpenChange }: TemplateImporterProps
 
             const results = await processAndSaveData(createdTrip, worksheet);
             setImportResult({ ...results, isNewTripFlow: false, newTours: 1 });
+            window.dispatchEvent(new Event('storage'));
             toast({ title: "¡Importación Exitosa!", description: "El nuevo viaje y sus reservas han sido creados." });
 
         } catch (error) {
