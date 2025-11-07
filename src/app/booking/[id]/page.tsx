@@ -45,7 +45,7 @@ interface GeoVerificationCardProps {
     status: 'prompting' | 'denied' | 'checking';
     onAllow: () => void;
     onManualSubmit: (province: string, city: string) => void;
-    manualLocation: { province: string; city: string };
+    manualLocation: { province: string; city: string } | null;
     mainWhatsappNumber?: string;
 }
 
@@ -297,7 +297,7 @@ export default function BookingPage() {
   const { id } = useParams()
   const router = useRouter();
   const { toast } = useToast()
-  const { user: loggedInUser, userRole } = useAuth();
+  const { user: loggedInUser, userRole, loading: authLoading } = useAuth();
   const { status: geoStatus, checkBrowserPermission, checkManualLocation, manualLocation, mainWhatsappNumber } = useGeoAccess();
 
   const autoplay = useRef(
