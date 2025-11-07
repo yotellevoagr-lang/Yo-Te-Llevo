@@ -2,7 +2,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react";
-import type { GeoSettings, GeneralSettings } from "@/lib/types";
+import type { GeoSettings, GeneralSettings, Passenger } from "@/lib/types";
 import { getDocumentById, savePassenger } from "@/lib/firestore-services";
 import { useAuth } from "@/components/auth/auth-provider";
 
@@ -54,7 +54,7 @@ export const useGeoAccess = () => {
     // 1. Check for logged-in user with location data
     if (user?.province && user?.city) {
       const isAllowed = user.province.toLowerCase().includes("santa fe") || allowedCities.includes(user.city.toLowerCase());
-      setStatus(isAllowed ? "allowed" : "denied");
+      setStatus(isAllowed ? "allowed" : "prompting"); // If denied, prompt them to change it.
       return;
     }
     
@@ -92,14 +92,14 @@ export const useGeoAccess = () => {
             settings.latitude,
             settings.longitude
           );
-          setStatus(distance <= settings.radiusKm ? "allowed" : "denied");
+          setStatus(distance <= settings.radiusKm ? "allowed" : "prompting");
         },
         () => {
-          setStatus("denied"); // User denied the prompt or an error occurred.
+          setStatus("prompting"); // User denied the prompt or an error occurred.
         }
       );
     } else {
-      setStatus("denied"); // Geolocation not supported by the browser.
+      setStatus("prompting"); // Geolocation not supported by the browser.
     }
   }, [geoSettings, fetchSettings]);
 
@@ -114,15 +114,14 @@ export const useGeoAccess = () => {
             console.error("Failed to save user location:", error);
         }
     }
-    // No session storage for non-registered users. They will be prompted every time.
-
+    
     setTimeout(() => {
-        setStatus(isAllowed ? "allowed" : "denied");
+        setStatus(isAllowed ? "allowed" : "prompting");
     }, 500);
   }, [user]);
 
   const denyAccess = () => {
-    setStatus('denied');
+    setStatus('prompting'); // Instead of denied, keep prompting
   };
 
   return { status, mainWhatsappNumber, checkBrowserPermission, checkManualLocation, denyAccess };
