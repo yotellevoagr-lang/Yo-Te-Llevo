@@ -1,14 +1,14 @@
 
 "use client"
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Bell, Palette, Languages, Loader2 } from "lucide-react";
+import { Bell, Palette, Languages, Loader2, MapPin } from "lucide-react";
 import { ThemeToggle } from "@/app/theme-toggle";
 import { LanguageToggle } from "@/app/language-toggle";
 import { useAuth } from "@/components/auth/auth-provider";
@@ -18,7 +18,8 @@ import { saveDocument } from "@/lib/firestore-services";
 
 export default function SettingsPage() {
     const { user } = useAuth();
-    const [notificationStatus, setNotificationStatus] = useState<"default" | "granted" | "denied">("default");
+    const [notificationStatus, setNotificationStatus] = useState<NotificationPermission>("default");
+    const [locationStatus, setLocationStatus] = useState<PermissionState>("prompt");
     const [isClient, setIsClient] = useState(false);
 
     useEffect(() => {
@@ -26,33 +27,48 @@ export default function SettingsPage() {
         if ("Notification" in window) {
             setNotificationStatus(Notification.permission);
         }
+        if ("permissions" in navigator) {
+            navigator.permissions.query({ name: 'geolocation' }).then(permissionStatus => {
+                setLocationStatus(permissionStatus.state);
+                permissionStatus.onchange = () => {
+                    setLocationStatus(permissionStatus.state);
+                };
+            });
+        }
     }, []);
 
     const handleNotificationToggle = async (checked: boolean) => {
-        if (!messaging) return;
         if (checked) {
+            if (!messaging) return;
             try {
                 const permission = await Notification.requestPermission();
                 setNotificationStatus(permission);
                 if (permission === 'granted') {
                     const currentToken = await getToken(messaging, { vapidKey: 'BMD30s-1GFp0f1nCqcFg4J9b139Nff2XgnJj34Sg0gEwIza_I9lQ4lMhA13h1UirYyagESpI52xH1WzmsC5Tey0' });
-                    if (currentToken) {
+                    if (currentToken && user) {
                          await saveDocument('fcmTokens', { 
                             token: currentToken, 
                             createdAt: new Date(),
-                            userId: user?.id || null 
+                            userId: user.id
                         }, currentToken);
                     }
                 }
             } catch (error) {
                 console.error('Error requesting notification permission:', error);
             }
-        } else {
-            // Cannot programmatically un-grant permission.
-            // This switch will just reflect the state. If they want to disable,
-            // they must do so in browser settings.
         }
-    }
+    };
+    
+    const handleLocationToggle = (checked: boolean) => {
+        if (checked) {
+            if ("geolocation" in navigator) {
+                navigator.geolocation.getCurrentPosition(
+                    () => { /* Success, state will update via onchange */ },
+                    () => { /* Error, state will update via onchange */ }
+                );
+            }
+        }
+    };
     
     if (!isClient) {
         return <div className="flex items-center justify-center min-h-screen"><Loader2 className="w-8 h-8 animate-spin"/></div>
@@ -87,6 +103,26 @@ export default function SettingsPage() {
                                 {notificationStatus === 'denied' && (
                                     <p className="text-xs text-destructive">
                                         Has bloqueado las notificaciones. Para activarlas, debes cambiar los permisos en la configuración de tu navegador.
+                                    </p>
+                                )}
+                            </div>
+                            
+                            <div className="space-y-4 p-4 border rounded-lg">
+                                <h3 className="font-semibold text-lg flex items-center gap-2"><MapPin className="w-5 h-5 text-primary"/> Ubicación</h3>
+                                <div className="flex items-center justify-between">
+                                    <Label htmlFor="location-switch" className="flex-1">
+                                        Permitir acceso a la ubicación para una mejor experiencia
+                                    </Label>
+                                    <Switch
+                                        id="location-switch"
+                                        checked={locationStatus === 'granted'}
+                                        onCheckedChange={handleLocationToggle}
+                                        disabled={locationStatus === 'denied'}
+                                    />
+                                </div>
+                                {locationStatus === 'denied' && (
+                                    <p className="text-xs text-destructive">
+                                        Has bloqueado el acceso a la ubicación. Para activarlo, debes cambiar los permisos en la configuración de tu navegador.
                                     </p>
                                 )}
                             </div>
