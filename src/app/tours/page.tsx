@@ -5,65 +5,16 @@ import { SiteHeader } from "@/components/site-header"
 import { SiteFooter } from "@/components/site-footer"
 import { TourCard } from "@/components/tour-card"
 import type { Tour } from '@/lib/types';
-import { useGeoAccess } from '@/hooks/use-geo-access';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Loader2, MapPin, MessageSquare, ThumbsUp, Filter, X } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { Card, CardContent } from '@/components/ui/card';
+import { Loader2, Filter, X } from 'lucide-react';
 import { getAllFromCollection_client } from '@/lib/firestore-services';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { GeoAccessPrompt } from '@/components/geo-access-prompt';
-
-function OutsideZoneNotification({ whatsappNumber }: { whatsappNumber?: string }) {
-    const { toast } = useToast();
-
-    const handleVote = () => {
-        toast({
-            title: "¡Voto registrado!",
-            description: "Gracias por tu interés. Lo tendremos en cuenta para futuras expansiones.",
-        });
-    }
-    
-    const whatsappLink = whatsappNumber 
-        ? `https://wa.me/${whatsappNumber.replace(/\D/g, '')}?text=${encodeURIComponent("Hola! Estoy fuera de la zona de servicio pero me gustaría viajar con ustedes.")}`
-        : "";
-
-    return (
-        <Card className="col-span-full bg-secondary/50 my-8">
-            <CardHeader className="text-center items-center">
-                <MapPin className="w-10 h-10 text-primary mb-2"/>
-                <CardTitle>Estás fuera de nuestra zona de servicio</CardTitle>
-                <CardDescription>
-                    Actualmente, solo ofrecemos ventas directas dentro de un área específica. <br/>
-                    ¡Pero queremos saber de ti!
-                </CardDescription>
-            </CardHeader>
-            <CardContent className="text-center space-y-4">
-                <p className="text-muted-foreground">
-                    Puedes contactarnos directamente para consultar por tu caso o votar para que lleguemos a tu ciudad.
-                </p>
-                <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                    {whatsappLink && (
-                        <Button asChild>
-                            <a href={whatsappLink} target="_blank" rel="noopener noreferrer">
-                                <MessageSquare className="mr-2"/> Contactar por WhatsApp
-                            </a>
-                        </Button>
-                    )}
-                    <Button variant="outline" onClick={handleVote}>
-                        <ThumbsUp className="mr-2"/> ¡Quiero que vengan a mi zona!
-                    </Button>
-                </div>
-            </CardContent>
-        </Card>
-    );
-}
+import { Button } from '@/components/ui/button';
 
 export default function ToursPage() {
   const [tours, setTours] = useState<Tour[]>([]);
-  const { status, mainWhatsappNumber, checkBrowserPermission, checkManualLocation, denyAccess } = useGeoAccess();
+  const [isLoading, setIsLoading] = useState(true);
   const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [sortOrder, setSortOrder] = useState<"default" | "price-asc" | "price-desc">("default");
@@ -71,6 +22,7 @@ export default function ToursPage() {
   
   useEffect(() => {
     const fetchData = async () => {
+        setIsLoading(true);
         const toursData = await getAllFromCollection_client<Tour>('tours');
         
         const processedTours = toursData.map(t => ({
@@ -79,6 +31,7 @@ export default function ToursPage() {
         }));
 
         setTours(processedTours);
+        setIsLoading(false);
     };
 
     const fetchExchangeRate = async () => {
@@ -90,7 +43,6 @@ export default function ToursPage() {
             }
         } catch (error) {
             console.error("Failed to fetch exchange rate:", error);
-            // Fallback rate in case the API fails
             setExchangeRate(1000); 
         }
     };
@@ -99,20 +51,16 @@ export default function ToursPage() {
     fetchExchangeRate();
   }, []);
   
-  useEffect(() => {
-    // This effect runs whenever the list of active tours changes
-    const activePublicTours = tours.filter(tour => tour.isPublic && new Date(tour.date) >= new Date());
-    const usedTags = new Set(activePublicTours.flatMap(tour => tour.tags || []));
-    setAvailableTags(Array.from(usedTags));
-  }, [tours]);
-
-
   const activeTours = useMemo(() => tours.filter(tour => tour.isPublic && new Date(tour.date) >= new Date()), [tours]);
-  
+
+  useEffect(() => {
+    const usedTags = new Set(activeTours.flatMap(tour => tour.tags || []));
+    setAvailableTags(Array.from(usedTags));
+  }, [activeTours]);
+
   const filteredAndSortedTours = useMemo(() => {
     let filtered = activeTours;
 
-    // Filter by tags
     if (selectedTags.length > 0) {
       filtered = filtered.filter(tour => 
         selectedTags.some(tag => tour.tags?.includes(tag))
@@ -126,7 +74,6 @@ export default function ToursPage() {
         return tour.price;
     }
 
-    // Sort
     switch (sortOrder) {
       case 'price-asc':
         return [...filtered].sort((a, b) => getNormalizedPrice(a) - getNormalizedPrice(b));
@@ -138,21 +85,18 @@ export default function ToursPage() {
     }
   }, [activeTours, selectedTags, sortOrder, exchangeRate]);
 
-
   const handleTagToggle = (tag: string) => {
     setSelectedTags(prev => 
       prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
     );
   };
 
-  const canPurchase = status === 'allowed';
-
   const renderContent = () => {
-    if (status === 'loading' || status === 'checking') {
+    if (isLoading) {
       return (
         <div className="col-span-full flex flex-col items-center justify-center h-64">
           <Loader2 className="w-12 h-12 animate-spin text-primary"/>
-          <p className="mt-4 text-muted-foreground">Verificando tu ubicación...</p>
+          <p className="mt-4 text-muted-foreground">Buscando viajes...</p>
         </div>
       );
     }
@@ -167,25 +111,14 @@ export default function ToursPage() {
       );
     }
 
-    return (
-      <>
-        {filteredAndSortedTours.map((tour) => (
-          <TourCard key={tour.id} tour={tour} canPurchase={canPurchase} />
-        ))}
-        {!canPurchase && <OutsideZoneNotification whatsappNumber={mainWhatsappNumber}/>}
-      </>
-    );
+    return filteredAndSortedTours.map((tour) => (
+      <TourCard key={tour.id} tour={tour} />
+    ));
   }
 
   return (
     <div className="flex flex-col min-h-screen">
       <SiteHeader />
-      <GeoAccessPrompt 
-        isOpen={status === 'prompting'}
-        onAllow={checkBrowserPermission}
-        onManualSubmit={checkManualLocation}
-        onDeny={denyAccess}
-      />
       <main className="flex-1">
         <div className="container py-12 md:py-24">
           <div className="flex flex-col items-center justify-center space-y-4 text-center mb-12">

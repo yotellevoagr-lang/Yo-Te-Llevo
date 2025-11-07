@@ -15,7 +15,7 @@ import { useToast } from "@/hooks/use-toast"
 import { getTourById, savePassenger, saveReservation, getAllFromCollection_client, getDocumentById } from "@/lib/firestore-services"
 import type { Tour, Reservation, Passenger, Seller, CustomLayoutConfig, LayoutCategory, CreatorContext, GalleryItem } from "@/lib/types"
 import { DatePicker } from "@/components/ui/date-picker"
-import { ArrowLeft, CalendarIcon, ClockIcon, MapPinIcon, PlusIcon, TicketIcon, UsersIcon, HeartIcon, ArrowRight, ShieldCheck, Trash2, Loader2, InfoIcon, Video, Edit, ChevronsUpDown } from "lucide-react"
+import { ArrowLeft, CalendarIcon, ClockIcon, MapPinIcon, PlusIcon, TicketIcon, UsersIcon, HeartIcon, ArrowRight, ShieldCheck, Trash2, Loader2, InfoIcon, Video, Edit, ChevronsUpDown, ThumbsUp } from "lucide-react"
 import Link from "next/link"
 import { Checkbox } from "@/components/ui/checkbox"
 import { getDisplayUrl, cn } from "@/lib/utils"
@@ -36,6 +36,8 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from "@/components/ui/carousel"
+import { useGeoAccess } from "@/hooks/use-geo-access"
+import { GeoAccessPrompt } from "@/components/geo-access-prompt"
 
 type BookingPassenger = Omit<Passenger, 'id' | 'fullName' | 'dob'> & {
     id: string;
@@ -128,11 +130,42 @@ const CollapsibleDescription = ({ text }: { text: string }) => {
 };
 
 
+function OutOfZoneNotification({ whatsappNumber, onVote }: { whatsappNumber?: string, onVote: () => void }) {
+    const whatsappLink = whatsappNumber 
+        ? `https://wa.me/${whatsappNumber.replace(/\D/g, '')}?text=${encodeURIComponent("Hola! Estoy fuera de la zona de servicio pero me gustaría viajar con ustedes.")}`
+        : "";
+
+    return (
+        <CardContent>
+            <Alert variant="destructive" className="border-amber-500 text-amber-800">
+                <MapPinIcon className="h-4 w-4 text-amber-600" />
+                <AlertDescription className="text-amber-700 space-y-3">
+                    <p className="font-semibold">Estás fuera de nuestra zona de servicio para reservas online.</p>
+                    <p>¡Pero no te preocupes! Puedes contactarnos directamente para consultar por tu caso, o votar para que lleguemos a tu ciudad.</p>
+                     <div className="flex flex-col sm:flex-row gap-2 pt-2">
+                        {whatsappLink && (
+                            <Button asChild variant="outline" className="border-amber-400 hover:bg-amber-100">
+                                <a href={whatsappLink} target="_blank" rel="noopener noreferrer">Contactar</a>
+                            </Button>
+                        )}
+                        <Button variant="outline" onClick={onVote} className="border-amber-400 hover:bg-amber-100">
+                            <ThumbsUp className="mr-2"/> ¡Quiero que vengan a mi zona!
+                        </Button>
+                    </div>
+                </AlertDescription>
+            </Alert>
+        </CardContent>
+    );
+}
+
+
 export default function BookingPage() {
   const { id } = useParams()
   const router = useRouter();
   const { toast } = useToast()
   const { user: loggedInUser, userRole } = useAuth();
+  const { status: geoStatus, mainWhatsappNumber, checkBrowserPermission, checkManualLocation, denyAccess } = useGeoAccess();
+
   
   const autoplay = useRef(
     Autoplay({ delay: 5000, stopOnInteraction: true })
@@ -574,13 +607,33 @@ export default function BookingPage() {
                         </AlertDescription>
                     </Alert>
                 ) : (
-                    <fieldset disabled={isSoldOut || isSubmitting}>
-                        <Card className={cn("shadow-lg", isSoldOut && "bg-muted/50")}>
+                    <fieldset disabled={isSoldOut || isSubmitting || geoStatus !== 'allowed'}>
+                        <Card className={cn("shadow-lg", (isSoldOut || geoStatus !== 'allowed') && "bg-muted/50")}>
                             <CardHeader>
                             <CardTitle className="flex items-center gap-3 text-2xl"><UsersIcon className="w-8 h-8 text-primary"/> Datos de los Pasajeros</CardTitle>
-                            <CardDescription> {isSoldOut ? 'Este viaje está agotado.' : 'Selecciona quiénes viajan. Si faltan datos, te pediremos que los completes.'} </CardDescription>
+                            <CardDescription>
+                                {isSoldOut ? 'Este viaje está agotado.' : geoStatus === 'allowed' ? 'Selecciona quiénes viajan. Si faltan datos, te pediremos que los completes.' : 'Completa la verificación de zona para poder reservar.'}
+                            </CardDescription>
                             </CardHeader>
-                            {!isSoldOut && (
+                            {(geoStatus === 'checking' || geoStatus === 'loading') && (
+                                <CardContent className="flex justify-center items-center h-40">
+                                    <Loader2 className="w-10 h-10 animate-spin text-primary"/>
+                                </CardContent>
+                            )}
+                             {geoStatus === 'prompting' && (
+                                <CardContent>
+                                    <GeoAccessPrompt 
+                                        isOpen={true}
+                                        onAllow={checkBrowserPermission}
+                                        onManualSubmit={checkManualLocation}
+                                        onDeny={denyAccess}
+                                    />
+                                </CardContent>
+                            )}
+                            {geoStatus === 'denied' && (
+                                <OutOfZoneNotification whatsappNumber={mainWhatsappNumber} onVote={() => toast({ title: "¡Voto registrado!", description: "Gracias por tu interés." })} />
+                            )}
+                            {geoStatus === 'allowed' && !isSoldOut && (
                                 <CardContent className="space-y-6">
                                     {bookingPassengers.map((passenger, index) => {
                                         const isMainPassenger = index === 0;
@@ -684,7 +737,7 @@ export default function BookingPage() {
                         ) : (
                         <>
                             <p className="text-xs text-muted-foreground text-center">El pago se coordina por WhatsApp luego de enviar la solicitud.</p>
-                            <Button className="w-full text-lg h-14 rounded-xl group" size="lg" onClick={handleConfirmReservation} disabled={totalPassengers === 0 || isSubmitting || !allPassengersDataComplete}>
+                            <Button className="w-full text-lg h-14 rounded-xl group" size="lg" onClick={handleConfirmReservation} disabled={totalPassengers === 0 || isSubmitting || !allPassengersDataComplete || geoStatus !== 'allowed'}>
                                 {isSubmitting ? <Loader2 className="w-6 h-6 animate-spin"/> : 'Solicitar Reserva'}
                                 {!isSubmitting && <ArrowRight className="w-5 h-5 ml-2 transition-transform duration-300 group-hover:translate-x-1" />}
                             </Button>
