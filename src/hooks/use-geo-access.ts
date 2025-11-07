@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect, useCallback } from "react";
@@ -53,7 +54,7 @@ export const useGeoAccess = () => {
     
     if (user?.province && user?.city) {
       const isAllowed = allowedCities.includes(user.city.toLowerCase());
-      setStatus(isAllowed ? "allowed" : "prompting");
+      setStatus(isAllowed ? "allowed" : "denied"); // Use 'denied' to show the specific message
       return;
     }
     
@@ -129,9 +130,5 @@ export const useGeoAccess = () => {
     }, 500);
   }, [user]);
 
-  const denyAccess = () => {
-    // This can be used to send info to a backend, for now it's just a state change
-  };
-
-  return { status, mainWhatsappNumber, checkBrowserPermission, checkManualLocation, denyAccess };
+  return { status, mainWhatsappNumber, checkBrowserPermission, checkManualLocation };
 };

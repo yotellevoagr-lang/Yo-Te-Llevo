@@ -40,11 +40,12 @@ type ActiveMedia = {
 }
 
 interface GeoVerificationCardProps {
+    status: 'prompting' | 'denied' | 'checking';
     onAllow: () => void;
     onManualSubmit: (province: string, city: string) => void;
 }
 
-function GeoVerificationCard({ onAllow, onManualSubmit }: GeoVerificationCardProps) {
+function GeoVerificationCard({ status, onAllow, onManualSubmit }: GeoVerificationCardProps) {
     const { user } = useAuth();
     const [province, setProvince] = useState("");
     const [city, setCity] = useState("");
@@ -54,19 +55,42 @@ function GeoVerificationCard({ onAllow, onManualSubmit }: GeoVerificationCardPro
         if (province) {
             const provinceData = argentinaGeoData.localidades as Record<string, string[]>;
             setLocalities(provinceData[province] || []);
-            setCity(""); // Reset city when province changes
+            setCity("");
         } else {
             setLocalities([]);
             setCity("");
         }
     }, [province]);
 
-
     const handleManualSubmit = () => {
         if (province && city) {
             onManualSubmit(province, city);
         }
     };
+    
+    const isLoading = status === 'checking';
+
+    if (status === 'denied') {
+        return (
+            <Card className="border-destructive bg-destructive/5 animate-fade-in-up">
+                 <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-destructive">
+                        <MapPin className="w-6 h-6"/>
+                        Fuera de la Zona de Servicio
+                    </CardTitle>
+                    <CardDescription className="text-destructive/90">
+                        Actualmente, las reservas online sólo están disponibles para nuestra área de cobertura principal.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4 text-center">
+                    <p className="font-semibold">¿Te gustaría que lleguemos a tu zona?</p>
+                    <Button variant="secondary" className="w-full" disabled>
+                        ¡Déjanos tu sugerencia! (Próximamente)
+                    </Button>
+                </CardContent>
+            </Card>
+        );
+    }
 
     return (
         <Card className="border-primary bg-primary/5 animate-fade-in-up">
@@ -76,11 +100,13 @@ function GeoVerificationCard({ onAllow, onManualSubmit }: GeoVerificationCardPro
                     Verificación de Zona de Servicio
                 </CardTitle>
                 <CardDescription className="text-primary/90">
-                    Nuestra venta online está habilitada para una zona de cobertura específica. Para continuar, por favor, ayúdanos a confirmar tu ubicación.
+                    Nuestra página usa un sistema de radio de cobertura y se necesita saber su ubicación para solicitar reserva.
+                    Actualmente operamos en San Lorenzo, Santa Fe y alrededores.
                 </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-                <Button onClick={onAllow} size="lg" className="w-full">
+                <Button onClick={onAllow} size="lg" className="w-full" disabled={isLoading}>
+                   {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin"/>}
                     Usar Ubicación
                 </Button>
                 
@@ -92,16 +118,10 @@ function GeoVerificationCard({ onAllow, onManualSubmit }: GeoVerificationCardPro
 
                 <div className="space-y-3">
                     <Label className="font-semibold text-center block">Ingresa tu ubicación manualmente:</Label>
-                    {!user && (
-                        <p className="text-xs text-muted-foreground italic text-center">
-                            ¿Quieres guardar tu dirección? 
-                            <Link href="/login?mode=register" className="font-semibold text-primary hover:underline"> Regístrate</Link>, ¡es rápido y fácil!
-                        </p>
-                    )}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-1">
                             <Label htmlFor="province">Provincia</Label>
-                             <Select value={province} onValueChange={setProvince}>
+                             <Select value={province} onValueChange={setProvince} disabled={isLoading}>
                                 <SelectTrigger id="province">
                                     <SelectValue placeholder="Selecciona una provincia" />
                                 </SelectTrigger>
@@ -114,7 +134,7 @@ function GeoVerificationCard({ onAllow, onManualSubmit }: GeoVerificationCardPro
                         </div>
                         <div className="space-y-1">
                             <Label htmlFor="city">Localidad</Label>
-                            <Select value={city} onValueChange={setCity} disabled={!province}>
+                            <Select value={city} onValueChange={setCity} disabled={!province || isLoading}>
                                 <SelectTrigger id="city">
                                     <SelectValue placeholder="Selecciona una localidad" />
                                 </SelectTrigger>
@@ -126,7 +146,8 @@ function GeoVerificationCard({ onAllow, onManualSubmit }: GeoVerificationCardPro
                             </Select>
                         </div>
                     </div>
-                    <Button onClick={handleManualSubmit} variant="secondary" className="w-full" disabled={!province || !city}>
+                    <Button onClick={handleManualSubmit} variant="secondary" className="w-full" disabled={!province || !city || isLoading}>
+                        {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin"/>}
                         Comprobar Ubicación Manual
                     </Button>
                 </div>
@@ -224,7 +245,7 @@ export default function BookingPage() {
   const router = useRouter();
   const { toast } = useToast()
   const { user: loggedInUser, userRole } = useAuth();
-  const { status: geoStatus, checkBrowserPermission, checkManualLocation, denyAccess } = useGeoAccess();
+  const { status: geoStatus, checkBrowserPermission, checkManualLocation } = useGeoAccess();
 
   const autoplay = useRef(
     Autoplay({ delay: 5000, stopOnInteraction: true })
@@ -669,6 +690,7 @@ export default function BookingPage() {
                     </Card>
                 ) : (geoStatus !== 'allowed') ? (
                      <GeoVerificationCard 
+                        status={geoStatus}
                         onAllow={checkBrowserPermission}
                         onManualSubmit={checkManualLocation}
                     />
