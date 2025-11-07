@@ -175,9 +175,11 @@ function GeoVerificationCard({ status, onAllow, onManualSubmit, manualLocation, 
                                     <SelectValue placeholder="Selecciona una provincia" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {argentinaGeoData.provincias.map(p => (
-                                        <SelectItem key={p.nombre} value={p.nombre}>{p.nombre}</SelectItem>
-                                    ))}
+                                    <ScrollArea className="h-72">
+                                        {argentinaGeoData.provincias.map(p => (
+                                            <SelectItem key={p.nombre} value={p.nombre}>{p.nombre}</SelectItem>
+                                        ))}
+                                    </ScrollArea>
                                 </SelectContent>
                             </Select>
                         </div>
@@ -188,9 +190,11 @@ function GeoVerificationCard({ status, onAllow, onManualSubmit, manualLocation, 
                                     <SelectValue placeholder="Selecciona una localidad" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {localities.map(l => (
-                                        <SelectItem key={l} value={l}>{l}</SelectItem>
-                                    ))}
+                                    <ScrollArea className="h-72">
+                                        {localities.map(l => (
+                                            <SelectItem key={l} value={l}>{l}</SelectItem>
+                                        ))}
+                                    </ScrollArea>
                                 </SelectContent>
                             </Select>
                         </div>
@@ -639,6 +643,44 @@ export default function BookingPage() {
   const isSoldOut = availableSeats <= 0;
   
   const isBookingDisabled = isSoldOut || isSubmitting || geoStatus !== 'allowed';
+  const totalPassengers = bookingPassengers.length;
+  const allPassengersDataComplete = bookingPassengers.every(isProfileComplete);
+  
+  const formattedPresentationTime = formatTimeWithUnit(tour?.presentationTime);
+  const formattedDepartureTime = formatTimeWithUnit(tour?.departureTime);
+
+   const allMedia = useMemo(() => {
+    if (!tour) return [];
+    const media: (GalleryItem & { isNew?: boolean })[] = [];
+    if (tour.backgroundImage) {
+      media.push({ id: 'bg-image', url: tour.backgroundImage, type: 'image' });
+    }
+    if (tour.gallery) {
+      tour.gallery.forEach(item => {
+        // Avoid adding if it's already the background image
+        if (item.url !== tour.backgroundImage) {
+          media.push(item);
+        }
+      });
+    }
+    // Remove duplicates by URL
+    return media.filter((v, i, a) => a.findIndex(t => t.url === v.url) === i);
+  }, [tour]);
+
+
+  if (!isClient || isLoading || authLoading) {
+    return <div className="flex items-center justify-center min-h-screen"><Loader2 className="w-12 h-12 animate-spin text-primary"/></div>;
+  }
+  
+  if (!tour) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen text-center">
+          <h1 className="text-2xl font-bold">Viaje no encontrado</h1>
+          <p className="text-muted-foreground">Este viaje ya no está disponible o el enlace es incorrecto.</p>
+          <Button asChild className="mt-4"><Link href="/tours">Ver otros viajes</Link></Button>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col min-h-screen bg-muted/20">
