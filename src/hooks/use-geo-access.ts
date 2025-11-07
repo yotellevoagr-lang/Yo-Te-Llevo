@@ -35,34 +35,52 @@ export const useGeoAccess = () => {
         setStatus("allowed");
         return;
       }
-
-      // Fetch user's location via IP
-      try {
-        const response = await fetch('https://get.geojs.io/v1/ip/geo.json');
-        const data = await response.json();
-        const userLat = parseFloat(data.latitude);
-        const userLon = parseFloat(data.longitude);
-
-        if (isNaN(userLat) || isNaN(userLon)) {
-          setStatus("denied");
-          return;
-        }
-        
+      
+      const setStatusFromCoords = (lat: number, lon: number) => {
         const distance = getDistanceInKm(
-          userLat,
-          userLon,
+          lat,
+          lon,
           geoSettings.latitude,
           geoSettings.longitude
         );
+        setStatus(distance <= geoSettings.radiusKm ? "allowed" : "denied");
+      };
 
-        if (distance <= geoSettings.radiusKm) {
-          setStatus("allowed");
-        } else {
-          setStatus("denied");
-        }
-      } catch (error) {
-        console.warn("Error getting user location via IP:", error);
-        setStatus("denied");
+      const fallbackToIp = async () => {
+         try {
+            const response = await fetch('https://get.geojs.io/v1/ip/geo.json');
+            const data = await response.json();
+            const userLat = parseFloat(data.latitude);
+            const userLon = parseFloat(data.longitude);
+
+            if (isNaN(userLat) || isNaN(userLon)) {
+              setStatus("denied");
+            } else {
+              setStatusFromCoords(userLat, userLon);
+            }
+          } catch (error) {
+            console.warn("Error getting user location via IP:", error);
+            setStatus("denied");
+          }
+      };
+
+      if ("geolocation" in navigator) {
+          navigator.geolocation.getCurrentPosition(
+              (position) => {
+                  setStatusFromCoords(position.coords.latitude, position.coords.longitude);
+              },
+              (error) => {
+                  console.warn(`Geolocation error (${error.code}): ${error.message}. Falling back to IP.`);
+                  fallbackToIp();
+              },
+              {
+                  enableHighAccuracy: false,
+                  timeout: 10000,
+                  maximumAge: 0
+              }
+          );
+      } else {
+          fallbackToIp();
       }
     };
 
