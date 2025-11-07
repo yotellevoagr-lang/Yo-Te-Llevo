@@ -14,6 +14,7 @@ import { getAllFromCollection_client } from '@/lib/firestore-services';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { GeoAccessPrompt } from '@/components/geo-access-prompt';
 
 function OutsideZoneNotification({ whatsappNumber }: { whatsappNumber?: string }) {
     const { toast } = useToast();
@@ -62,7 +63,7 @@ function OutsideZoneNotification({ whatsappNumber }: { whatsappNumber?: string }
 
 export default function ToursPage() {
   const [tours, setTours] = useState<Tour[]>([]);
-  const { status, mainWhatsappNumber } = useGeoAccess();
+  const { status, mainWhatsappNumber, checkBrowserPermission, checkManualLocation, denyAccess } = useGeoAccess();
   const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [sortOrder, setSortOrder] = useState<"default" | "price-asc" | "price-desc">("default");
@@ -147,7 +148,7 @@ export default function ToursPage() {
   const canPurchase = status === 'allowed';
 
   const renderContent = () => {
-    if (status === 'loading') {
+    if (status === 'loading' || status === 'checking') {
       return (
         <div className="col-span-full flex flex-col items-center justify-center h-64">
           <Loader2 className="w-12 h-12 animate-spin text-primary"/>
@@ -179,6 +180,12 @@ export default function ToursPage() {
   return (
     <div className="flex flex-col min-h-screen">
       <SiteHeader />
+      <GeoAccessPrompt 
+        isOpen={status === 'prompting'}
+        onAllow={checkBrowserPermission}
+        onManualSubmit={checkManualLocation}
+        onDeny={denyAccess}
+      />
       <main className="flex-1">
         <div className="container py-12 md:py-24">
           <div className="flex flex-col items-center justify-center space-y-4 text-center mb-12">
