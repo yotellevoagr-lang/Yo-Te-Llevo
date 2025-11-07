@@ -37,7 +37,11 @@ import {
   CarouselPrevious,
 } from "@/components/ui/carousel"
 import { useGeoAccess } from "@/hooks/use-geo-access"
-import { GeoAccessPrompt } from "@/components/geo-access-prompt"
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Check } from "lucide-react"
+import geoData from "@/lib/argentina-geo.json"
+
 
 type BookingPassenger = Omit<Passenger, 'id' | 'fullName' | 'dob'> & {
     id: string;
@@ -129,10 +133,57 @@ const CollapsibleDescription = ({ text }: { text: string }) => {
     );
 };
 
+const LocationCombobox = ({
+  options,
+  value,
+  onSelect,
+  placeholder,
+}: {
+  options: { label: string; value: string }[];
+  value: string;
+  onSelect: (value: string) => void;
+  placeholder: string;
+}) => {
+  const [open, setOpen] = useState(false);
+  
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button variant="outline" role="combobox" aria-expanded={open} className="w-full justify-between">
+          {value ? options.find(opt => opt.value === value)?.label : placeholder}
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+        <Command>
+          <CommandInput placeholder={placeholder} />
+          <CommandEmpty>No se encontraron resultados.</CommandEmpty>
+          <CommandGroup>
+             <ScrollArea className="h-48">
+              {options.map((option) => (
+                <CommandItem
+                  key={option.value}
+                  value={option.value}
+                  onSelect={(currentValue) => {
+                    onSelect(currentValue === value ? "" : currentValue);
+                    setOpen(false);
+                  }}
+                >
+                  <Check className={cn("mr-2 h-4 w-4", value === option.value ? "opacity-100" : "opacity-0")} />
+                  {option.label}
+                </CommandItem>
+              ))}
+            </ScrollArea>
+          </CommandGroup>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+};
 
 function GeoVerificationCard({ onAllow, onManualSubmit }: { onAllow: () => void; onManualSubmit: (province: string, city: string) => void; }) {
     const { user } = useAuth();
-    const [province, setProvince] = useState("Santa Fe");
+    const [province, setProvince] = useState("");
     const [city, setCity] = useState("");
 
     const handleManualSubmit = () => {
@@ -140,6 +191,16 @@ function GeoVerificationCard({ onAllow, onManualSubmit }: { onAllow: () => void;
             onManualSubmit(province, city);
         }
     };
+    
+    const provinceOptions = useMemo(() => geoData.provincias.map(p => ({ label: p.nombre, value: p.nombre.toLowerCase() })), []);
+    const cityOptions = useMemo(() => {
+        if (!province) return [];
+        const selectedProvince = geoData.provincias.find(p => p.nombre.toLowerCase() === province);
+        if (selectedProvince && (geoData.localidades as Record<string, string[]>)[selectedProvince.nombre]) {
+            return (geoData.localidades as Record<string, string[]>)[selectedProvince.nombre].map(l => ({ label: l, value: l.toLowerCase() }));
+        }
+        return [];
+    }, [province]);
 
     return (
         <Card className="border-primary bg-primary/5">
@@ -149,17 +210,20 @@ function GeoVerificationCard({ onAllow, onManualSubmit }: { onAllow: () => void;
                     Verificación de Zona de Servicio
                 </CardTitle>
                 <CardDescription className="text-primary/90">
-                    Nuestra venta online está habilitada principalmente para la zona de San Lorenzo, Santa Fe y alrededores. 
-                    Para poder solicitar tu reserva, por favor, ayúdanos a confirmar tu ubicación.
+                   Nuestra venta online opera en la zona de San Lorenzo, Santa Fe y alrededores. Para continuar, necesitamos verificar tu ubicación.
                 </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
                 <Button onClick={onAllow} size="lg" className="w-full">
-                    Usar mi ubicación actual
+                    Usar Ubicación
                 </Button>
-                <Separator />
+                <div className="relative flex items-center">
+                    <div className="flex-grow border-t border-muted-foreground/30"></div>
+                    <span className="flex-shrink mx-4 text-xs text-muted-foreground uppercase">O</span>
+                    <div className="flex-grow border-t border-muted-foreground/30"></div>
+                </div>
                 <div className="space-y-3">
-                    <Label className="font-semibold text-center block">O ingresa tu ubicación manualmente:</Label>
+                    <Label className="font-semibold text-center block">Ingresa tu ubicación manualmente:</Label>
                      {!user && (
                         <p className="text-xs text-muted-foreground italic text-center">
                             ¿Quieres guardar tu dirección? 
@@ -169,14 +233,14 @@ function GeoVerificationCard({ onAllow, onManualSubmit }: { onAllow: () => void;
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1">
                             <Label htmlFor="province">Provincia</Label>
-                            <Input id="province" value={province} onChange={(e) => setProvince(e.target.value)} />
+                            <LocationCombobox options={provinceOptions} value={province} onSelect={(val) => { setProvince(val); setCity(""); }} placeholder="Seleccionar provincia..." />
                         </div>
                         <div className="space-y-1">
                             <Label htmlFor="city">Localidad</Label>
-                            <Input id="city" value={city} onChange={(e) => setCity(e.target.value)} />
+                            <LocationCombobox options={cityOptions} value={city} onSelect={setCity} placeholder="Seleccionar localidad..." />
                         </div>
                     </div>
-                    <Button onClick={handleManualSubmit} variant="secondary" className="w-full">
+                    <Button onClick={handleManualSubmit} variant="secondary" className="w-full" disabled={!province || !city}>
                         Comprobar Ubicación Manual
                     </Button>
                 </div>
@@ -184,8 +248,6 @@ function GeoVerificationCard({ onAllow, onManualSubmit }: { onAllow: () => void;
         </Card>
     );
 }
-
-
 
 export default function BookingPage() {
   const { id } = useParams()
@@ -774,5 +836,3 @@ export default function BookingPage() {
     </div>
   )
 }
-
-    
