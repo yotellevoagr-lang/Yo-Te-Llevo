@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect, useCallback } from "react";
@@ -53,7 +52,7 @@ export const useGeoAccess = () => {
     }
     
     if (user?.province && user?.city) {
-      const isAllowed = user.province.toLowerCase().includes("santa fe") || allowedCities.includes(user.city.toLowerCase());
+      const isAllowed = allowedCities.includes(user.city.toLowerCase());
       setStatus(isAllowed ? "allowed" : "prompting");
       return;
     }
@@ -102,7 +101,7 @@ export const useGeoAccess = () => {
             settings.latitude,
             settings.longitude
           );
-          setStatus(distance <= settings.radiusKm ? "allowed" : "prompting");
+          setStatus(distance <= settings.radiusKm ? "allowed" : "denied");
         },
         () => {
           setStatus("prompting"); 
@@ -115,7 +114,7 @@ export const useGeoAccess = () => {
 
   const checkManualLocation = useCallback(async (province: string, city: string) => {
     setStatus("checking");
-    const isAllowed = province.toLowerCase().includes("santa fe") || allowedCities.includes(city.toLowerCase());
+    const isAllowed = allowedCities.includes(city.toLowerCase());
     
     if (user?.id) {
         try {
@@ -131,10 +130,8 @@ export const useGeoAccess = () => {
   }, [user]);
 
   const denyAccess = () => {
-    setStatus('denied');
+    // This can be used to send info to a backend, for now it's just a state change
   };
 
   return { status, mainWhatsappNumber, checkBrowserPermission, checkManualLocation, denyAccess };
 };
-
-    
