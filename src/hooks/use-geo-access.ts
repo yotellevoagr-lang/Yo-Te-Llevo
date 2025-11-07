@@ -75,10 +75,25 @@ export const useGeoAccess = () => {
 
   useEffect(() => {
     checkAccess();
+    
+    // Re-validate when the tab becomes visible again
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        setStatus("loading");
+        checkAccess();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+
   }, [checkAccess]);
 
   const checkBrowserPermission = useCallback(async () => {
-    if (!geoSettings) {
+    const settings = geoSettings || await fetchSettings();
+    if (!settings) {
       setStatus("allowed");
       return;
     }
@@ -89,10 +104,10 @@ export const useGeoAccess = () => {
           const distance = getDistanceInKm(
             position.coords.latitude,
             position.coords.longitude,
-            geoSettings.latitude,
-            geoSettings.longitude
+            settings.latitude,
+            settings.longitude
           );
-          setStatus(distance <= geoSettings.radiusKm ? "allowed" : "denied");
+          setStatus(distance <= settings.radiusKm ? "allowed" : "denied");
         },
         () => {
           setStatus("denied"); 
@@ -101,7 +116,7 @@ export const useGeoAccess = () => {
     } else {
       setStatus("denied");
     }
-  }, [geoSettings]);
+  }, [geoSettings, fetchSettings]);
 
   const checkManualLocation = useCallback(async (province: string, city: string) => {
     setStatus("checking");
