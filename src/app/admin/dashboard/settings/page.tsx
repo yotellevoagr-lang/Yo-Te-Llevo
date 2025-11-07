@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
 import { Settings as SettingsIcon, Bus, Trash2, Edit, PlusCircle, Ship, Plane, Save, Contact, Utensils, BedDouble, Folder, ShieldCheck, KeyRound, Mail, Eye, EyeOff, Image as ImageIcon, Globe, AppWindow, Loader2, Tag, Pin } from "lucide-react"
-import type { CustomLayoutConfig, LayoutCategory, GeneralSettings, ContactSettings, Pension, RoomType, Employee, DomainSettings, BoardingPoint, Tour } from "@/lib/types"
+import type { CustomLayoutConfig, LayoutCategory, GeneralSettings, ContactSettings, Pension, RoomType, Employee, DomainSettings, BoardingPoint, Tour, GeoSettings } from "@/lib/types"
 import { LayoutEditor } from "@/components/admin/layout-editor"
 import { updatePassword, updateEmail, reauthenticateWithCredential, EmailAuthProvider } from "firebase/auth"
 import {
@@ -176,6 +176,7 @@ export default function SettingsPage() {
     const [generalSettings, setGeneralSettings] = useState<GeneralSettings>({ mainWhatsappNumber: "", calendarDownloadFolder: "Calendarios YO-TE-LLEVO", reportDownloadFolder: "Reportes Gen. YO-TE-LLEVO", availableTags: [] });
     const [contactSettings, setContactSettings] = useState<ContactSettings>({});
     const [domainSettings, setDomainSettings] = useState<DomainSettings>({ domains: [] });
+    const [geoSettings, setGeoSettings] = useState<GeoSettings>({ latitude: -34.6037, longitude: -58.3816, radiusKm: 100 });
     const [newDomain, setNewDomain] = useState("");
     const [aboutUsMediaFile, setAboutUsMediaFile] = useState<File | null>(null);
     const [aboutUsMediaPreview, setAboutUsMediaPreview] = useState<{url: string, type: 'image' | 'video'} | null>(null);
@@ -203,14 +204,16 @@ export default function SettingsPage() {
                 pensionsData,
                 roomTypesData,
                 layoutConfigData,
-                domainSettingsData
+                domainSettingsData,
+                geoSettingsData
             ] = await Promise.all([
                 getDocumentById<GeneralSettings>('settings', 'general'),
                 getAllFromCollection_client<BoardingPoint>('boarding_points'),
                 getAllFromCollection_client<Pension>('pensions'),
                 getAllFromCollection_client<RoomType>('room_types'),
                 getDocumentById<any>('settings', 'layouts'),
-                getDocumentById<DomainSettings>('settings', 'domains')
+                getDocumentById<DomainSettings>('settings', 'domains'),
+                getDocumentById<GeoSettings>('settings', 'geo')
             ]);
 
             if (generalSettingsData) {
@@ -223,6 +226,7 @@ export default function SettingsPage() {
                 setTravelTags(generalSettingsData.availableTags || []);
             }
             if (domainSettingsData) setDomainSettings(domainSettingsData);
+            if (geoSettingsData) setGeoSettings(geoSettingsData);
             setBoardingPoints(boardingPointsData);
             setPensions(pensionsData);
             setRoomTypes(roomTypesData);
@@ -413,6 +417,19 @@ export default function SettingsPage() {
             setIsSaving(null);
         }
     };
+    
+    const handleSaveGeo = async () => {
+        setIsSaving('geo');
+        try {
+            await saveDocument('settings', geoSettings, 'geo');
+            window.dispatchEvent(new Event('storage'));
+            toast({ title: "Zona guardada", description: "La zona de servicio ha sido actualizada." });
+        } catch (error) {
+            toast({ title: "Error", description: "No se pudo guardar la zona geográfica.", variant: "destructive" });
+        } finally {
+            setIsSaving(null);
+        }
+    }
     
     const handleAddDomain = async () => {
         if (!newDomain.trim()) return;
@@ -758,9 +775,17 @@ export default function SettingsPage() {
             <AccordionItem value="geo" className="border-b-0">
                  <Card>
                     <AccordionTrigger className="w-full px-6 text-left hover:no-underline text-xl">Zona Geográfica</AccordionTrigger>
-                    <AccordionContent className="p-6 pt-2">
-                         <p className="text-sm text-muted-foreground mb-4">Define el centro y el radio de tu zona de servicio para la compra directa.</p>
-                         {isClient && <GeoSettingsCard />}
+                    <AccordionContent className="p-6 pt-2 space-y-4">
+                         <p className="text-sm text-muted-foreground">Define el centro y el radio de tu zona de servicio para la compra directa.</p>
+                         {isClient ? (
+                            <GeoSettingsCard settings={geoSettings} onSettingsChange={setGeoSettings}/>
+                         ) : (
+                            <div className="h-96 flex items-center justify-center bg-muted rounded-lg"><Loader2 className="w-8 h-8 animate-spin"/></div>
+                         )}
+                         <Button onClick={handleSaveGeo} disabled={isSaving === 'geo'}>
+                             {isSaving === 'geo' && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                             Guardar Zona
+                         </Button>
                     </AccordionContent>
                  </Card>
             </AccordionItem>
