@@ -1,5 +1,4 @@
 
-
 "use client"
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react"
@@ -208,7 +207,7 @@ function GeoVerificationCard({ onAllow, onManualSubmit }: { onAllow: () => void;
         <Card className="border-primary bg-primary/5">
             <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-primary">
-                    <MapPin className="w-6 h-6"/>
+                    <MapPinIcon className="w-6 h-6"/>
                     Verificación de Zona de Servicio
                 </CardTitle>
                 <CardDescription className="text-primary/90">
@@ -838,3 +837,5 @@ export default function BookingPage() {
     </div>
   )
 }
+
+    

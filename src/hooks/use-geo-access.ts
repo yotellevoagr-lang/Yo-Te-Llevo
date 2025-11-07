@@ -44,36 +44,46 @@ export const useGeoAccess = () => {
 
   const checkAccess = useCallback(async () => {
     if (authLoading) return;
+    setStatus("loading");
 
     const settings = geoSettings || await fetchSettings();
     if (!settings) {
-      setStatus("allowed");
+      setStatus("allowed"); // If no settings, allow access.
       return;
     }
     
-    // 1. Check for logged-in user with location data
     if (user?.province && user?.city) {
       const isAllowed = user.province.toLowerCase().includes("santa fe") || allowedCities.includes(user.city.toLowerCase());
-      setStatus(isAllowed ? "allowed" : "prompting"); // If denied, prompt them to change it.
+      setStatus(isAllowed ? "allowed" : "prompting");
       return;
     }
     
-    // 2. Check for browser permission status
     if ('permissions' in navigator) {
         const permissionStatus = await navigator.permissions.query({ name: 'geolocation' });
         if (permissionStatus.state === 'granted') {
-            checkBrowserPermission(); // This will automatically get location and set status
+            checkBrowserPermission();
             return;
         }
     }
 
-    // 3. If none of the above, prompt the user
     setStatus("prompting");
 
   }, [geoSettings, fetchSettings, user, authLoading]);
 
   useEffect(() => {
     checkAccess();
+    
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        checkAccess();
+      }
+    }
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    }
+
   }, [checkAccess]);
 
   const checkBrowserPermission = useCallback(async () => {
@@ -95,11 +105,11 @@ export const useGeoAccess = () => {
           setStatus(distance <= settings.radiusKm ? "allowed" : "prompting");
         },
         () => {
-          setStatus("prompting"); // User denied the prompt or an error occurred.
+          setStatus("prompting"); 
         }
       );
     } else {
-      setStatus("prompting"); // Geolocation not supported by the browser.
+      setStatus("prompting"); 
     }
   }, [geoSettings, fetchSettings]);
 
@@ -116,13 +126,15 @@ export const useGeoAccess = () => {
     }
     
     setTimeout(() => {
-        setStatus(isAllowed ? "allowed" : "prompting");
+        setStatus(isAllowed ? "allowed" : "denied");
     }, 500);
   }, [user]);
 
   const denyAccess = () => {
-    setStatus('prompting'); // Instead of denied, keep prompting
+    setStatus('denied');
   };
 
   return { status, mainWhatsappNumber, checkBrowserPermission, checkManualLocation, denyAccess };
 };
+
+    
