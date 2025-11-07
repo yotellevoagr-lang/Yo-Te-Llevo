@@ -128,9 +128,18 @@ export const TravelTicket = React.forwardRef<HTMLDivElement, TravelTicketProps>(
             {/* Columna Izquierda */}
             <div className="col-span-8 space-y-3">
                  <InfoSection title="Pasajeros" icon={Users}>
-                    {reservationPassengers.map((p, index) => (
-                        <InfoRow key={p.id} label={`Pasajero ${index + 1}`} value={`${p.fullName} (DNI: ${p.dni})`} />
-                    ))}
+                    {reservationPassengers.length <= 10 ? (
+                        reservationPassengers.map((p, index) => (
+                            <InfoRow key={p.id} label={`Pasajero ${index + 1}`} value={`${p.fullName} (DNI: ${p.dni})`} />
+                        ))
+                    ) : (
+                        <>
+                            {reservationPassengers.slice(0, 3).map((p, index) => (
+                                <InfoRow key={p.id} label={`Pasajero ${index + 1}`} value={`${p.fullName} (DNI: ${p.dni})`} />
+                            ))}
+                            <InfoRow label="..." value={`+ ${reservationPassengers.length - 3} pasajeros restantes`} />
+                        </>
+                    )}
                  </InfoSection>
                  <div className="grid grid-cols-2 gap-3">
                     <InfoSection title="Origen y Destino" icon={MapPin}>
@@ -198,3 +207,4 @@ export const TravelTicket = React.forwardRef<HTMLDivElement, TravelTicketProps>(
   )
 })
 TravelTicket.displayName = "TravelTicket"
+
