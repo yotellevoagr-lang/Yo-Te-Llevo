@@ -443,3 +443,10 @@ export interface ChatbotNode {
 export interface ChatbotState {
     selectedTags: string[];
 }
+
+export interface LocationVote {
+    id?: string;
+    province: string;
+    city: string;
+    createdAt: Date;
+}
