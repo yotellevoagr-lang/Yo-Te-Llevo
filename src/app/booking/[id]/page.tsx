@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react"
@@ -14,7 +15,7 @@ import { useToast } from "@/hooks/use-toast"
 import { getTourById, savePassenger, saveReservation, getAllFromCollection_client, getDocumentById } from "@/lib/firestore-services"
 import type { Tour, Reservation, Passenger, Seller, CustomLayoutConfig, LayoutCategory, CreatorContext, GalleryItem } from "@/lib/types"
 import { DatePicker } from "@/components/ui/date-picker"
-import { ArrowLeft, CalendarIcon, ClockIcon, MapPinIcon, PlusIcon, TicketIcon, UsersIcon, HeartIcon, ArrowRight, ShieldCheck, Trash2, Loader2, InfoIcon, Video, Edit, ChevronsUpDown, ThumbsUp, MapPin } from "lucide-react"
+import { ArrowLeft, CalendarIcon, ClockIcon, MapPin, PlusIcon, TicketIcon, UsersIcon, HeartIcon, ArrowRight, ShieldCheck, Trash2, Loader2, InfoIcon, Video, Edit, ChevronsUpDown, ThumbsUp } from "lucide-react"
 import Link from "next/link"
 import { Checkbox } from "@/components/ui/checkbox"
 import { getDisplayUrl, cn } from "@/lib/utils"
@@ -28,9 +29,111 @@ import {
   CarouselPrevious,
 } from "@/components/ui/carousel"
 import { useGeoAccess } from "@/hooks/use-geo-access"
-import { GeoVerificationCard } from "@/components/geo-access-prompt"
 import { PassengerForm } from "@/components/admin/passenger-form"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import argentinaGeoData from '@/lib/argentina-geo.json';
 
+
+type ActiveMedia = {
+    url: string;
+    type: 'image' | 'video';
+}
+
+interface GeoVerificationCardProps {
+    onAllow: () => void;
+    onManualSubmit: (province: string, city: string) => void;
+}
+
+function GeoVerificationCard({ onAllow, onManualSubmit }: GeoVerificationCardProps) {
+    const { user } = useAuth();
+    const [province, setProvince] = useState("");
+    const [city, setCity] = useState("");
+    const [localities, setLocalities] = useState<string[]>([]);
+
+    useEffect(() => {
+        if (province) {
+            const provinceData = argentinaGeoData.localidades as Record<string, string[]>;
+            setLocalities(provinceData[province] || []);
+            setCity(""); // Reset city when province changes
+        } else {
+            setLocalities([]);
+            setCity("");
+        }
+    }, [province]);
+
+
+    const handleManualSubmit = () => {
+        if (province && city) {
+            onManualSubmit(province, city);
+        }
+    };
+
+    return (
+        <Card className="border-primary bg-primary/5 animate-fade-in-up">
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-primary">
+                    <MapPin className="w-6 h-6"/>
+                    Verificación de Zona de Servicio
+                </CardTitle>
+                <CardDescription className="text-primary/90">
+                    Nuestra venta online está habilitada para una zona de cobertura específica. Para continuar, por favor, ayúdanos a confirmar tu ubicación.
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <Button onClick={onAllow} size="lg" className="w-full">
+                    Usar Ubicación
+                </Button>
+                
+                <div className="relative flex items-center">
+                    <div className="flex-grow border-t border-muted-foreground/30"></div>
+                    <span className="flex-shrink mx-4 text-xs text-muted-foreground uppercase">O</span>
+                    <div className="flex-grow border-t border-muted-foreground/30"></div>
+                </div>
+
+                <div className="space-y-3">
+                    <Label className="font-semibold text-center block">Ingresa tu ubicación manualmente:</Label>
+                    {!user && (
+                        <p className="text-xs text-muted-foreground italic text-center">
+                            ¿Quieres guardar tu dirección? 
+                            <Link href="/login?mode=register" className="font-semibold text-primary hover:underline"> Regístrate</Link>, ¡es rápido y fácil!
+                        </p>
+                    )}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                            <Label htmlFor="province">Provincia</Label>
+                             <Select value={province} onValueChange={setProvince}>
+                                <SelectTrigger id="province">
+                                    <SelectValue placeholder="Selecciona una provincia" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {argentinaGeoData.provincias.map(p => (
+                                        <SelectItem key={p.nombre} value={p.nombre}>{p.nombre}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-1">
+                            <Label htmlFor="city">Localidad</Label>
+                            <Select value={city} onValueChange={setCity} disabled={!province}>
+                                <SelectTrigger id="city">
+                                    <SelectValue placeholder="Selecciona una localidad" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {localities.map(l => (
+                                        <SelectItem key={l} value={l}>{l}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                    <Button onClick={handleManualSubmit} variant="secondary" className="w-full" disabled={!province || !city}>
+                        Comprobar Ubicación Manual
+                    </Button>
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
 
 type BookingPassenger = Omit<Passenger, 'id' | 'fullName' | 'dob'> & {
     id: string;
@@ -38,12 +141,6 @@ type BookingPassenger = Omit<Passenger, 'id' | 'fullName' | 'dob'> & {
     fullName: string;
     dob?: Date | null;
 };
-
-
-type ActiveMedia = {
-    url: string;
-    type: 'image' | 'video';
-}
 
 const isProfileComplete = (p: Partial<Passenger> | Partial<BookingPassenger>): boolean => {
     return !!(p.fullName && p.dni && p.dob);
@@ -500,7 +597,7 @@ export default function BookingPage() {
   const totalPassengers = bookingPassengers.length;
   const allPassengersDataComplete = bookingPassengers.every(p => isProfileComplete(p));
   
-  const isBookingDisabled = isSoldOut || isSubmitting;
+  const isBookingDisabled = isSoldOut || isSubmitting || geoStatus !== 'allowed';
 
   return (
     <div className="flex flex-col min-h-screen bg-muted/20">
@@ -570,26 +667,14 @@ export default function BookingPage() {
                             </CardDescription>
                         </CardHeader>
                     </Card>
-                ) : geoStatus === 'prompting' ? (
+                ) : (geoStatus !== 'allowed') ? (
                      <GeoVerificationCard 
                         onAllow={checkBrowserPermission}
                         onManualSubmit={checkManualLocation}
                     />
-                ) : geoStatus === 'denied' ? (
-                    <Card className="bg-destructive/10 border-destructive">
-                        <CardHeader className="text-center">
-                             <CardTitle>Fuera de la Zona de Servicio</CardTitle>
-                             <CardDescription>Lo sentimos, parece que estás fuera de nuestra área de cobertura para reservas online. ¿Te gustaría que consideremos expandir nuestros servicios a tu zona?</CardDescription>
-                        </CardHeader>
-                        <CardContent className="flex justify-center">
-                            <Button onClick={denyAccess}>Sí, avísenme si llegan a mi zona</Button>
-                        </CardContent>
-                    </Card>
-                ) : geoStatus === 'checking' ? (
-                    <Card><CardContent className="p-10 flex items-center justify-center gap-3"><Loader2 className="animate-spin w-6 h-6 text-primary"/><span>Verificando ubicación...</span></CardContent></Card>
                 ) : (
-                    <fieldset disabled={isBookingDisabled}>
-                        <Card className={cn("shadow-lg", isBookingDisabled && "bg-muted/50")}>
+                    <fieldset disabled={isSubmitting}>
+                        <Card className={cn("shadow-lg", isSubmitting && "bg-muted/50")}>
                             <CardHeader>
                             <CardTitle className="flex items-center gap-3 text-2xl"><UsersIcon className="w-8 h-8 text-primary"/> Datos de los Pasajeros</CardTitle>
                             <CardDescription>
@@ -688,17 +773,15 @@ export default function BookingPage() {
                 </div>
                 {isSoldOut ? (
                     <Button className="w-full text-lg h-14 rounded-xl" size="lg" disabled> AGOTADO </Button>
-                ) : geoStatus === 'allowed' ? (
+                ) : (
                     <>
                         <p className="text-xs text-muted-foreground text-center">El pago se coordina por WhatsApp luego de enviar la solicitud.</p>
-                        <Button className="w-full text-lg h-14 rounded-xl group" size="lg" onClick={handleConfirmReservation} disabled={totalPassengers === 0 || isSubmitting || !allPassengersDataComplete}>
+                        <Button className="w-full text-lg h-14 rounded-xl group" size="lg" onClick={handleConfirmReservation} disabled={isBookingDisabled || totalPassengers === 0 || !allPassengersDataComplete}>
                             {isSubmitting ? <Loader2 className="w-6 h-6 animate-spin"/> : 'Solicitar Reserva'}
                             {!isSubmitting && <ArrowRight className="w-5 h-5 ml-2 transition-transform duration-300 group-hover:translate-x-1" />}
                         </Button>
                     </>
-                    ) : (
-                        <Button className="w-full text-lg h-14 rounded-xl" size="lg" disabled>Verificación de Zona Requerida</Button>
-                    )}
+                )}
                 </CardContent>
               </Card>
             </div>
