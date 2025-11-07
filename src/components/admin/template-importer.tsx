@@ -219,11 +219,8 @@ export function TemplateImporter({ isOpen, onOpenChange }: TemplateImporterProps
         const updatedPassengersMap = new Map<string, Passenger>();
 
         for (const groupRows of familyGroups.values()) {
-            const individualPayers = groupRows.filter(r => r[colMap['VALOR']] && parseFloat(String(r[colMap['VALOR']])) > 0);
-            const mainGroupRows = groupRows.filter(r => !r[colMap['VALOR']] || parseFloat(String(r[colMap['VALOR']])) <= 0);
-
-            const processReservation = async (rowsForReservation: any[], isIndividual: boolean) => {
-                const mainPayerRow = rowsForReservation.find(r => r[colMap['CANTIDAD']] || r[colMap['VALOR']]) || rowsForReservation[0];
+            const processReservation = async (rowsForReservation: any[]) => {
+                const mainPayerRow = rowsForReservation[0];
                 if (!mainPayerRow) return;
 
                 const reservationMembers: Passenger[] = [];
@@ -239,7 +236,7 @@ export function TemplateImporter({ isOpen, onOpenChange }: TemplateImporterProps
                     const dobValue = excelDateToJSDate(dobFromExcel);
                     
                     const boardingPointRaw = row[colMap['EMBARQUE']];
-                    let boardingPointId = null;
+                    let boardingPointId: string | undefined = undefined;
                     if (boardingPointRaw) {
                         const bpMatch = String(boardingPointRaw).match(/^([A-Z])-?/i);
                         if (bpMatch) {
@@ -251,13 +248,13 @@ export function TemplateImporter({ isOpen, onOpenChange }: TemplateImporterProps
                     }
                     
                     const phoneRaw = row[colMap['TELÉFONO O CELULAR']];
-                    const phoneCleaned = phoneRaw ? String(phoneRaw).replace(/\D/g, '') : null;
+                    const phoneCleaned = phoneRaw && /^\d+$/.test(String(phoneRaw)) ? String(phoneRaw).replace(/\D/g, '') : null;
 
                     const passengerUpdate: Partial<Passenger> = {
                         fullName: passengerName,
-                        dob: dobValue || null,
-                        phone: phoneCleaned || null,
-                        boardingPointId: boardingPointId || undefined,
+                        dob: dobValue,
+                        phone: phoneCleaned,
+                        boardingPointId: boardingPointId,
                     };
 
                     if (passenger) {
@@ -292,7 +289,7 @@ export function TemplateImporter({ isOpen, onOpenChange }: TemplateImporterProps
                 let totalPaxCount = 0;
                 let finalPrice = mainPayerRow[colMap['VALOR']] ? parseFloat(String(mainPayerRow[colMap['VALOR']])) || 0 : 0;
                 
-                const rowsWithQuantities = rowsForReservation.filter(r => r[colMap['CANTIDAD']] && parseInt(String(r[colMap['CANTIDAD']])) > 0);
+                const rowsWithQuantities = groupRows.filter(r => r[colMap['CANTIDAD']] && parseInt(String(r[colMap['CANTIDAD']])) > 0);
                 
                 if (rowsWithQuantities.length > 0) {
                      for (const row of rowsWithQuantities) {
@@ -357,13 +354,15 @@ export function TemplateImporter({ isOpen, onOpenChange }: TemplateImporterProps
                 resultCounts.newReservations++;
             };
 
-            // Process individual payers first to ensure their data is up-to-date
-            for (const individualRow of individualPayers) {
-                await processReservation([individualRow], true);
+            const individualPayersRows = groupRows.filter(r => r[colMap['VALOR']] && parseFloat(String(r[colMap['VALOR']])) > 0);
+            const mainGroupRows = groupRows.filter(r => !r[colMap['VALOR']] || parseFloat(String(r[colMap['VALOR']])) <= 0);
+
+            for (const individualRow of individualPayersRows) {
+                await processReservation([individualRow]);
             }
-            // Process main group if it exists
+
             if (mainGroupRows.length > 0) {
-                await processReservation(mainGroupRows, false);
+                await processReservation(mainGroupRows);
             }
         }
         return resultCounts;
@@ -391,9 +390,20 @@ export function TemplateImporter({ isOpen, onOpenChange }: TemplateImporterProps
 
             if (!trip) {
                  const pricingData: any[] = XLSX.utils.sheet_to_json(worksheet, { header: 1, range: "AZ179:BA184" });
-                 const newPricingTiers: PricingTier[] = pricingData.map((row: any[], index: number) => ({
-                    id: `T-imported-${index}`, name: row[0] || 'Desconocido', price: parseFloat(row[1]) || 0
-                })).filter(tier => tier.name !== 'Desconocido' && tier.price > 0 && toTitleCase(tier.name) !== 'TOTAL');
+                 const newPricingTiers: PricingTier[] = pricingData.map((row: any[], index: number) => {
+                    const priceValue = row[1];
+                    const price = (priceValue === null || priceValue === undefined || priceValue === '') ? null : parseFloat(priceValue);
+                    
+                    return {
+                        id: `T-imported-${index}`,
+                        name: row[0] || 'Desconocido',
+                        price: price
+                    };
+                }).filter(tier => 
+                    tier.name !== 'Desconocido' && 
+                    toTitleCase(tier.name) !== 'TOTAL' && 
+                    tier.price !== null
+                ).map(tier => ({...tier, price: tier.price!}));
                 
                 const basePrice = newPricingTiers.find(t => t.name.toUpperCase() === 'ADULTO')?.price || 0;
                 
@@ -572,5 +582,3 @@ export function TemplateImporter({ isOpen, onOpenChange }: TemplateImporterProps
         </Dialog>
     )
 }
-
-    
