@@ -214,6 +214,11 @@ export interface Passenger {
   nationality: string;
   tierId: string;
   boardingPointId?: string;
+  // Address fields
+  province?: string;
+  city?: string;
+  street?: string;
+  addressNumber?: string;
 }
 
 export type CreatorContext = {

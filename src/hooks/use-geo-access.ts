@@ -2,14 +2,14 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react";
-import type { GeoSettings, GeneralSettings } from "@/lib/types";
-import { getDocumentById } from "@/lib/firestore-services";
+import type { GeoSettings, GeneralSettings, Passenger } from "@/lib/types";
+import { getDocumentById, savePassenger } from "@/lib/firestore-services";
+import { useAuth } from "@/components/auth/auth-provider";
 
 type GeoAccessStatus = "loading" | "allowed" | "denied" | "prompting" | "checking";
 
-// Haversine formula to calculate distance between two lat/lon points
 const getDistanceInKm = (lat1: number, lon1: number, lat2: number, lon2: number) => {
-  const R = 6371; // Radius of the Earth in km
+  const R = 6371;
   const dLat = (lat2 - lat1) * (Math.PI / 180);
   const dLon = (lon2 - lon1) * (Math.PI / 180);
   const a =
@@ -20,7 +20,6 @@ const getDistanceInKm = (lat1: number, lon1: number, lat2: number, lon2: number)
   return R * c;
 };
 
-// List of allowed cities (simplified check)
 const allowedCities = [
     "san lorenzo", "rosario", "santa fe", "parana", "granadero baigorria", 
     "capitan bermudez", "fray luis beltran", "puerto general san martin",
@@ -31,94 +30,99 @@ export const useGeoAccess = () => {
   const [status, setStatus] = useState<GeoAccessStatus>("loading");
   const [mainWhatsappNumber, setMainWhatsappNumber] = useState<string | undefined>();
   const [geoSettings, setGeoSettings] = useState<GeoSettings | null>(null);
+  const { user } = useAuth();
+
+  const fetchSettings = useCallback(async () => {
+    const [general, geo] = await Promise.all([
+      getDocumentById<GeneralSettings>('settings', 'general'),
+      getDocumentById<GeoSettings>('settings', 'geo')
+    ]);
+    if (general) setMainWhatsappNumber(general.mainWhatsappNumber);
+    if (geo) setGeoSettings(geo);
+    return geo;
+  }, []);
+
+  const checkAccess = useCallback(async () => {
+    const settings = geoSettings || await fetchSettings();
+    if (!settings) {
+      setStatus("allowed");
+      return;
+    }
+
+    if (user && (user as Passenger).city) {
+        const isAllowed = ((user as Passenger).province?.toLowerCase().includes("santa fe") || allowedCities.includes((user as Passenger).city!.toLowerCase()));
+        setStatus(isAllowed ? "allowed" : "denied");
+        return;
+    }
+
+    try {
+      const response = await fetch('https://ipapi.co/json/');
+      if (!response.ok) throw new Error('IP API response not ok');
+      const ipData = await response.json();
+      const { latitude, longitude } = ipData;
+
+      if (latitude && longitude) {
+        const distance = getDistanceInKm(latitude, longitude, settings.latitude, settings.longitude);
+        setStatus(distance <= settings.radiusKm ? "allowed" : "prompting");
+      } else {
+        setStatus("prompting");
+      }
+    } catch (error) {
+      console.warn("IP-based geolocation failed, defaulting to prompt:", error);
+      setStatus("prompting");
+    }
+  }, [geoSettings, fetchSettings, user]);
 
   useEffect(() => {
-    const fetchSettingsAndCheckIp = async () => {
-        const [general, geo] = await Promise.all([
-            getDocumentById<GeneralSettings>('settings', 'general'),
-            getDocumentById<GeoSettings>('settings', 'geo')
-        ]);
-
-        if (general) setMainWhatsappNumber(general.mainWhatsappNumber);
-        if (geo) setGeoSettings(geo);
-
-        // If no geo settings are configured in Firestore, everyone is allowed.
-        if (!geo) {
-            setStatus("allowed");
-            return;
-        }
-
-        // --- IP-based Geolocation Check (Step 1) ---
-        try {
-            const response = await fetch('https://ipapi.co/json/');
-            if (!response.ok) throw new Error('IP API response not ok');
-            
-            const ipData = await response.json();
-            const { latitude, longitude } = ipData;
-
-            if (latitude && longitude) {
-                const distance = getDistanceInKm(latitude, longitude, geo.latitude, geo.longitude);
-                if (distance <= geo.radiusKm) {
-                    // IP is within radius, allow access without prompt.
-                    setStatus("allowed");
-                } else {
-                    // IP is outside radius, show prompt to user.
-                    setStatus("prompting");
-                }
-            } else {
-                // Could not get location from IP, show prompt.
-                setStatus("prompting");
-            }
-        } catch (error) {
-            console.warn("IP-based geolocation failed, defaulting to prompt:", error);
-            setStatus("prompting");
-        }
-    };
-
-    fetchSettingsAndCheckIp();
-  }, []);
+    checkAccess();
+  }, [checkAccess]);
 
   const checkBrowserPermission = useCallback(async () => {
     if (!geoSettings) {
-        setStatus("allowed");
-        return;
+      setStatus("allowed");
+      return;
     }
     setStatus("checking");
     if ("geolocation" in navigator) {
-        navigator.geolocation.getCurrentPosition(
-            (position) => {
-                const distance = getDistanceInKm(
-                    position.coords.latitude,
-                    position.coords.longitude,
-                    geoSettings.latitude,
-                    geoSettings.longitude
-                );
-                setStatus(distance <= geoSettings.radiusKm ? "allowed" : "denied");
-            },
-            () => {
-                // User denied or error occurred, fall back to manual entry or just deny
-                setStatus("denied"); 
-            }
-        );
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const distance = getDistanceInKm(
+            position.coords.latitude,
+            position.coords.longitude,
+            geoSettings.latitude,
+            geoSettings.longitude
+          );
+          setStatus(distance <= geoSettings.radiusKm ? "allowed" : "denied");
+        },
+        () => {
+          setStatus("denied"); 
+        }
+      );
     } else {
-        setStatus("denied"); // Geolocation not supported
+      setStatus("denied");
     }
   }, [geoSettings]);
 
-  const checkManualLocation = useCallback((province: string, city: string) => {
+  const checkManualLocation = useCallback(async (province: string, city: string) => {
     setStatus("checking");
-    // Simplified check: Allow if province is Santa Fe or city is in the allowed list
     const isAllowed = province.toLowerCase().includes("santa fe") || allowedCities.includes(city.toLowerCase());
-    setTimeout(() => { // Simulate "network" delay for UX
+    
+    if (isAllowed && user?.id) {
+        try {
+            await savePassenger({ province, city }, user.id);
+        } catch (error) {
+            console.error("Failed to save user location:", error);
+        }
+    }
+
+    setTimeout(() => {
         setStatus(isAllowed ? "allowed" : "denied");
     }, 500);
-  }, []);
+  }, [user]);
 
   const denyAccess = () => {
-      // This is called when the user closes the prompt or explicitly wants to just browse.
-      // We set status to denied so the purchase button is disabled.
-      setStatus('denied');
-  }
+    setStatus('denied');
+  };
 
   return { status, mainWhatsappNumber, checkBrowserPermission, checkManualLocation, denyAccess };
 };

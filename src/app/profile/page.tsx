@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import type { Passenger } from "@/lib/types";
 import { isUsernameUnique, savePassenger, deleteDocument, getAllFromCollection_client } from "@/lib/firestore-services";
-import { Loader2, UserCircle, Save, Users, Trash2, Edit } from "lucide-react";
+import { Loader2, UserCircle, Save, Users, Trash2, Edit, MapPin } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,7 +33,10 @@ export default function ProfilePage() {
     const router = useRouter();
     const { toast } = useToast();
     const [passenger, setPassenger] = useState<Passenger | null>(null);
-    const [formData, setFormData] = useState({ username: '', fullName: '', dni: '', phone: '', email: '', dob: null as Date | null | undefined });
+    const [formData, setFormData] = useState({ 
+        username: '', fullName: '', dni: '', phone: '', email: '', dob: null as Date | null | undefined,
+        province: '', city: '', street: '', addressNumber: ''
+    });
     const [familyMembers, setFamilyMembers] = useState<Passenger[]>([]);
     const [isSaving, setIsSaving] = useState(false);
     const [isFetching, setIsFetching] = useState(true);
@@ -45,17 +48,11 @@ export default function ProfilePage() {
         const currentUserData = allPassengers.find(p => p.id === currentUserId);
         
         if (currentUserData) {
-            const dobFromDb = currentUserData.dob as any;
             let dobDate: Date | null = null;
-            if (dobFromDb && typeof dobFromDb.toDate === 'function') {
-                dobDate = dobFromDb.toDate();
-            } else if (dobFromDb) {
-                const parsed = new Date(dobFromDb);
-                if (!isNaN(parsed.getTime())) {
-                    dobDate = parsed;
-                }
+            const dobFromDb = currentUserData.dob as any;
+            if (dobFromDb) {
+                dobDate = dobFromDb.toDate ? dobFromDb.toDate() : new Date(dobFromDb);
             }
-
 
             setPassenger(currentUserData);
             setFormData({
@@ -65,6 +62,10 @@ export default function ProfilePage() {
                 phone: currentUserData.phone || '',
                 email: currentUserData.email || '',
                 dob: dobDate,
+                province: currentUserData.province || '',
+                city: currentUserData.city || '',
+                street: currentUserData.street || '',
+                addressNumber: currentUserData.addressNumber || '',
             });
 
             if (currentUserData.family) {
@@ -111,7 +112,6 @@ export default function ProfilePage() {
             const updatedPassengerData: Partial<Passenger> = { ...formData, dob: formData.dob || null };
             await savePassenger(updatedPassengerData, passenger.id);
             
-            // If the user is also an employee, sync the data
             if (userRole === 'employee') {
                 await savePassenger({ name: formData.fullName, dni: formData.dni, phone: formData.phone }, passenger.id, 'employees');
             }
@@ -145,7 +145,6 @@ export default function ProfilePage() {
 
     const handleSaveMember = async (updatedMember: Passenger) => {
         try {
-            // The ID is part of the updatedMember object coming from the form
             await savePassenger(updatedMember, updatedMember.id);
             await fetchAllData(user!.id);
             setEditingMember(null);
@@ -156,28 +155,16 @@ export default function ProfilePage() {
         }
     }
 
-
     if (loading || isFetching) {
-        return (
-            <div className="flex items-center justify-center min-h-screen">
-                <Loader2 className="w-12 h-12 animate-spin text-primary"/>
-            </div>
-        );
+        return <div className="flex items-center justify-center min-h-screen"><Loader2 className="w-12 h-12 animate-spin text-primary"/></div>;
     }
     
     if (!passenger) {
-         return (
-            <div className="flex items-center justify-center min-h-screen">
-                <div className="text-center">
-                    <p className="text-lg font-semibold">No se pudo cargar tu perfil.</p>
-                    <Button onClick={() => router.push('/login')} className="mt-4">Volver al Login</Button>
-                </div>
-            </div>
-        );
+         return <div className="flex items-center justify-center min-h-screen"><div className="text-center"><p className="text-lg font-semibold">No se pudo cargar tu perfil.</p><Button onClick={() => router.push('/login')} className="mt-4">Volver al Login</Button></div></div>;
     }
 
     return (
-        <div className="flex flex-col min-h-screen">
+        <div className="flex flex-col min-h-screen bg-muted/20">
              {editingMember && (
                 <PassengerForm
                     isOpen={!!editingMember}
@@ -188,89 +175,61 @@ export default function ProfilePage() {
                 />
             )}
             <SiteHeader />
-            <main className="flex-1">
-                <div className="container py-12 md:py-24">
-                    <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+            <main className="flex-1 py-12 md:py-16">
+                <div className="container max-w-6xl space-y-8">
+                    <div className="grid md:grid-cols-2 gap-8">
                         <Card className="shadow-lg">
-                            <CardHeader>
-                                <div className="flex items-center gap-4">
-                                    <UserCircle className="w-10 h-10 text-primary"/>
-                                    <div>
-                                        <CardTitle className="text-2xl">Mi Perfil</CardTitle>
-                                        <CardDescription>Actualiza tu información personal.</CardDescription>
-                                    </div>
-                                </div>
-                            </CardHeader>
+                            <CardHeader><div className="flex items-center gap-4"><UserCircle className="w-10 h-10 text-primary"/><div><CardTitle className="text-2xl">Mis Datos</CardTitle><CardDescription>Actualiza tu información personal.</CardDescription></div></div></CardHeader>
                             <CardContent className="space-y-4">
                                 <div className="space-y-2"><Label htmlFor="username">Nombre de Usuario</Label><Input id="username" value={formData.username} onChange={(e) => handleFormChange('username', e.target.value)} /></div>
                                 <div className="space-y-2"><Label htmlFor="email">Email</Label><Input id="email" value={formData.email} onChange={(e) => handleFormChange('email', e.target.value)} disabled /><p className="text-xs text-muted-foreground">El email no se puede cambiar.</p></div>
                                 <div className="space-y-2"><Label htmlFor="fullName">Nombre Completo</Label><Input id="fullName" value={formData.fullName} onChange={(e) => handleFormChange('fullName', e.target.value)} /></div>
                                 <div className="space-y-2"><Label htmlFor="dni">DNI</Label><Input id="dni" value={formData.dni} onChange={(e) => handleFormChange('dni', e.target.value)} /></div>
                                 <div className="space-y-2"><Label htmlFor="phone">Teléfono</Label><Input id="phone" value={formData.phone} onChange={(e) => handleFormChange('phone', e.target.value)} /></div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="dob">Fecha de Nacimiento</Label>
-                                    <DatePicker
-                                        id="dob"
-                                        date={formData.dob}
-                                        setDate={(d) => handleFormChange('dob', d)}
-                                        placeholder="Seleccionar fecha"
-                                        captionLayout="dropdown-buttons"
-                                        fromYear={new Date().getFullYear() - 100}
-                                        toYear={new Date().getFullYear()}
-                                    />
-                                </div>
+                                <div className="space-y-2"><Label htmlFor="dob">Fecha de Nacimiento</Label><DatePicker id="dob" date={formData.dob} setDate={(d) => handleFormChange('dob', d)} placeholder="Seleccionar fecha" captionLayout="dropdown-buttons" fromYear={new Date().getFullYear() - 100} toYear={new Date().getFullYear()} /></div>
                             </CardContent>
-                            <CardFooter>
-                                <Button onClick={handleSaveChanges} disabled={isSaving}>
-                                {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4" />}
-                                {isSaving ? "Guardando..." : "Guardar Cambios"}
-                                </Button>
-                            </CardFooter>
                         </Card>
                         
-                        <Card className="shadow-lg">
-                             <CardHeader>
-                                <div className="flex items-center gap-4">
-                                    <Users className="w-10 h-10 text-primary"/>
-                                    <div>
-                                        <CardTitle className="text-2xl">Mi Grupo Familiar</CardTitle>
-                                        <CardDescription>Gestiona los integrantes de tu grupo.</CardDescription>
+                        <div className="space-y-8">
+                             <Card className="shadow-lg">
+                                <CardHeader><div className="flex items-center gap-4"><MapPin className="w-10 h-10 text-primary"/><div><CardTitle className="text-2xl">Mi Dirección</CardTitle><CardDescription>Ingresa tu dirección (opcional).</CardDescription></div></div></CardHeader>
+                                <CardContent className="space-y-4">
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-2"><Label htmlFor="province">Provincia</Label><Input id="province" value={formData.province} onChange={(e) => handleFormChange('province', e.target.value)} /></div>
+                                        <div className="space-y-2"><Label htmlFor="city">Localidad</Label><Input id="city" value={formData.city} onChange={(e) => handleFormChange('city', e.target.value)} /></div>
                                     </div>
-                                </div>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                               {familyMembers.length > 0 ? (
-                                   familyMembers.map(member => (
-                                       <div key={member.id} className="flex items-center justify-between p-3 border rounded-lg bg-muted/50">
-                                            <div>
-                                                <p className="font-medium">{member.fullName}</p>
-                                                <p className="text-sm text-muted-foreground">DNI: {member.dni}</p>
-                                            </div>
+                                    <div className="grid grid-cols-3 gap-4">
+                                        <div className="space-y-2 col-span-2"><Label htmlFor="street">Calle</Label><Input id="street" value={formData.street} onChange={(e) => handleFormChange('street', e.target.value)} /></div>
+                                        <div className="space-y-2"><Label htmlFor="addressNumber">Número</Label><Input id="addressNumber" value={formData.addressNumber} onChange={(e) => handleFormChange('addressNumber', e.target.value)} /></div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+
+                            <Card className="shadow-lg">
+                                <CardHeader><div className="flex items-center gap-4"><Users className="w-10 h-10 text-primary"/><div><CardTitle className="text-2xl">Mi Grupo Familiar</CardTitle><CardDescription>Gestiona los integrantes de tu grupo.</CardDescription></div></div></CardHeader>
+                                <CardContent className="space-y-4">
+                                {familyMembers.length > 0 ? (
+                                    familyMembers.map(member => (
+                                        <div key={member.id} className="flex items-center justify-between p-3 border rounded-lg bg-muted/50">
+                                            <div><p className="font-medium">{member.fullName}</p><p className="text-sm text-muted-foreground">DNI: {member.dni}</p></div>
                                             <div className="flex items-center gap-1">
                                                 <Button variant="ghost" size="icon" onClick={() => handleEditMember(member)} disabled={isSaving}><Edit className="w-4 h-4"/></Button>
-                                                <AlertDialog>
-                                                    <AlertDialogTrigger asChild>
-                                                        <Button variant="ghost" size="icon" disabled={isSaving}><Trash2 className="w-4 h-4 text-destructive"/></Button>
-                                                    </AlertDialogTrigger>
-                                                    <AlertDialogContent>
-                                                        <AlertDialogHeader>
-                                                            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-                                                            <AlertDialogDescription>Esta acción eliminará a {member.fullName} permanentemente. No se puede deshacer.</AlertDialogDescription>
-                                                        </AlertDialogHeader>
-                                                        <AlertDialogFooter>
-                                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                                            <AlertDialogAction onClick={() => handleRemoveMember(member.id)} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
-                                                        </AlertDialogFooter>
-                                                    </AlertDialogContent>
-                                                </AlertDialog>
+                                                <AlertDialog><AlertDialogTrigger asChild><Button variant="ghost" size="icon" disabled={isSaving}><Trash2 className="w-4 h-4 text-destructive"/></Button></AlertDialogTrigger><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>¿Estás seguro?</AlertDialogTitle><AlertDialogDescription>Esta acción eliminará a {member.fullName} permanentemente. No se puede deshacer.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={() => handleRemoveMember(member.id)} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
                                             </div>
-                                       </div>
-                                   ))
-                               ) : (
-                                   <p className="text-center text-muted-foreground p-4">No hay otros integrantes en tu grupo.</p>
-                               )}
-                            </CardContent>
-                        </Card>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <p className="text-center text-muted-foreground p-4">No hay otros integrantes en tu grupo.</p>
+                                )}
+                                </CardContent>
+                            </Card>
+                        </div>
+                    </div>
+                     <div className="flex justify-center mt-8">
+                        <Button size="lg" onClick={handleSaveChanges} disabled={isSaving} className="w-full max-w-xs">
+                        {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4" />}
+                        {isSaving ? "Guardando..." : "Guardar Todos los Cambios"}
+                        </Button>
                     </div>
                 </div>
             </main>
