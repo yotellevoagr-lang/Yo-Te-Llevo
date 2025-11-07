@@ -1,13 +1,11 @@
-
 "use client"
 
 import { useState } from "react";
 import Link from "next/link";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { MapPin, Hand, Check, UserPlus } from "lucide-react";
+import { MapPin } from "lucide-react";
 import { useAuth } from "./auth/auth-provider";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "./ui/card";
 
@@ -16,9 +14,9 @@ interface GeoVerificationCardProps {
     onManualSubmit: (province: string, city: string) => void;
 }
 
-export function GeoAccessPrompt({ onAllow, onManualSubmit }: GeoVerificationCardProps) {
+export function GeoVerificationCard({ onAllow, onManualSubmit }: GeoVerificationCardProps) {
     const { user } = useAuth();
-    const [province, setProvince] = useState("Santa Fe");
+    const [province, setProvince] = useState("");
     const [city, setCity] = useState("");
 
     const handleManualSubmit = () => {
@@ -41,7 +39,7 @@ export function GeoAccessPrompt({ onAllow, onManualSubmit }: GeoVerificationCard
             </CardHeader>
             <CardContent className="space-y-4">
                 <Button onClick={onAllow} size="lg" className="w-full">
-                    Usar mi ubicación actual
+                    Usar Ubicación
                 </Button>
                 
                 <div className="relative flex items-center">

@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react"
@@ -22,15 +21,6 @@ import { getDisplayUrl, cn } from "@/lib/utils"
 import { useAuth } from "@/components/auth/auth-provider"
 import Autoplay from "embla-carousel-autoplay"
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription
-} from "@/components/ui/dialog"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { PassengerForm } from "@/components/admin/passenger-form"
-import {
   Carousel,
   CarouselContent,
   CarouselItem,
@@ -38,11 +28,8 @@ import {
   CarouselPrevious,
 } from "@/components/ui/carousel"
 import { useGeoAccess } from "@/hooks/use-geo-access"
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Check } from "lucide-react"
-import geoData from "@/lib/argentina-geo.json"
-import { ScrollArea } from "@/components/ui/scroll-area"
+import { GeoVerificationCard } from "@/components/geo-access-prompt"
+import { PassengerForm } from "@/components/admin/passenger-form"
 
 
 type BookingPassenger = Omit<Passenger, 'id' | 'fullName' | 'dob'> & {
@@ -135,134 +122,16 @@ const CollapsibleDescription = ({ text }: { text: string }) => {
     );
 };
 
-const LocationCombobox = ({
-  options,
-  value,
-  onSelect,
-  placeholder,
-}: {
-  options: { label: string; value: string }[];
-  value: string;
-  onSelect: (value: string) => void;
-  placeholder: string;
-}) => {
-  const [open, setOpen] = useState(false);
-  
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button variant="outline" role="combobox" aria-expanded={open} className="w-full justify-between">
-          {value ? options.find(opt => opt.value === value)?.label : placeholder}
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-        <Command>
-          <CommandInput placeholder={placeholder} />
-          <CommandEmpty>No se encontraron resultados.</CommandEmpty>
-          <CommandGroup>
-             <ScrollArea className="h-48">
-              {options.map((option) => (
-                <CommandItem
-                  key={option.value}
-                  value={option.value}
-                  onSelect={(currentValue) => {
-                    onSelect(currentValue === value ? "" : currentValue);
-                    setOpen(false);
-                  }}
-                >
-                  <Check className={cn("mr-2 h-4 w-4", value === option.value ? "opacity-100" : "opacity-0")} />
-                  {option.label}
-                </CommandItem>
-              ))}
-            </ScrollArea>
-          </CommandGroup>
-        </Command>
-      </PopoverContent>
-    </Popover>
-  );
-};
-
-function GeoVerificationCard({ onAllow, onManualSubmit }: { onAllow: () => void; onManualSubmit: (province: string, city: string) => void; }) {
-    const { user } = useAuth();
-    const [province, setProvince] = useState("");
-    const [city, setCity] = useState("");
-
-    const handleManualSubmit = () => {
-        if (province && city) {
-            onManualSubmit(province, city);
-        }
-    };
-    
-    const provinceOptions = useMemo(() => geoData.provincias.map(p => ({ label: p.nombre, value: p.nombre.toLowerCase() })), []);
-    const cityOptions = useMemo(() => {
-        if (!province) return [];
-        const selectedProvince = geoData.provincias.find(p => p.nombre.toLowerCase() === province);
-        if (selectedProvince && (geoData.localidades as Record<string, string[]>)[selectedProvince.nombre]) {
-            return (geoData.localidades as Record<string, string[]>)[selectedProvince.nombre].map(l => ({ label: l, value: l.toLowerCase() }));
-        }
-        return [];
-    }, [province]);
-
-    return (
-        <Card className="border-0 shadow-none">
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-primary">
-                    <MapPinIcon className="w-6 h-6"/>
-                    Verificación de Zona de Servicio
-                </CardTitle>
-                <CardDescription className="text-primary/90">
-                   Nuestra venta online opera en la zona de San Lorenzo, Santa Fe y alrededores. Para continuar, necesitamos verificar tu ubicación.
-                </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                <Button onClick={onAllow} size="lg" className="w-full">
-                    Usar Ubicación
-                </Button>
-                <div className="relative flex items-center">
-                    <div className="flex-grow border-t border-muted-foreground/30"></div>
-                    <span className="flex-shrink mx-4 text-xs text-muted-foreground uppercase">O</span>
-                    <div className="flex-grow border-t border-muted-foreground/30"></div>
-                </div>
-                <div className="space-y-3">
-                    <Label className="font-semibold text-center block">Ingresa tu ubicación manualmente:</Label>
-                     {!user && (
-                        <p className="text-xs text-muted-foreground italic text-center">
-                            ¿Quieres guardar tu dirección? 
-                            <Link href="/login?mode=register" className="font-semibold text-primary hover:underline"> Regístrate</Link>, ¡es rápido y fácil!
-                        </p>
-                    )}
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1">
-                            <Label htmlFor="province">Provincia</Label>
-                            <LocationCombobox options={provinceOptions} value={province} onSelect={(val) => { setProvince(val); setCity(""); }} placeholder="Seleccionar provincia..." />
-                        </div>
-                        <div className="space-y-1">
-                            <Label htmlFor="city">Localidad</Label>
-                            <LocationCombobox options={cityOptions} value={city} onSelect={setCity} placeholder="Seleccionar localidad..." />
-                        </div>
-                    </div>
-                    <Button onClick={handleManualSubmit} variant="secondary" className="w-full" disabled={!province || !city}>
-                        Comprobar Ubicación Manual
-                    </Button>
-                </div>
-            </CardContent>
-        </Card>
-    );
-}
-
 export default function BookingPage() {
   const { id } = useParams()
   const router = useRouter();
   const { toast } = useToast()
   const { user: loggedInUser, userRole } = useAuth();
-  const { status: geoStatus, checkBrowserPermission, checkManualLocation } = useGeoAccess();
+  const { status: geoStatus, checkBrowserPermission, checkManualLocation, denyAccess } = useGeoAccess();
 
-  const [isGeoDialogOpen, setIsGeoDialogOpen] = useState(false);
   const autoplay = useRef(
     Autoplay({ delay: 5000, stopOnInteraction: true })
   )
-
 
   const [tour, setTour] = useState<Tour | null>(null)
   const [allPassengers, setAllPassengers] = useState<Passenger[]>([])
@@ -375,12 +244,6 @@ export default function BookingPage() {
           addPassenger();
       }
   }, [isLoading, loggedInUser, allPassengers, addPassenger]);
-  
-  useEffect(() => {
-    if (geoStatus === 'allowed' && isGeoDialogOpen) {
-        setIsGeoDialogOpen(false);
-    }
-  }, [geoStatus, isGeoDialogOpen])
   
   const existingReservationForUser = useMemo(() => {
     if (!loggedInUser || !tour || reservations.length === 0) return null;
@@ -637,7 +500,7 @@ export default function BookingPage() {
   const totalPassengers = bookingPassengers.length;
   const allPassengersDataComplete = bookingPassengers.every(p => isProfileComplete(p));
   
-  const isBookingDisabled = isSoldOut || isSubmitting || geoStatus !== 'allowed';
+  const isBookingDisabled = isSoldOut || isSubmitting;
 
   return (
     <div className="flex flex-col min-h-screen bg-muted/20">
@@ -651,14 +514,6 @@ export default function BookingPage() {
               hideFamilyInput={true}
           />
       )}
-      <Dialog open={isGeoDialogOpen} onOpenChange={setIsGeoDialogOpen}>
-        <DialogContent>
-            <GeoVerificationCard 
-                onAllow={checkBrowserPermission}
-                onManualSubmit={checkManualLocation}
-            />
-        </DialogContent>
-      </Dialog>
       <SiteHeader />
       <main className="flex-1 py-12">
         <div className="container">
@@ -696,7 +551,7 @@ export default function BookingPage() {
                         <div className="p-4 bg-card">
                              <h1 className="text-3xl sm:text-4xl font-headline text-primary mb-4">{tour.destination}</h1>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-muted-foreground mb-6">
-                                {tour.origin && <div className="flex items-center gap-2"><MapPinIcon className="w-5 h-5 text-primary" /><span>Salida desde {tour.origin}</span></div>}
+                                {tour.origin && <div className="flex items-center gap-2"><MapPin className="w-5 h-5 text-primary" /><span>Salida desde {tour.origin}</span></div>}
                                 <div className="flex items-center gap-2"><CalendarIcon className="w-5 h-5 text-primary" /><span>{new Date(tour.date).toLocaleDateString('es-AR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span></div>
                                 {formattedPresentationTime && <div className="flex items-center gap-2"><ClockIcon className="w-5 h-5 text-primary" /><span>Presentación: {formattedPresentationTime}</span></div>}
                                 {formattedDepartureTime && <div className="flex items-center gap-2"><ClockIcon className="w-5 h-5 text-primary" /><span>Salida: {formattedDepartureTime}</span></div>}
@@ -707,12 +562,31 @@ export default function BookingPage() {
                 </Card>
 
                 {existingReservationForUser ? (
-                    <Alert variant="default" className="border-primary bg-primary/5">
-                        <InfoIcon className="h-4 w-4 text-primary" />
-                        <AlertDescription className="text-primary font-medium">
-                            Ya tienes una reserva para este viaje. Para añadir más integrantes o modificarla, por favor, contacta a la empresa.
-                        </AlertDescription>
-                    </Alert>
+                    <Card className="bg-primary/10 border-primary">
+                        <CardHeader className="text-center">
+                            <CardTitle>Ya tienes una reserva</CardTitle>
+                            <CardDescription>
+                                Detectamos que ya tienes una reserva para este viaje. Si quieres modificarla, añadir más personas o tienes alguna consulta, por favor, ponte en contacto con la agencia.
+                            </CardDescription>
+                        </CardHeader>
+                    </Card>
+                ) : geoStatus === 'prompting' ? (
+                     <GeoVerificationCard 
+                        onAllow={checkBrowserPermission}
+                        onManualSubmit={checkManualLocation}
+                    />
+                ) : geoStatus === 'denied' ? (
+                    <Card className="bg-destructive/10 border-destructive">
+                        <CardHeader className="text-center">
+                             <CardTitle>Fuera de la Zona de Servicio</CardTitle>
+                             <CardDescription>Lo sentimos, parece que estás fuera de nuestra área de cobertura para reservas online. ¿Te gustaría que consideremos expandir nuestros servicios a tu zona?</CardDescription>
+                        </CardHeader>
+                        <CardContent className="flex justify-center">
+                            <Button onClick={denyAccess}>Sí, avísenme si llegan a mi zona</Button>
+                        </CardContent>
+                    </Card>
+                ) : geoStatus === 'checking' ? (
+                    <Card><CardContent className="p-10 flex items-center justify-center gap-3"><Loader2 className="animate-spin w-6 h-6 text-primary"/><span>Verificando ubicación...</span></CardContent></Card>
                 ) : (
                     <fieldset disabled={isBookingDisabled}>
                         <Card className={cn("shadow-lg", isBookingDisabled && "bg-muted/50")}>
@@ -778,13 +652,6 @@ export default function BookingPage() {
                         </Card>
                     </fieldset>
                 )}
-
-              {!loggedInUser && !existingReservationForUser && (
-                <Card className="bg-gradient-to-br from-primary/80 to-accent/80 text-primary-foreground shadow-lg">
-                    <CardHeader><CardTitle className="font-body drop-shadow-xl tracking-wider flex items-center gap-2"><HeartIcon className="w-6 h-6" />¿Querés agilizar tus próximas reservas?</CardTitle><CardDescription className="text-primary-foreground/80">Crea una cuenta para guardar tus datos y acceder a beneficios exclusivos. ¡Es rápido y fácil!</CardDescription></CardHeader>
-                    <CardContent><Button asChild variant="secondary" className="bg-white text-primary hover:bg-white/90"><Link href="/login?mode=register">Crear una cuenta <ArrowRight className="w-4 h-4 ml-2"/></Link></Button></CardContent>
-                </Card>
-              )}
             </div>
 
             <div className="space-y-8 lg:col-span-1">
@@ -796,47 +663,43 @@ export default function BookingPage() {
                     <span className={cn("font-bold", availableSeats > 5 ? "text-green-600" : "text-amber-600")}>¡Quedan {availableSeats} disponibles!</span>
                   </CardDescription>
                 </CardHeader>
-                {!existingReservationForUser && (
-                    <CardContent className="space-y-4">
-                    <div className="p-4 space-y-3 rounded-lg bg-secondary/40">
-                        {totalPassengers > 0 && (
-                            bookingPassengers.map((p, index) => {
-                            const age = calculateAge(p.dob);
-                            let price = tour.price;
-                            if (childTier && age < 12) { price = childTier.price; }
-                            return (<div key={p.id || index} className="flex justify-between font-medium"><span>{p.fullName || `Pasajero ${index+1}`}</span><span>{currencySymbol}{price.toLocaleString('es-AR')}</span></div>);
-                            })
-                        )}
-                        
-                        {tour.insurance?.active && insuredGuestIds.length > 0 && (
-                            <div className="flex justify-between font-medium text-sm border-t pt-2 mt-2 border-primary/20">
-                                <span className="flex items-center gap-1.5"><ShieldCheck className="w-4 h-4 text-green-600"/>Seguro Médico ({insuredGuestIds.length})</span>
-                                <span>{currencySymbol}{(insuredGuestIds.length * tour.insurance.cost).toLocaleString('es-AR')}</span>
-                            </div>
-                        )}
-                    </div>
-                    <Separator />
-                    <div className="flex items-end justify-between text-2xl font-bold">
-                        <span>Total</span>
-                        <span className="text-3xl sm:text-4xl">{currencySymbol}{totalPrice.toLocaleString('es-AR')}</span>
-                    </div>
-                    {isSoldOut ? (
-                        <Button className="w-full text-lg h-14 rounded-xl" size="lg" disabled> AGOTADO </Button>
-                    ) : geoStatus !== 'allowed' ? (
-                        <Button className="w-full text-lg h-14 rounded-xl" size="lg" onClick={() => setIsGeoDialogOpen(true)}>
-                            Verificar Ubicación para Reservar
+                <CardContent className="space-y-4">
+                <div className="p-4 space-y-3 rounded-lg bg-secondary/40">
+                    {totalPassengers > 0 && (
+                        bookingPassengers.map((p, index) => {
+                        const age = calculateAge(p.dob);
+                        let price = tour.price;
+                        if (childTier && age < 12) { price = childTier.price; }
+                        return (<div key={p.id || index} className="flex justify-between font-medium"><span>{p.fullName || `Pasajero ${index+1}`}</span><span>{currencySymbol}{price.toLocaleString('es-AR')}</span></div>);
+                        })
+                    )}
+                    
+                    {tour.insurance?.active && insuredGuestIds.length > 0 && (
+                        <div className="flex justify-between font-medium text-sm border-t pt-2 mt-2 border-primary/20">
+                            <span className="flex items-center gap-1.5"><ShieldCheck className="w-4 h-4 text-green-600"/>Seguro Médico ({insuredGuestIds.length})</span>
+                            <span>{currencySymbol}{(insuredGuestIds.length * tour.insurance.cost).toLocaleString('es-AR')}</span>
+                        </div>
+                    )}
+                </div>
+                <Separator />
+                <div className="flex items-end justify-between text-2xl font-bold">
+                    <span>Total</span>
+                    <span className="text-3xl sm:text-4xl">{currencySymbol}{totalPrice.toLocaleString('es-AR')}</span>
+                </div>
+                {isSoldOut ? (
+                    <Button className="w-full text-lg h-14 rounded-xl" size="lg" disabled> AGOTADO </Button>
+                ) : geoStatus === 'allowed' ? (
+                    <>
+                        <p className="text-xs text-muted-foreground text-center">El pago se coordina por WhatsApp luego de enviar la solicitud.</p>
+                        <Button className="w-full text-lg h-14 rounded-xl group" size="lg" onClick={handleConfirmReservation} disabled={totalPassengers === 0 || isSubmitting || !allPassengersDataComplete}>
+                            {isSubmitting ? <Loader2 className="w-6 h-6 animate-spin"/> : 'Solicitar Reserva'}
+                            {!isSubmitting && <ArrowRight className="w-5 h-5 ml-2 transition-transform duration-300 group-hover:translate-x-1" />}
                         </Button>
+                    </>
                     ) : (
-                        <>
-                            <p className="text-xs text-muted-foreground text-center">El pago se coordina por WhatsApp luego de enviar la solicitud.</p>
-                            <Button className="w-full text-lg h-14 rounded-xl group" size="lg" onClick={handleConfirmReservation} disabled={totalPassengers === 0 || isSubmitting || !allPassengersDataComplete}>
-                                {isSubmitting ? <Loader2 className="w-6 h-6 animate-spin"/> : 'Solicitar Reserva'}
-                                {!isSubmitting && <ArrowRight className="w-5 h-5 ml-2 transition-transform duration-300 group-hover:translate-x-1" />}
-                            </Button>
-                        </>
-                        )}
-                    </CardContent>
-                )}
+                        <Button className="w-full text-lg h-14 rounded-xl" size="lg" disabled>Verificación de Zona Requerida</Button>
+                    )}
+                </CardContent>
               </Card>
             </div>
           </div>
@@ -846,7 +709,3 @@ export default function BookingPage() {
     </div>
   )
 }
-
-    
-
-    
