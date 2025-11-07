@@ -33,6 +33,7 @@ import { useGeoAccess } from "@/hooks/use-geo-access"
 import { PassengerForm } from "@/components/admin/passenger-form"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import argentinaGeoData from '@/lib/argentina-geo.json';
+import { ScrollArea } from "@/components/ui/scroll-area"
 
 
 type ActiveMedia = {
@@ -50,8 +51,8 @@ interface GeoVerificationCardProps {
 
 function GeoVerificationCard({ status, onAllow, onManualSubmit, manualLocation, mainWhatsappNumber }: GeoVerificationCardProps) {
     const { user } = useAuth();
-    const [province, setProvince] = useState(manualLocation.province);
-    const [city, setCity] = useState(manualLocation.city);
+    const [province, setProvince] = useState(manualLocation?.province || "");
+    const [city, setCity] = useState(manualLocation?.city || "");
     const [localities, setLocalities] = useState<string[]>([]);
     const [voteState, setVoteState] = useState<'idle' | 'voted' | 'voting'>('idle');
 
@@ -78,9 +79,12 @@ function GeoVerificationCard({ status, onAllow, onManualSubmit, manualLocation, 
     const handleVote = async () => {
         setVoteState('voting');
         try {
+            if (!province || !city) {
+                throw new Error("Province and city must be selected to vote.");
+            }
             const vote: Omit<LocationVote, 'id'> = {
-                province: manualLocation.province,
-                city: manualLocation.city,
+                province,
+                city,
                 createdAt: new Date()
             };
             await saveDocument('location_votes', vote);
@@ -92,7 +96,7 @@ function GeoVerificationCard({ status, onAllow, onManualSubmit, manualLocation, 
     }
     
     const whatsappLink = mainWhatsappNumber 
-    ? `https://wa.me/${mainWhatsappNumber.replace(/\D/g, '')}?text=${encodeURIComponent(`Hola! Me gustaría saber si hay alternativas para viajar desde ${manualLocation.city}, ${manualLocation.province}.`)}`
+    ? `https://wa.me/${mainWhatsappNumber.replace(/\D/g, '')}?text=${encodeURIComponent(`Hola! Me gustaría saber si hay alternativas para viajar desde ${city}, ${province}.`)}`
     : null;
 
     const isLoading = status === 'checking' || voteState === 'voting';
@@ -633,33 +637,6 @@ export default function BookingPage() {
 
   const currencySymbol = tour?.currency === 'USD' ? 'U$S' : '$';
   const isSoldOut = availableSeats <= 0;
-  
-  if (!isClient || isLoading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="w-12 h-12 animate-spin text-primary"/></div>;
-
-  if (!tour) {
-    return (
-      <div className="flex flex-col min-h-screen">
-        <SiteHeader />
-        <main className="flex-1 flex items-center justify-center text-center p-8">
-            <Card className="max-w-lg">
-                <CardHeader><CardTitle>Viaje no disponible</CardTitle><CardDescription>Lo sentimos, el viaje que buscas ya no está disponible o la fecha ha expirado.</CardDescription></CardHeader>
-                <CardContent><Button asChild><a href="/tours">Ver otros viajes</a></Button></CardContent>
-            </Card>
-        </main>
-        <SiteFooter />
-      </div>
-    )
-  }
-  
-  const allMedia: GalleryItem[] = tour.gallery || [];
-  if (tour.backgroundImage && !allMedia.some(item => item.url === tour.backgroundImage)) {
-      allMedia.unshift({ id: 'bg-main', url: tour.backgroundImage, type: 'image' });
-  }
-  
-  const formattedPresentationTime = formatTimeWithUnit(tour.presentationTime);
-  const formattedDepartureTime = formatTimeWithUnit(tour.departureTime);
-  const totalPassengers = bookingPassengers.length;
-  const allPassengersDataComplete = bookingPassengers.every(p => isProfileComplete(p));
   
   const isBookingDisabled = isSoldOut || isSubmitting || geoStatus !== 'allowed';
 
