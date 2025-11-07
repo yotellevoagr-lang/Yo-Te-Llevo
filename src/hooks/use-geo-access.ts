@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect, useCallback } from "react";
@@ -32,23 +33,49 @@ export const useGeoAccess = () => {
   const [geoSettings, setGeoSettings] = useState<GeoSettings | null>(null);
 
   useEffect(() => {
-    const fetchSettings = async () => {
+    const fetchSettingsAndCheckIp = async () => {
         const [general, geo] = await Promise.all([
             getDocumentById<GeneralSettings>('settings', 'general'),
             getDocumentById<GeoSettings>('settings', 'geo')
         ]);
-        if(general) setMainWhatsappNumber(general.mainWhatsappNumber);
-        if(geo) setGeoSettings(geo);
 
-        // Initial check: if no geo settings, everyone is allowed.
+        if (general) setMainWhatsappNumber(general.mainWhatsappNumber);
+        if (geo) setGeoSettings(geo);
+
+        // If no geo settings are configured in Firestore, everyone is allowed.
         if (!geo) {
             setStatus("allowed");
-        } else {
-            // If settings exist, prompt user.
+            return;
+        }
+
+        // --- IP-based Geolocation Check (Step 1) ---
+        try {
+            const response = await fetch('https://ipapi.co/json/');
+            if (!response.ok) throw new Error('IP API response not ok');
+            
+            const ipData = await response.json();
+            const { latitude, longitude } = ipData;
+
+            if (latitude && longitude) {
+                const distance = getDistanceInKm(latitude, longitude, geo.latitude, geo.longitude);
+                if (distance <= geo.radiusKm) {
+                    // IP is within radius, allow access without prompt.
+                    setStatus("allowed");
+                } else {
+                    // IP is outside radius, show prompt to user.
+                    setStatus("prompting");
+                }
+            } else {
+                // Could not get location from IP, show prompt.
+                setStatus("prompting");
+            }
+        } catch (error) {
+            console.warn("IP-based geolocation failed, defaulting to prompt:", error);
             setStatus("prompting");
         }
     };
-    fetchSettings();
+
+    fetchSettingsAndCheckIp();
   }, []);
 
   const checkBrowserPermission = useCallback(async () => {
@@ -69,7 +96,7 @@ export const useGeoAccess = () => {
                 setStatus(distance <= geoSettings.radiusKm ? "allowed" : "denied");
             },
             () => {
-                // User denied or error occurred
+                // User denied or error occurred, fall back to manual entry or just deny
                 setStatus("denied"); 
             }
         );
@@ -82,12 +109,14 @@ export const useGeoAccess = () => {
     setStatus("checking");
     // Simplified check: Allow if province is Santa Fe or city is in the allowed list
     const isAllowed = province.toLowerCase().includes("santa fe") || allowedCities.includes(city.toLowerCase());
-    setTimeout(() => { // Simulate network delay
+    setTimeout(() => { // Simulate "network" delay for UX
         setStatus(isAllowed ? "allowed" : "denied");
     }, 500);
   }, []);
 
   const denyAccess = () => {
+      // This is called when the user closes the prompt or explicitly wants to just browse.
+      // We set status to denied so the purchase button is disabled.
       setStatus('denied');
   }
 
