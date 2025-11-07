@@ -15,7 +15,7 @@ import { useToast } from "@/hooks/use-toast"
 import { getTourById, savePassenger, saveReservation, getAllFromCollection_client, getDocumentById } from "@/lib/firestore-services"
 import type { Tour, Reservation, Passenger, Seller, CustomLayoutConfig, LayoutCategory, CreatorContext, GalleryItem } from "@/lib/types"
 import { DatePicker } from "@/components/ui/date-picker"
-import { ArrowLeft, CalendarIcon, ClockIcon, MapPinIcon, PlusIcon, TicketIcon, UsersIcon, HeartIcon, ArrowRight, ShieldCheck, Trash2, Loader2, InfoIcon, Video, Edit, ChevronsUpDown, ThumbsUp } from "lucide-react"
+import { ArrowLeft, CalendarIcon, ClockIcon, MapPinIcon, PlusIcon, TicketIcon, UsersIcon, HeartIcon, ArrowRight, ShieldCheck, Trash2, Loader2, InfoIcon, Video, Edit, ChevronsUpDown, ThumbsUp, MapPin } from "lucide-react"
 import Link from "next/link"
 import { Checkbox } from "@/components/ui/checkbox"
 import { getDisplayUrl, cn } from "@/lib/utils"
@@ -774,3 +774,5 @@ export default function BookingPage() {
     </div>
   )
 }
+
+    
