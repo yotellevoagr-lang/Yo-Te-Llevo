@@ -58,16 +58,7 @@ export const useGeoAccess = () => {
       return;
     }
     
-    // 2. Check for location stored in session for non-logged-in users
-    const sessionLocation = sessionStorage.getItem('ytl_manual_location');
-    if (sessionLocation) {
-        const { province, city } = JSON.parse(sessionLocation);
-        const isAllowed = province.toLowerCase().includes("santa fe") || allowedCities.includes(city.toLowerCase());
-        setStatus(isAllowed ? "allowed" : "denied");
-        return;
-    }
-    
-    // 3. Check for browser permission status
+    // 2. Check for browser permission status
     if ('permissions' in navigator) {
         const permissionStatus = await navigator.permissions.query({ name: 'geolocation' });
         if (permissionStatus.state === 'granted') {
@@ -76,13 +67,12 @@ export const useGeoAccess = () => {
         }
     }
 
-    // 4. If none of the above, prompt the user
+    // 3. If none of the above, prompt the user
     setStatus("prompting");
 
   }, [geoSettings, fetchSettings, user, authLoading]);
 
   useEffect(() => {
-    // Run check on initial load or when user logs in/out
     checkAccess();
   }, [checkAccess]);
 
@@ -115,22 +105,17 @@ export const useGeoAccess = () => {
 
   const checkManualLocation = useCallback(async (province: string, city: string) => {
     setStatus("checking");
-    // Simplified check: allow if province is Santa Fe or city is in the allowed list.
     const isAllowed = province.toLowerCase().includes("santa fe") || allowedCities.includes(city.toLowerCase());
     
     if (user?.id) {
-        // If user is logged in, save to their profile
         try {
             await savePassenger({ province, city }, user.id);
         } catch (error) {
             console.error("Failed to save user location:", error);
         }
-    } else {
-        // If user is not logged in, save to session storage
-        sessionStorage.setItem('ytl_manual_location', JSON.stringify({ province, city }));
     }
+    // No session storage for non-registered users. They will be prompted every time.
 
-    // Give visual feedback before changing status
     setTimeout(() => {
         setStatus(isAllowed ? "allowed" : "denied");
     }, 500);

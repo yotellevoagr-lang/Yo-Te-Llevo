@@ -1,11 +1,14 @@
+
 "use client"
 
 import { useState } from "react";
+import Link from "next/link";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { MapPin, Hand, Check } from "lucide-react";
+import { MapPin, Hand, Check, UserPlus } from "lucide-react";
+import { useAuth } from "./auth/auth-provider";
 
 interface GeoAccessPromptProps {
     isOpen: boolean;
@@ -18,6 +21,7 @@ export function GeoAccessPrompt({ isOpen, onAllow, onManualSubmit, onDeny }: Geo
     const [showManualForm, setShowManualForm] = useState(false);
     const [province, setProvince] = useState("Santa Fe");
     const [city, setCity] = useState("");
+    const { user } = useAuth();
 
     const handleManualSubmit = () => {
         if (province && city) {
@@ -45,12 +49,18 @@ export function GeoAccessPrompt({ isOpen, onAllow, onManualSubmit, onDeny }: Geo
                 
                 <div className="py-4 space-y-4">
                     <p className="text-sm text-muted-foreground">
-                        Detectamos que podrías estar fuera de esta área. Para asegurar que podemos brindarte el mejor servicio, por favor, ayúdanos a confirmar tu ubicación.
+                        Para poder reservar, necesitamos confirmar tu ubicación.
                     </p>
 
                     {showManualForm ? (
                         <div className="p-4 border rounded-lg bg-muted/50 space-y-4 animate-fade-in-up">
                             <h4 className="font-semibold">Ingreso Manual</h4>
+                            {!user && (
+                                <p className="text-xs text-muted-foreground italic">
+                                    ¿Quieres guardar tu dirección para no volver a ingresarla? 
+                                    <Link href="/login?mode=register" className="font-semibold text-primary hover:underline"> Regístrate</Link>, ¡es rápido y fácil!
+                                </p>
+                            )}
                             <div className="space-y-2">
                                 <Label htmlFor="province">Provincia</Label>
                                 <Input id="province" value={province} onChange={(e) => setProvince(e.target.value)} />
