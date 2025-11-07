@@ -1,4 +1,5 @@
 
+
 "use client"
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react"
@@ -41,6 +42,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Check } from "lucide-react"
 import geoData from "@/lib/argentina-geo.json"
+import { ScrollArea } from "@/components/ui/scroll-area"
 
 
 type BookingPassenger = Omit<Passenger, 'id' | 'fullName' | 'dob'> & {
