@@ -2,7 +2,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react";
-import type { GeoSettings, GeneralSettings, Passenger } from "@/lib/types";
+import type { GeoSettings, GeneralSettings } from "@/lib/types";
 import { getDocumentById, savePassenger } from "@/lib/firestore-services";
 import { useAuth } from "@/components/auth/auth-provider";
 
@@ -45,17 +45,13 @@ export const useGeoAccess = () => {
   const checkAccess = useCallback(async () => {
     const settings = geoSettings || await fetchSettings();
     if (!settings) {
+      // If no geo-settings are defined, allow everyone.
       setStatus("allowed");
       return;
     }
 
-    if (user && (user as Passenger).city) {
-        const isAllowed = ((user as Passenger).province?.toLowerCase().includes("santa fe") || allowedCities.includes((user as Passenger).city!.toLowerCase()));
-        setStatus(isAllowed ? "allowed" : "denied");
-        return;
-    }
-
     try {
+      // Always perform IP check first.
       const response = await fetch('https://ipapi.co/json/');
       if (!response.ok) throw new Error('IP API response not ok');
       const ipData = await response.json();
@@ -65,18 +61,19 @@ export const useGeoAccess = () => {
         const distance = getDistanceInKm(latitude, longitude, settings.latitude, settings.longitude);
         setStatus(distance <= settings.radiusKm ? "allowed" : "prompting");
       } else {
+        // If IP API fails to provide coordinates, prompt the user.
         setStatus("prompting");
       }
     } catch (error) {
       console.warn("IP-based geolocation failed, defaulting to prompt:", error);
       setStatus("prompting");
     }
-  }, [geoSettings, fetchSettings, user]);
+  }, [geoSettings, fetchSettings]);
 
   useEffect(() => {
     checkAccess();
     
-    // Re-validate when the tab becomes visible again
+    // Re-validate when the tab becomes visible again to catch changes.
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         setStatus("loading");
@@ -110,16 +107,17 @@ export const useGeoAccess = () => {
           setStatus(distance <= settings.radiusKm ? "allowed" : "denied");
         },
         () => {
-          setStatus("denied"); 
+          setStatus("denied"); // User denied the prompt or an error occurred.
         }
       );
     } else {
-      setStatus("denied");
+      setStatus("denied"); // Geolocation not supported by the browser.
     }
   }, [geoSettings, fetchSettings]);
 
   const checkManualLocation = useCallback(async (province: string, city: string) => {
     setStatus("checking");
+    // Simplified check: allow if province is Santa Fe or city is in the allowed list.
     const isAllowed = province.toLowerCase().includes("santa fe") || allowedCities.includes(city.toLowerCase());
     
     if (isAllowed && user?.id) {
@@ -130,6 +128,7 @@ export const useGeoAccess = () => {
         }
     }
 
+    // Give visual feedback before changing status
     setTimeout(() => {
         setStatus(isAllowed ? "allowed" : "denied");
     }, 500);
