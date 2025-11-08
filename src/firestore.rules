@@ -1,4 +1,5 @@
 
+
 rules_version = '2';
 
 service cloud.firestore {
@@ -65,9 +66,8 @@ service cloud.firestore {
         match /passengers/{passengerId} {
             allow read: if true;
             // Allow creation for anyone (registration, adding family)
-            // Allow update for anyone (claiming a profile during registration).
-            // Client-side logic ensures a user can only claim their own DNI profile if it has no email.
-            // Post-login updates are implicitly secured by the isOwner check in most cases.
+            // Allow update for anyone. Client-side logic secures "claiming" a profile.
+            // Post-login updates are implicitly secured by isOwner.
             allow create, update: if true;
             allow delete: if isSignedInAsRole('admin');
         }

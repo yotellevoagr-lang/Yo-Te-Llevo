@@ -1,4 +1,5 @@
 
+
 import { db, auth } from './firebase';
 import { collection, doc, getDoc, getDocs, setDoc, deleteDoc, query, where, writeBatch, addDoc, updateDoc } from 'firebase/firestore';
 import { createUserWithEmailAndPassword, sendEmailVerification, signInWithEmailAndPassword, User as FirebaseAuthUser } from 'firebase/auth';
@@ -291,11 +292,11 @@ export async function registerPassenger(formData: { username: string; firstName:
     const passError = validatePassword(formData.password);
     if (passError) throw new Error(passError);
 
-    const isUnique = await isUsernameUnique(formData.username);
-    if (!isUnique) throw new Error("El nombre de usuario ya está en uso.");
+    const isUniqueUser = await isUsernameUnique(formData.username);
+    if (!isUniqueUser) throw new Error("El nombre de usuario ya está en uso.");
     
-    const dniIsUnique = await isDniUnique(formData.dni);
-    if (!dniIsUnique) {
+    const isDniAvailable = await isDniUnique(formData.dni);
+    if (!isDniAvailable) {
         throw new Error("Este DNI ya está registrado con una cuenta de correo electrónico. Por favor, inicia sesión.");
     }
     
@@ -309,26 +310,14 @@ export async function registerPassenger(formData: { username: string; firstName:
     await sendEmailVerification(authUser, actionCodeSettings);
 
     const fullName = `${formData.firstName} ${formData.lastName}`.trim();
-    const family = `Familia ${formData.lastName}`.trim();
     
     const q = query(collection(db, "passengers"), where("dni", "==", formData.dni));
     const querySnapshot = await getDocs(q);
     
-    let existingPassengerData: Partial<Passenger> = {};
-    let existingPassengerDocToDelete: string | null = null;
-    
-    if (!querySnapshot.empty) {
-        const existingDoc = querySnapshot.docs.find(doc => !doc.data().email);
-        if (existingDoc) {
-            existingPassengerData = existingDoc.data();
-            existingPassengerDocToDelete = existingDoc.id;
-        }
-    }
-    
-    const passengerDocRef = doc(db, "passengers", authUser.uid);
-    
-    const finalPassengerData: Passenger = {
-        ...existingPassengerData,
+    const batch = writeBatch(db);
+    const newPassengerDocRef = doc(db, "passengers", authUser.uid);
+
+    let finalPassengerData: Partial<Passenger> = {
         id: authUser.uid,
         username: formData.username,
         fullName: fullName,
@@ -336,17 +325,31 @@ export async function registerPassenger(formData: { username: string; firstName:
         lastName: formData.lastName,
         email: formData.email,
         dni: formData.dni,
-        family: existingPassengerData.family || family,
-        nationality: existingPassengerData.nationality || 'Argentina',
-        tierId: existingPassengerData.tierId || 'adult',
     };
-    
-    const batch = writeBatch(db);
-    batch.set(passengerDocRef, finalPassengerData);
-    if (existingPassengerDocToDelete) {
-        const docToDeleteRef = doc(db, "passengers", existingPassengerDocToDelete);
-        batch.delete(docToDeleteRef);
+
+    if (!querySnapshot.empty) {
+        // An un-claimed profile exists. Merge data and delete the old one.
+        const existingDoc = querySnapshot.docs.find(d => !d.data().email);
+        if (existingDoc) {
+            const existingData = existingDoc.data() as Passenger;
+            // Merge existing data, but registration data takes priority
+            finalPassengerData = {
+                ...existingData,
+                ...finalPassengerData,
+                family: existingData.family || `Familia ${formData.lastName}`.trim(),
+            };
+            // Delete the old temporary document
+            batch.delete(existingDoc.ref);
+        }
     }
+    
+    // Ensure family is set if it wasn't merged
+    if (!finalPassengerData.family) {
+        finalPassengerData.family = `Familia ${formData.lastName}`.trim();
+    }
+
+
+    batch.set(newPassengerDocRef, finalPassengerData, { merge: true });
     await batch.commit();
 }
 
@@ -490,3 +493,4 @@ export const savePassenger = async (passengerData: Partial<Passenger>, id?: stri
 };
 
 export const saveCommissionSettings = (settings: CommissionSettings): Promise<string> => saveDocument<CommissionSettings>('settings', settings, 'commissions');
+
