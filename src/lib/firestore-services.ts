@@ -300,57 +300,62 @@ export async function registerPassenger(formData: { username: string; firstName:
         throw new Error("Este DNI ya está registrado con una cuenta de correo electrónico. Por favor, inicia sesión.");
     }
     
-    const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
-    const authUser = userCredential.user;
+    const q = query(collection(db, "passengers"), where("dni", "==", formData.dni));
+    const querySnapshot = await getDocs(q);
+    const existingPassengerDoc = querySnapshot.docs.find(doc => !doc.data().email);
 
+    let authUser: FirebaseAuthUser;
+    let passengerId: string;
+    
+    if (existingPassengerDoc) {
+        // "Claim" existing profile
+        const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
+        authUser = userCredential.user;
+        
+        // This is a temporary ID, we will replace it.
+        const tempId = existingPassengerDoc.id;
+        passengerId = authUser.uid;
+
+        // Create a new document with the correct UID and merge data
+        const finalData = {
+            ...existingPassengerDoc.data(),
+            id: passengerId,
+            fullName: `${formData.firstName} ${formData.lastName}`.trim(),
+            firstName: formData.firstName,
+            lastName: formData.lastName,
+            username: formData.username,
+            email: formData.email,
+        };
+        
+        const batch = writeBatch(db);
+        const newDocRef = doc(db, "passengers", passengerId);
+        batch.set(newDocRef, finalData);
+        batch.delete(doc(db, "passengers", tempId)); // Delete the old temp doc
+        await batch.commit();
+
+    } else {
+        // Create new user and profile from scratch
+        const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
+        authUser = userCredential.user;
+        passengerId = authUser.uid;
+
+        await saveDocument('passengers', {
+            id: passengerId,
+            fullName: `${formData.firstName} ${formData.lastName}`.trim(),
+            firstName: formData.firstName,
+            lastName: formData.lastName,
+            dni: formData.dni,
+            email: formData.email,
+            username: formData.username,
+            family: `Familia ${formData.lastName}`.trim(),
+        }, passengerId);
+    }
+    
     const actionCodeSettings = {
         url: `${window.location.origin}/auth/action`,
         handleCodeInApp: true,
     };
     await sendEmailVerification(authUser, actionCodeSettings);
-
-    const fullName = `${formData.firstName} ${formData.lastName}`.trim();
-    
-    const q = query(collection(db, "passengers"), where("dni", "==", formData.dni));
-    const querySnapshot = await getDocs(q);
-    
-    const batch = writeBatch(db);
-    const newPassengerDocRef = doc(db, "passengers", authUser.uid);
-
-    let finalPassengerData: Partial<Passenger> = {
-        id: authUser.uid,
-        username: formData.username,
-        fullName: fullName,
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        email: formData.email,
-        dni: formData.dni,
-    };
-
-    if (!querySnapshot.empty) {
-        // An un-claimed profile exists. Merge data and delete the old one.
-        const existingDoc = querySnapshot.docs.find(d => !d.data().email);
-        if (existingDoc) {
-            const existingData = existingDoc.data() as Passenger;
-            // Merge existing data, but registration data takes priority
-            finalPassengerData = {
-                ...existingData,
-                ...finalPassengerData,
-                family: existingData.family || `Familia ${formData.lastName}`.trim(),
-            };
-            // Delete the old temporary document
-            batch.delete(existingDoc.ref);
-        }
-    }
-    
-    // Ensure family is set if it wasn't merged
-    if (!finalPassengerData.family) {
-        finalPassengerData.family = `Familia ${formData.lastName}`.trim();
-    }
-
-
-    batch.set(newPassengerDocRef, finalPassengerData, { merge: true });
-    await batch.commit();
 }
 
 
@@ -493,4 +498,3 @@ export const savePassenger = async (passengerData: Partial<Passenger>, id?: stri
 };
 
 export const saveCommissionSettings = (settings: CommissionSettings): Promise<string> => saveDocument<CommissionSettings>('settings', settings, 'commissions');
-

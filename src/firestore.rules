@@ -30,6 +30,11 @@ service cloud.firestore {
                  targetUserDoc.data.family != null &&
                  requestingUserDoc.data.family == targetUserDoc.data.family;
         }
+        
+        function canClaimProfile() {
+            // Allow update only if the user is creating an account for an existing DNI without an email.
+            return resource.data.email == null || resource.data.email == '';
+        }
 
         // --- Global Read Rules ---
         match /tours/{tourId} {
@@ -65,10 +70,10 @@ service cloud.firestore {
         // --- PASAJEROS (Clientes / Invitados) ---
         match /passengers/{passengerId} {
             allow read: if true;
-            // Allow creation for anyone (registration, adding family)
-            // Allow update for anyone. Client-side logic secures "claiming" a profile.
-            // Post-login updates are implicitly secured by isOwner.
-            allow create, update: if true;
+            allow create: if true;
+            // Allow updates by owner, admin, or employee.
+            // Also allow updates if a user is "claiming" a profile that doesn't have an email yet.
+            allow update: if isOwner(passengerId) || isSignedInAsRole('admin') || isSignedInAsRole('employee') || canClaimProfile();
             allow delete: if isSignedInAsRole('admin');
         }
 
