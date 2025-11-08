@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useState, useEffect, Suspense } from "react";
@@ -185,9 +186,9 @@ function PassengerRegisterForm({ onExistingUser, setActiveTab, setRegistrationSu
             return;
         }
         
-        const uniqueDni = await isDniUnique(formData.dni);
-        if (!uniqueDni) {
-            setDniError('Este DNI ya está registrado con una cuenta. Por favor, inicia sesión.');
+        const isDniAvailable = await isDniUnique(formData.dni);
+        if (!isDniAvailable) {
+            setDniError('Este DNI ya está registrado con una cuenta de correo electrónico. Por favor, inicia sesión.');
             setIsLoading(false);
             return;
         }
@@ -419,3 +420,4 @@ export default function AuthPage() {
         </Suspense>
     )
 }
+
