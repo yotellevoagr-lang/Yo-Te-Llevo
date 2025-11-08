@@ -112,7 +112,7 @@ export default function PassengersPage() {
         await savePassenger(passengerData, passengerData.id);
         await fetchData();
         window.dispatchEvent(new Event('storage'));
-        toast({ title: passenger ? "Pasajero actualizado" : "Pasajero creado", description: "Los datos se guardaron correctamente." });
+        toast({ title: selectedPassenger ? "Pasajero actualizado" : "Pasajero creado", description: "Los datos se guardaron correctamente." });
         setIsFormOpen(false);
     } catch (error) {
         toast({ title: "Error", description: "No se pudieron guardar los datos del pasajero.", variant: "destructive"});
