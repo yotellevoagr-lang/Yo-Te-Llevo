@@ -202,9 +202,9 @@ export interface Installment {
 export interface Passenger {
   id: string;
   username?: string;
-  firstName: string;
-  lastName: string;
-  fullName: string; // This will be derived: `${firstName} ${lastName}`
+  firstName?: string;
+  lastName?: string;
+  fullName: string;
   email?: string;
   password?: string;
   dni: string;

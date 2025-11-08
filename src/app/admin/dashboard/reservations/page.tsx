@@ -1,4 +1,5 @@
 
+
 "use client"
 
 import { useState, useMemo, useEffect } from "react"
@@ -47,7 +48,7 @@ import {
 import { SearchableSelect } from "@/components/searchable-select"
 import { SeatSelector } from "@/components/booking/seat-selector"
 import { MoreHorizontal, CheckCircle, Clock, Trash2, Armchair, Bus, Plane, Ship, Edit, UserPlus, CreditCard, Users, Info, Calendar, MapPin, DollarSign, Home, Tag, ShieldCheck, Utensils, BedDouble, PercentSquare, Check, ChevronsUpDown, BadgePercent, Search } from "lucide-react"
-import type { Tour, Reservation, LayoutCategory, LayoutItemType, Seller, PaymentStatus, Passenger, BoardingPoint, Pension, RoomType, TransportUnit, PaymentMethod, Installment, Transaction, CustomLayoutConfig } from "@/lib/types"
+import type { Tour, Reservation, LayoutCategory, LayoutItemType, Seller, PaymentStatus, Passenger, BoardingPoint, Pension, RoomType, TransportUnit, PaymentMethod, Installment, Transaction, CustomLayoutConfig, PricingTier } from "@/lib/types"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { AddReservationForm } from "@/components/admin/add-reservation-form"
@@ -72,6 +73,11 @@ type EditReservationState = {
 type AddReservationState = {
     isOpen: boolean;
     tour: Tour | null;
+}
+
+type AssignTierState = {
+    isOpen: boolean;
+    reservationId: string | null;
 }
 
 const calculateAge = (dob?: any): number | string => {
@@ -114,6 +120,92 @@ const getPaymentColor = (finalPrice: number, balance: number): string => {
     return 'bg-red-500';
 };
 
+function AssignTierDialog({ 
+    isOpen, 
+    onOpenChange,
+    reservation,
+    tour,
+    passengers,
+    onPassengerTierChange,
+}: { 
+    isOpen: boolean, 
+    onOpenChange: (open: boolean) => void,
+    reservation: Reservation | null,
+    tour: Tour | null,
+    passengers: Passenger[],
+    onPassengerTierChange: (passengerIds: string[], tierId: string) => void
+}) {
+    const [selectedPassengerIds, setSelectedPassengerIds] = useState<string[]>([]);
+    const [selectedTierId, setSelectedTierId] = useState<string>('');
+
+    if (!reservation || !tour) return null;
+
+    const reservationPassengers = passengers.filter(p => reservation.passengerIds.includes(p.id));
+    const pricingTiers = useMemo(() => [{ id: 'adult', name: 'Adulto (Base)', price: tour.price }, ...(tour.pricingTiers || [])], [tour]);
+
+    const handleApply = () => {
+        if (selectedPassengerIds.length > 0 && selectedTierId) {
+            onPassengerTierChange(selectedPassengerIds, selectedTierId);
+            setSelectedPassengerIds([]);
+            setSelectedTierId('');
+        }
+    }
+
+    return (
+        <Dialog open={isOpen} onOpenChange={onOpenChange}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Asignar Tarifa Diferencial</DialogTitle>
+                    <DialogDescription>
+                        Selecciona uno o más pasajeros y luego elige la tarifa que deseas aplicarles.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="py-4 space-y-4">
+                    <div className="space-y-2 p-3 border rounded-md">
+                        <Label>1. Selecciona Pasajeros</Label>
+                        {reservationPassengers.map(p => {
+                            const currentTier = pricingTiers.find(t => t.id === p.tierId);
+                            return (
+                                <div key={p.id} className="flex items-center space-x-2">
+                                    <Checkbox
+                                        id={`tier-pax-${p.id}`}
+                                        checked={selectedPassengerIds.includes(p.id)}
+                                        onCheckedChange={checked => {
+                                            setSelectedPassengerIds(prev => checked ? [...prev, p.id] : prev.filter(id => id !== p.id))
+                                        }}
+                                    />
+                                    <Label htmlFor={`tier-pax-${p.id}`} className="flex-1 font-normal">
+                                        {p.fullName} <span className="text-muted-foreground text-xs">({currentTier?.name || 'Adulto'})</span>
+                                    </Label>
+                                </div>
+                            )
+                        })}
+                    </div>
+                    <div className="space-y-2">
+                        <Label>2. Selecciona la Tarifa a Aplicar</Label>
+                        <Select value={selectedTierId} onValueChange={setSelectedTierId}>
+                            <SelectTrigger><SelectValue placeholder="Seleccionar tarifa..."/></SelectTrigger>
+                            <SelectContent>
+                                {pricingTiers.map(tier => (
+                                    <SelectItem key={tier.id} value={tier.id}>
+                                        {tier.name} (${tier.price.toLocaleString()})
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+                    <Button onClick={handleApply} disabled={selectedPassengerIds.length === 0 || !selectedTierId}>
+                        Aplicar Tarifa
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
 export default function ReservationsPage() {
   const [reservations, setReservations] = useState<Reservation[]>([])
   const [tours, setTours] = useState<Tour[]>([]);
@@ -127,6 +219,7 @@ export default function ReservationsPage() {
   const [activeUnit, setActiveUnit] = useState<ActiveTransportUnitInfo>(null);
   const [editingReservation, setEditingReservation] = useState<EditReservationState>({ isOpen: false, reservation: null, originalReservation: null });
   const [addingReservation, setAddingReservation] = useState<AddReservationState>({ isOpen: false, tour: null });
+  const [assignTierState, setAssignTierState] = useState<AssignTierState>({ isOpen: false, reservationId: null });
   const [searchTerm, setSearchTerm] = useState("");
   const { toast } = useToast();
 
@@ -414,6 +507,22 @@ export default function ReservationsPage() {
     });
   };
 
+  const handlePassengerTierChange = async (passengerIds: string[], tierId: string) => {
+    const batch = passengerIds.map(pId => ({
+        id: pId,
+        tierId: tierId
+    }));
+    await Promise.all(batch.map(p => savePassenger(p, p.id)));
+    
+    setPassengers(prev => prev.map(p => {
+        if (passengerIds.includes(p.id)) {
+            return { ...p, tierId };
+        }
+        return p;
+    }));
+    toast({ title: "Tarifas actualizadas." });
+  }
+
   const categoryIcons: Record<LayoutCategory, React.ElementType> = {
     vehicles: Bus,
     airplanes: Plane,
@@ -430,9 +539,16 @@ export default function ReservationsPage() {
 
     const installments = reservation.installments || { count: 1, details: [{ amount: reservation.finalPrice, isPaid: false }] };
     const paidAmount = installments.details.reduce((sum, inst) => inst.isPaid ? sum + inst.amount : sum, 0);
-    const balance = reservation.finalPrice - paidAmount;
-    const unitList = getExpandedTransportList(tour);
+    
     const reservationPassengers = passengers.filter(p => (reservation.passengerIds || []).includes(p.id));
+    
+    const calculatedPrice = reservationPassengers.reduce((total, p) => {
+        const tier = tour.pricingTiers?.find(t => t.id === p.tierId);
+        return total + (tier?.price ?? tour.price);
+    }, 0);
+    const balance = calculatedPrice - paidAmount;
+
+    const unitList = getExpandedTransportList(tour);
 
     const sellerOptions = sellers.map(s => ({
         value: s.id,
@@ -440,20 +556,22 @@ export default function ReservationsPage() {
         keywords: [s.dni]
     }));
 
-    const hasLiberadoTier = tour.pricingTiers?.some(tier => tier.name.toLowerCase().includes('liberado'));
-
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* Columna Izquierda: Edición de Datos */}
         <div className="space-y-4">
             <Card>
-                <CardHeader>
+                <CardHeader className="flex-row items-center justify-between">
                     <CardTitle className="flex items-center gap-2"><Users className="w-5 h-5"/> Pasajeros en la Reserva</CardTitle>
+                    <Button variant="outline" size="sm" onClick={() => setAssignTierState({isOpen: true, reservationId: reservation.id})}>
+                        Asignar Tarifas
+                    </Button>
                 </CardHeader>
                 <CardContent className="space-y-3 text-sm">
-                    {reservationPassengers.map(p => (
-                        <InfoRow key={p.id} label={p.fullName} value={`${p.dni} (${calculateAge(p.dob)} años)`} />
-                    ))}
+                    {reservationPassengers.map(p => {
+                        const tier = tour.pricingTiers?.find(t => t.id === p.tierId);
+                        return <InfoRow key={p.id} label={p.fullName} value={`${p.dni} (${tier?.name || 'Adulto'})`} />
+                    })}
                 </CardContent>
             </Card>
            <Card>
@@ -474,7 +592,7 @@ export default function ReservationsPage() {
             <CardHeader><CardTitle className="flex items-center gap-2"><CreditCard className="w-5 h-5"/> Datos de Pago</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="totalPrice">Precio Final</Label>
+                <Label htmlFor="totalPrice">Precio Final (calculado: ${calculatedPrice.toLocaleString('es-AR')})</Label>
                 <Input
                   id="totalPrice"
                   type="number"
@@ -604,31 +722,6 @@ export default function ReservationsPage() {
                         ))}
                     </div>
                 </div>
-                 {hasLiberadoTier && (
-                    <div className="space-y-3 pt-2">
-                        <Label>Pasajeros Liberados</Label>
-                        <div className="space-y-2 p-2 border rounded-md max-h-40 overflow-y-auto">
-                            {reservationPassengers.map(p => (
-                                <div key={p.id} className="flex items-center space-x-2">
-                                    <Checkbox
-                                        id={`release-${p.id}`}
-                                        checked={(reservation.releasedPassengerIds || []).includes(p.id)}
-                                        onCheckedChange={(checked) => {
-                                            setEditingReservation(prev => {
-                                                const currentReleased = prev.reservation?.releasedPassengerIds || [];
-                                                const newReleased = checked 
-                                                    ? [...currentReleased, p.id]
-                                                    : currentReleased.filter(id => id !== p.id);
-                                                return {...prev, reservation: {...prev.reservation!, releasedPassengerIds: newReleased}}
-                                            });
-                                        }}
-                                    />
-                                    <Label htmlFor={`release-${p.id}`} className="font-normal">{p.fullName}</Label>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
               </CardContent>
           </Card>
         </div>
@@ -708,6 +801,15 @@ export default function ReservationsPage() {
             roomTypes={roomTypes}
         />
     )}
+
+    <AssignTierDialog 
+        isOpen={assignTierState.isOpen}
+        onOpenChange={(open) => setAssignTierState({isOpen: open, reservationId: open ? assignTierState.reservationId : null})}
+        reservation={reservations.find(r => r.id === assignTierState.reservationId) || null}
+        tour={tours.find(t => t.id === reservations.find(r => r.id === assignTierState.reservationId)?.tripId) || null}
+        passengers={passengers}
+        onPassengerTierChange={handlePassengerTierChange}
+    />
 
     <Dialog open={editingReservation.isOpen} onOpenChange={(open) => setEditingReservation({ isOpen: open, reservation: open ? editingReservation.reservation : null, originalReservation: open ? editingReservation.originalReservation : null })}>
       <DialogContent onOpenAutoFocus={(e) => e.preventDefault()} className="max-w-4xl flex flex-col max-h-[90vh]">
@@ -796,9 +898,15 @@ export default function ReservationsPage() {
                                {tripReservations.length > 0 ? (
                                 <div className="space-y-2 mt-4">
                                 {tripReservations.map((res, index) => {
+                                    const reservationPassengers = passengers.filter(p => res.passengerIds.includes(p.id));
+                                    const calculatedPrice = reservationPassengers.reduce((total, p) => {
+                                        const tier = tour.pricingTiers?.find(t => t.id === p.tierId);
+                                        return total + (tier?.price ?? tour.price);
+                                    }, 0);
+                                    
                                     const paidAmount = res.installments?.details.reduce((sum, inst) => inst.isPaid ? sum + inst.amount : sum, 0) || 0;
-                                    const balance = (res.finalPrice || 0) - paidAmount;
-                                    const paymentColor = getPaymentColor(res.finalPrice || 0, balance);
+                                    const balance = calculatedPrice - paidAmount;
+                                    const paymentColor = getPaymentColor(calculatedPrice, balance);
                                     
                                     return (
                                         <Accordion key={`${res.id}-${index}`} type="single" collapsible>
@@ -853,7 +961,7 @@ export default function ReservationsPage() {
                                                               </CardTitle>
                                                           </CardHeader>
                                                           <CardContent className="space-y-3 text-sm">
-                                                              <InfoRow label="Monto Total" value={`$${(res.finalPrice || 0).toLocaleString('es-AR')}`} />
+                                                              <InfoRow label="Monto Total" value={`$${(calculatedPrice).toLocaleString('es-AR')}`} />
                                                               <InfoRow label="Pagado" value={`$${(paidAmount).toLocaleString('es-AR')}`} />
                                                               <InfoRow label="Saldo" value={`$${(balance).toLocaleString('es-AR')}`} />
                                                               <Separator className="my-2" />
