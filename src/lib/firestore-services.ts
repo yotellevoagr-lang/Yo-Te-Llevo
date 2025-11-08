@@ -419,7 +419,6 @@ export const saveReservation = (reservation: Partial<Reservation>, id?: string):
 export const savePassenger = async (passengerData: Partial<Passenger>, id?: string, collectionName: 'passengers' | 'employees' = 'passengers'): Promise<string> => {
     let finalId = id || passengerData.id;
     
-    // Ensure DOB is a valid Date object or null before saving
     let dobValue: Date | null = null;
     if (passengerData.dob) {
         const dob = passengerData.dob as any;
@@ -437,12 +436,7 @@ export const savePassenger = async (passengerData: Partial<Passenger>, id?: stri
     
     const dataToSave = { ...passengerData, dob: dobValue };
 
-    if (!finalId) {
-       finalId = (await addDoc(collection(db, collectionName), dataToSave)).id;
-    } else {
-        await saveDocument(collectionName, dataToSave as Passenger, finalId);
-    }
-    return finalId;
+    return saveDocument(collectionName, dataToSave, finalId);
 };
 
 export const saveCommissionSettings = (settings: CommissionSettings): Promise<string> => saveDocument<CommissionSettings>('settings', settings, 'commissions');
