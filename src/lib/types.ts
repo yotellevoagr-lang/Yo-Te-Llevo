@@ -28,6 +28,8 @@ export interface PricingTier {
   name: string;
   price: number;
   currency?: 'ARS' | 'USD';
+  minAge?: number;
+  maxAge?: number;
 }
 
 export interface ExtraCost {

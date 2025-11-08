@@ -1,4 +1,5 @@
 
+
 "use client"
 
 import { useEffect, useState, useMemo } from "react"
@@ -221,8 +222,8 @@ export function TripForm({ isOpen, onOpenChange, onSave, tour, boardingPoints }:
       setFormData(prev => ({...prev, pricingTiers: [...(prev.pricingTiers || []), { id: `T-${Math.random().toString(36).substring(2, 9)}`, name: '', price: 0, currency: formData.currency || 'ARS' }]}))
   }
 
-  const handleTierChange = (id: string, field: 'name' | 'price' | 'currency', value: string | number) => {
-      const processedValue = field === 'price' && value === '' ? '' : value;
+  const handleTierChange = (id: string, field: keyof PricingTier, value: string | number) => {
+      const processedValue = (field === 'price' || field === 'minAge' || field === 'maxAge') && value === '' ? '' : value;
       setFormData(prev => ({...prev, pricingTiers: (prev.pricingTiers || []).map(tier => 
           tier.id === id ? { ...tier, [field]: processedValue } : tier
       )}));
@@ -380,7 +381,13 @@ export function TripForm({ isOpen, onOpenChange, onSave, tour, boardingPoints }:
                 transport: (formData.costs?.transport || []).map(c => ({ ...c, amount: Number(c.amount) || 0, currency: c.currency || 'ARS' })),
                 extras: (formData.costs?.extras || []).map(c => ({ ...c, amount: Number(c.amount) || 0, currency: c.currency || 'ARS' })),
             },
-            pricingTiers: (formData.pricingTiers || []).map(t => ({ ...t, price: Number(t.price) || 0, currency: t.currency || 'ARS' })).filter(t => t.name),
+            pricingTiers: (formData.pricingTiers || []).map(t => ({ 
+              ...t, 
+              price: Number(t.price) || 0, 
+              currency: t.currency || 'ARS',
+              minAge: t.minAge ? Number(t.minAge) : undefined,
+              maxAge: t.maxAge ? Number(t.maxAge) : undefined
+            })).filter(t => t.name),
             transportUnits,
             gallery: combinedGallery,
         };
@@ -652,26 +659,22 @@ export function TripForm({ isOpen, onOpenChange, onSave, tour, boardingPoints }:
                                   <Label className="text-lg font-medium">Tarifas por Pasajero</Label>
                                   <div className="space-y-3">
                                     {(formData.pricingTiers || []).map(tier => (
-                                      <div key={tier.id} className="flex items-center gap-2">
-                                        <Input 
-                                          placeholder="Nombre (Ej: Niño)" 
-                                          value={tier.name}
-                                          onChange={e => handleTierChange(tier.id, 'name', e.target.value)}
-                                        />
-                                        <Input 
-                                          type="number" 
-                                          placeholder="Precio" 
-                                          value={tier.price || ''}
-                                          onChange={e => handleTierChange(tier.id, 'price', e.target.value)}
-                                          className="w-28"
-                                        />
-                                         <Select value={tier.currency || formData.currency} onValueChange={(value) => handleTierChange(tier.id, 'currency', value)}>
-                                            <SelectTrigger className="w-[100px]"><SelectValue /></SelectTrigger>
-                                            <SelectContent><SelectItem value="ARS">ARS</SelectItem><SelectItem value="USD">USD</SelectItem></SelectContent>
-                                        </Select>
-                                        <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10" onClick={() => handleRemoveTier(tier.id)}>
-                                          <Trash2 className="w-4 h-4"/>
-                                        </Button>
+                                      <div key={tier.id} className="grid grid-cols-1 sm:grid-cols-5 items-center gap-2">
+                                        <Input className="sm:col-span-2" placeholder="Nombre (Ej: Niño)" value={tier.name} onChange={e => handleTierChange(tier.id, 'name', e.target.value)} />
+                                        <Input type="number" placeholder="Precio" value={tier.price || ''} onChange={e => handleTierChange(tier.id, 'price', e.target.value)} />
+                                        <div className="flex gap-1">
+                                          <Input type="number" placeholder="Edad Mín." value={tier.minAge ?? ''} onChange={e => handleTierChange(tier.id, 'minAge', e.target.value)} />
+                                          <Input type="number" placeholder="Edad Máx." value={tier.maxAge ?? ''} onChange={e => handleTierChange(tier.id, 'maxAge', e.target.value)} />
+                                        </div>
+                                        <div className="flex items-center gap-1">
+                                            <Select value={tier.currency || formData.currency} onValueChange={(value) => handleTierChange(tier.id, 'currency', value)}>
+                                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                                <SelectContent><SelectItem value="ARS">ARS</SelectItem><SelectItem value="USD">USD</SelectItem></SelectContent>
+                                            </Select>
+                                            <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10" onClick={() => handleRemoveTier(tier.id)}>
+                                                <Trash2 className="w-4 h-4"/>
+                                            </Button>
+                                        </div>
                                       </div>
                                     ))}
                                   </div>
