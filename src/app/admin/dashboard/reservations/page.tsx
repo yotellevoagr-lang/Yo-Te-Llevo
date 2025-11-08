@@ -147,7 +147,7 @@ function AssignTierDialog({
         if (!tour) return [];
         const existingTiers = tour.pricingTiers || [];
         const hasExplicitAdultTier = existingTiers.some(tier => tier.name.toLowerCase() === 'adulto');
-
+        
         if (hasExplicitAdultTier) {
             return existingTiers;
         }
@@ -182,6 +182,7 @@ function AssignTierDialog({
                         <Label>1. Selecciona Pasajeros</Label>
                         {reservationPassengers.map(p => {
                             const currentTier = pricingTiers.find(t => t.id === p.tierId);
+                            const age = calculateAge(p.dob);
                             return (
                                 <div key={p.id} className="flex items-center space-x-2">
                                     <Checkbox
@@ -192,7 +193,7 @@ function AssignTierDialog({
                                         }}
                                     />
                                     <Label htmlFor={`tier-pax-${p.id}`} className="flex-1 font-normal">
-                                        {p.fullName} <span className="text-muted-foreground text-xs">({currentTier?.name || 'Adulto'})</span>
+                                        {p.fullName} <span className="text-muted-foreground text-xs">({currentTier?.name || 'Adulto'} - Edad: {age})</span>
                                     </Label>
                                 </div>
                             )
@@ -1053,5 +1054,6 @@ const InfoRow = ({ label, value, icon }: { label: string, value: string | number
     </div>
 )
     
+
 
 
