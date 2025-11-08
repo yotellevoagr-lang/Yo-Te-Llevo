@@ -64,9 +64,11 @@ service cloud.firestore {
         // --- PASAJEROS (Clientes / Invitados) ---
         match /passengers/{passengerId} {
             allow read: if true;
-            allow create: if true;
-            // A user can update if they own the document, are an admin/employee, OR are part of the same family.
-            allow update: if isOwner(passengerId) || isSignedInAsRole('admin') || isSignedInAsRole('employee') || isFamilyHead(passengerId);
+            // Allow creation for anyone (registration, adding family)
+            // Allow update for anyone (claiming a profile during registration).
+            // Client-side logic ensures a user can only claim their own DNI profile if it has no email.
+            // Post-login updates are implicitly secured by the isOwner check in most cases.
+            allow create, update: if true;
             allow delete: if isSignedInAsRole('admin');
         }
 

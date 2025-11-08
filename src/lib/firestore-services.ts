@@ -311,32 +311,45 @@ export async function registerPassenger(formData: { username: string; firstName:
     const fullName = `${formData.firstName} ${formData.lastName}`.trim();
     const family = `Familia ${formData.lastName}`.trim();
     
-    // Check if a passenger with this DNI but no email already exists
     const q = query(collection(db, "passengers"), where("dni", "==", formData.dni));
     const querySnapshot = await getDocs(q);
     
-    let existingPassengerDoc;
+    let existingPassengerData: Partial<Passenger> = {};
+    let existingPassengerDocToDelete: string | null = null;
+    
     if (!querySnapshot.empty) {
-        // Find the first document that doesn't have an email. It's an edge case, but safe.
-        existingPassengerDoc = querySnapshot.docs.find(doc => !doc.data().email);
+        const existingDoc = querySnapshot.docs.find(doc => !doc.data().email);
+        if (existingDoc) {
+            existingPassengerData = existingDoc.data();
+            existingPassengerDocToDelete = existingDoc.id;
+        }
     }
     
-    const passengerDocRef = existingPassengerDoc ? existingPassengerDoc.ref : doc(db, "passengers", authUser.uid);
+    const passengerDocRef = doc(db, "passengers", authUser.uid);
     
-    const newPassengerData: Partial<Passenger> = {
+    const finalPassengerData: Passenger = {
+        ...existingPassengerData,
+        id: authUser.uid,
         username: formData.username,
         fullName: fullName,
         firstName: formData.firstName,
         lastName: formData.lastName,
         email: formData.email,
         dni: formData.dni,
-        family: family,
-        nationality: 'Argentina',
-        tierId: 'adult'
+        family: existingPassengerData.family || family,
+        nationality: existingPassengerData.nationality || 'Argentina',
+        tierId: existingPassengerData.tierId || 'adult',
     };
     
-    await setDoc(passengerDocRef, newPassengerData, { merge: true });
+    const batch = writeBatch(db);
+    batch.set(passengerDocRef, finalPassengerData);
+    if (existingPassengerDocToDelete) {
+        const docToDeleteRef = doc(db, "passengers", existingPassengerDocToDelete);
+        batch.delete(docToDeleteRef);
+    }
+    await batch.commit();
 }
+
 
 export const validatePassword = (pass: string) => {
     if (pass.length < 8) return "Debe tener al menos 8 caracteres.";
@@ -467,6 +480,11 @@ export const savePassenger = async (passengerData: Partial<Passenger>, id?: stri
     }
     
     const dataToSave = { ...passengerData, dob: dobValue };
+
+    if (!finalId) {
+        const docRef = await addDoc(collection(db, collectionName), dataToSave);
+        return docRef.id;
+    }
 
     return saveDocument(collectionName, dataToSave, finalId);
 };
