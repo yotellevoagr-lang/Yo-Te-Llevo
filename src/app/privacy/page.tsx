@@ -27,39 +27,68 @@ export default function PrivacyPolicyPage() {
                   Política de Privacidad
                 </CardTitle>
                  <CardDescription>
-                  En YO TE LLEVO, tu privacidad es nuestra prioridad.
+                  Última actualización: {new Date().toLocaleDateString('es-AR', { year: 'numeric', month: 'long', day: 'numeric' })}
                 </CardDescription>
               </CardHeader>
               <CardContent className="prose prose-sm max-w-none text-muted-foreground space-y-4">
                 <p>
-                  Esta Política de Privacidad describe cómo se recopila, utiliza y comparte tu información personal cuando visitas o realizas una compra en nuestro sitio web.
+                  En YO TE LLEVO ("La Agencia", "Nosotros"), estamos comprometidos con la protección y el respeto de su privacidad. Esta Política de Privacidad explica cómo recopilamos, utilizamos, almacenamos y protegemos su información personal cuando utiliza nuestro sitio web ("Sitio Web") y nuestros servicios.
                 </p>
                 
-                <h3 className="font-semibold text-foreground">1. Información Personal que Recopilamos</h3>
+                <h3 className="font-semibold text-foreground">1. Información que Recopilamos</h3>
                 <p>
-                  Cuando te registras, realizas una reserva o te pones en contacto con nosotros, recopilamos cierta información tuya, incluyendo tu nombre, DNI, fecha de nacimiento, información de contacto (como email y número de teléfono) y, en algunos casos, detalles de pago.
-                </p>
-
-                <h3 className="font-semibold text-foreground">2. Cómo Usamos tu Información Personal</h3>
-                <p>
-                  Utilizamos la información que recopilamos para:
+                  Recopilamos información para poder brindarle el mejor servicio posible. Esto incluye:
                 </p>
                 <ul>
-                    <li>Procesar y gestionar tus reservas de viaje.</li>
-                    <li>Comunicarnos contigo acerca de tu reserva y otros servicios.</li>
-                    <li>Cumplir con los requisitos legales y de seguridad de los proveedores de transporte y alojamiento.</li>
-                    <li>Mejorar y optimizar nuestro sitio web y servicios.</li>
-                    <li>Enviarte información promocional, si has dado tu consentimiento para recibirla.</li>
+                    <li><strong>Información proporcionada por usted:</strong> Cuando se registra, solicita una reserva o se comunica con nosotros, nos proporciona datos como su nombre completo, número de DNI, fecha de nacimiento, correo electrónico, número de teléfono y, opcionalmente, su dirección.</li>
+                    <li><strong>Información de la reserva:</strong> Detalles sobre los viajes que reserva, incluyendo destinos, fechas, acompañantes y preferencias de servicio.</li>
+                    <li><strong>Información técnica y de uso:</strong> Recopilamos automáticamente información sobre cómo interactúa con nuestro Sitio Web, como su dirección IP, tipo de navegador, páginas visitadas y la duración de su visita.</li>
+                    <li><strong>Cookies:</strong> Utilizamos cookies para mejorar su experiencia en el sitio, recordar sus preferencias y entender cómo se utiliza nuestro servicio. Para más detalles, consulte nuestra sección sobre cookies.</li>
                 </ul>
 
-                <h3 className="font-semibold text-foreground">3. Compartir tu Información Personal</h3>
+                <h3 className="font-semibold text-foreground">2. Cómo Utilizamos su Información</h3>
                 <p>
-                  No compartimos tu Información Personal con terceros, excepto para los fines de cumplir con tu reserva (por ejemplo, con aerolíneas, hoteles o seguros de viaje) o para cumplir con las leyes y regulaciones aplicables.
+                  Su información personal se utiliza para los siguientes propósitos:
                 </p>
-                 
-                <h3 className="font-semibold text-foreground">4. Tus Derechos</h3>
+                <ul>
+                    <li><strong>Provisión del servicio:</strong> Para procesar y gestionar sus reservas, emitir documentación de viaje y comunicarnos con usted acerca de los detalles de su viaje.</li>
+                    <li><strong>Comunicación:</strong> Para responder a sus consultas, enviarle confirmaciones, notificaciones importantes sobre sus viajes y, si lo autoriza, enviarle ofertas promocionales y novedades.</li>
+                    <li><strong>Cumplimiento Legal:</strong> Para cumplir con las obligaciones legales y los requisitos de seguridad exigidos por autoridades y proveedores de servicios (ej. listas de pasajeros para aerolíneas, hoteles, seguros, etc.).</li>
+                    <li><strong>Mejora del Servicio:</strong> Para analizar el uso de nuestro Sitio Web y servicios con el fin de mejorar la experiencia del usuario, optimizar nuestra oferta y desarrollar nuevos productos.</li>
+                    <li><strong>Seguridad:</strong> Para proteger la seguridad de su cuenta y prevenir fraudes.</li>
+                </ul>
+
+                <h3 className="font-semibold text-foreground">3. Cómo Compartimos su Información</h3>
                 <p>
-                  Tienes derecho a acceder a la información personal que tenemos sobre ti y a pedir que tu información personal sea corregida, actualizada o eliminada. Si deseas ejercer este derecho, por favor contáctanos.
+                  Su privacidad es fundamental. No vendemos ni alquilamos su información personal. Solo compartimos su información con terceros en las siguientes circunstancias:
+                </p>
+                 <ul>
+                    <li><strong>Proveedores de Servicios Turísticos:</strong> Compartimos la información necesaria (nombre, DNI, fecha de nacimiento) con hoteles, compañías de transporte, aseguradoras y otros operadores turísticos para poder efectuar su reserva.</li>
+                    <li><strong>Requisitos Legales:</strong> Si es requerido por ley, una orden judicial o una solicitud gubernamental, podremos divulgar su información.</li>
+                    <li><strong>Protección de Derechos:</strong> Podemos compartir información si creemos que es necesario para proteger nuestros derechos, nuestra propiedad o la seguridad de nuestros clientes o del público.</li>
+                </ul>
+                
+                <h3 className="font-semibold text-foreground">4. Seguridad y Almacenamiento de Datos</h3>
+                 <p>
+                  Tomamos medidas de seguridad técnicas y organizativas para proteger su información personal contra la pérdida, el uso indebido, el acceso no autorizado, la divulgación y la alteración. Utilizamos bases de datos seguras y cifrado para proteger la información sensible. Su información se almacena durante el tiempo que sea necesario para cumplir con los fines descritos en esta política y para cumplir con nuestras obligaciones legales.
+                </p>
+
+                <h3 className="font-semibold text-foreground">5. Sus Derechos de Protección de Datos</h3>
+                <p>
+                  De acuerdo con la Ley de Protección de Datos Personales N.º 25.326, usted tiene los siguientes derechos sobre su información:
+                </p>
+                <ul>
+                    <li><strong>Derecho de Acceso:</strong> Puede solicitar una copia de la información personal que tenemos sobre usted.</li>
+                    <li><strong>Derecho de Rectificación:</strong> Puede solicitar que corrijamos cualquier información que considere inexacta o incompleta.</li>
+                    <li><strong>Derecho de Supresión:</strong> Puede solicitar que eliminemos su información personal, sujeto a ciertas obligaciones legales de retención.</li>
+                </ul>
+                 <p>
+                  Para ejercer cualquiera de estos derechos, por favor, inicie sesión y vaya a la sección "Mi Perfil" o contáctenos a través de los datos proporcionados en nuestra página de contacto.
+                </p>
+                
+                <h3 className="font-semibold text-foreground">6. Cambios a esta Política de Privacidad</h3>
+                <p>
+                  Podemos actualizar esta política de privacidad periódicamente para reflejar cambios en nuestras prácticas o por otras razones operativas, legales o regulatorias. Le recomendamos que revise esta página con frecuencia para estar informado sobre cómo protegemos su información.
                 </p>
               </CardContent>
             </Card>
