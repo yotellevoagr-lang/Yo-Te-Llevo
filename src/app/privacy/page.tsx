@@ -43,7 +43,6 @@ export default function PrivacyPolicyPage() {
                     <li><strong>Información proporcionada por usted:</strong> Cuando se registra, solicita una reserva o se comunica con nosotros, nos proporciona datos como su nombre completo, número de DNI, fecha de nacimiento, correo electrónico, número de teléfono y, opcionalmente, su dirección.</li>
                     <li><strong>Información de la reserva:</strong> Detalles sobre los viajes que reserva, incluyendo destinos, fechas, acompañantes y preferencias de servicio.</li>
                     <li><strong>Información técnica y de uso:</strong> Recopilamos automáticamente información sobre cómo interactúa con nuestro Sitio Web, como su dirección IP, tipo de navegador, páginas visitadas y la duración de su visita.</li>
-                    <li><strong>Cookies:</strong> Utilizamos cookies para mejorar su experiencia en el sitio, recordar sus preferencias y entender cómo se utiliza nuestro servicio. Para más detalles, consulte nuestra sección sobre cookies.</li>
                 </ul>
 
                 <h3 className="font-semibold text-foreground">2. Cómo Utilizamos su Información</h3>
@@ -85,8 +84,27 @@ export default function PrivacyPolicyPage() {
                  <p>
                   Para ejercer cualquiera de estos derechos, por favor, inicie sesión y vaya a la sección "Mi Perfil" o contáctenos a través de los datos proporcionados en nuestra página de contacto.
                 </p>
+
+                <h3 className="font-semibold text-foreground">6. Uso de Cookies</h3>
+                <p>
+                    Nuestro Sitio Web utiliza cookies y tecnologías similares para mejorar su experiencia de navegación, personalizar el contenido, analizar el tráfico del sitio y recordar sus preferencias.
+                </p>
+                <h4>¿Qué son las Cookies?</h4>
+                <p>
+                    Las cookies son pequeños archivos de texto que los sitios web que visita colocan en su dispositivo. Son ampliamente utilizadas para que los sitios web funcionen, o funcionen de manera más eficiente, así como para proporcionar información a los propietarios del sitio.
+                </p>
+                <h4>¿Cómo utilizamos las Cookies?</h4>
+                <ul>
+                    <li><strong>Cookies Esenciales:</strong> Son estrictamente necesarias para proporcionarle los servicios disponibles a través de nuestro Sitio Web y para usar algunas de sus funciones, como el acceso a áreas seguras (inicio de sesión).</li>
+                    <li><strong>Cookies de Funcionalidad:</strong> Se utilizan para recordar las elecciones que hace en nuestro sitio, como su idioma de preferencia o la configuración del tema visual.</li>
+                    <li><strong>Cookies de Rendimiento y Análisis:</strong> Recopilan información sobre cómo los usuarios interactúan con nuestro sitio, qué páginas visitan con más frecuencia, etc. Esta información nos ayuda a mejorar el funcionamiento de nuestro sitio web.</li>
+                </ul>
+                 <h4>Cómo Gestionar las Cookies</h4>
+                <p>
+                    Usted tiene el derecho de decidir si acepta o rechaza las cookies. Puede ejercer sus preferencias de cookies configurando o modificando los controles de su navegador web. Si elige rechazar las cookies, es posible que algunas funcionalidades y características de nuestro sitio no funcionen correctamente.
+                </p>
                 
-                <h3 className="font-semibold text-foreground">6. Cambios a esta Política de Privacidad</h3>
+                <h3 className="font-semibold text-foreground">7. Cambios a esta Política de Privacidad</h3>
                 <p>
                   Podemos actualizar esta política de privacidad periódicamente para reflejar cambios en nuestras prácticas o por otras razones operativas, legales o regulatorias. Le recomendamos que revise esta página con frecuencia para estar informado sobre cómo protegemos su información.
                 </p>
