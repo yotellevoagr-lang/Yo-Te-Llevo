@@ -145,7 +145,14 @@ function AssignTierDialog({
 
     const pricingTiers = useMemo(() => {
         if (!tour) return [];
-        return [{ id: 'adult', name: 'Adulto (Base)', price: tour.price }, ...(tour.pricingTiers || [])];
+        const existingTiers = tour.pricingTiers || [];
+        const hasExplicitAdultTier = existingTiers.some(tier => tier.name.toLowerCase() === 'adulto');
+
+        if (hasExplicitAdultTier) {
+            return existingTiers;
+        }
+
+        return [{ id: 'adult', name: 'Adulto (Base)', price: tour.price, currency: tour.currency }, ...existingTiers];
     }, [tour]);
 
 
@@ -157,7 +164,9 @@ function AssignTierDialog({
         }
     }
 
-    if (!reservation || !tour) return null;
+    if (!reservation || !tour) {
+        return null;
+    }
 
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -1044,4 +1053,5 @@ const InfoRow = ({ label, value, icon }: { label: string, value: string | number
     </div>
 )
     
+
 
