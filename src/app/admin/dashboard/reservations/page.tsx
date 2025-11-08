@@ -138,10 +138,16 @@ function AssignTierDialog({
     const [selectedPassengerIds, setSelectedPassengerIds] = useState<string[]>([]);
     const [selectedTierId, setSelectedTierId] = useState<string>('');
 
-    if (!reservation || !tour) return null;
+    const reservationPassengers = useMemo(() => {
+        if (!reservation) return [];
+        return passengers.filter(p => reservation.passengerIds.includes(p.id));
+    }, [reservation, passengers]);
 
-    const reservationPassengers = passengers.filter(p => reservation.passengerIds.includes(p.id));
-    const pricingTiers = useMemo(() => [{ id: 'adult', name: 'Adulto (Base)', price: tour.price }, ...(tour.pricingTiers || [])], [tour]);
+    const pricingTiers = useMemo(() => {
+        if (!tour) return [];
+        return [{ id: 'adult', name: 'Adulto (Base)', price: tour.price }, ...(tour.pricingTiers || [])];
+    }, [tour]);
+
 
     const handleApply = () => {
         if (selectedPassengerIds.length > 0 && selectedTierId) {
@@ -150,6 +156,8 @@ function AssignTierDialog({
             setSelectedTierId('');
         }
     }
+
+    if (!reservation || !tour) return null;
 
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -1036,3 +1044,4 @@ const InfoRow = ({ label, value, icon }: { label: string, value: string | number
     </div>
 )
     
+
