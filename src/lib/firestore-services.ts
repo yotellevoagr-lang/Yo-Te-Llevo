@@ -305,21 +305,15 @@ export async function registerPassenger(formData: { username: string; firstName:
     const existingPassengerDoc = querySnapshot.docs.find(doc => !doc.data().email);
 
     let authUser: FirebaseAuthUser;
-    let passengerId: string;
+    
+    const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
+    authUser = userCredential.user;
     
     if (existingPassengerDoc) {
         // "Claim" existing profile
-        const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
-        authUser = userCredential.user;
-        
-        // This is a temporary ID, we will replace it.
-        const tempId = existingPassengerDoc.id;
-        passengerId = authUser.uid;
-
-        // Create a new document with the correct UID and merge data
         const finalData = {
             ...existingPassengerDoc.data(),
-            id: passengerId,
+            id: authUser.uid,
             fullName: `${formData.firstName} ${formData.lastName}`.trim(),
             firstName: formData.firstName,
             lastName: formData.lastName,
@@ -328,19 +322,15 @@ export async function registerPassenger(formData: { username: string; firstName:
         };
         
         const batch = writeBatch(db);
-        const newDocRef = doc(db, "passengers", passengerId);
+        const newDocRef = doc(db, "passengers", authUser.uid);
         batch.set(newDocRef, finalData);
-        batch.delete(doc(db, "passengers", tempId)); // Delete the old temp doc
+        batch.delete(doc(db, "passengers", existingPassengerDoc.id)); // Delete the old temp doc
         await batch.commit();
 
     } else {
         // Create new user and profile from scratch
-        const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
-        authUser = userCredential.user;
-        passengerId = authUser.uid;
-
         await saveDocument('passengers', {
-            id: passengerId,
+            id: authUser.uid,
             fullName: `${formData.firstName} ${formData.lastName}`.trim(),
             firstName: formData.firstName,
             lastName: formData.lastName,
@@ -348,7 +338,7 @@ export async function registerPassenger(formData: { username: string; firstName:
             email: formData.email,
             username: formData.username,
             family: `Familia ${formData.lastName}`.trim(),
-        }, passengerId);
+        }, authUser.uid);
     }
     
     const actionCodeSettings = {
