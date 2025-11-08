@@ -167,6 +167,8 @@ function PassengerRegisterForm({ onExistingUser, setActiveTab, setRegistrationSu
     const onRegister = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
+        setUsernameError('');
+        setDniError('');
 
         const uniqueUsername = await isUsernameUnique(formData.username);
         if (!uniqueUsername) {
@@ -185,7 +187,7 @@ function PassengerRegisterForm({ onExistingUser, setActiveTab, setRegistrationSu
         
         const uniqueDni = await isDniUnique(formData.dni);
         if (!uniqueDni) {
-            setDniError('Este DNI ya está registrado. Por favor, inicia sesión.');
+            setDniError('Este DNI ya está registrado con una cuenta. Por favor, inicia sesión.');
             setIsLoading(false);
             return;
         }

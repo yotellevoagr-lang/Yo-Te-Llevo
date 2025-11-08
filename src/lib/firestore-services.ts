@@ -98,13 +98,30 @@ export async function isUsernameUnique(username: string, currentUserId?: string)
     return isUniqueInPassengers && isUniqueInEmployees && isUniqueInAdmin;
 }
 
-export async function isDniUnique(dni: string, currentUserId?: string): Promise<boolean> {
-    if (!dni) return true; // Don't validate empty DNI, that's a form validation concern
-    const q = query(collection(db, "passengers"), where("dni", "==", dni));
+export async function isDniUnique(dni: string): Promise<boolean> {
+    if (!dni || dni.trim() === '') return true; // Let required validation handle empty.
+
+    const q = query(collection(db, 'passengers'), where('dni', '==', dni));
     const querySnapshot = await getDocs(q);
-    if (querySnapshot.empty) return true;
-    // If a document is found, it's only "unique" if it's the same user we are editing
-    return querySnapshot.docs.every(doc => doc.id === currentUserId);
+
+    if (querySnapshot.empty) {
+        // No passenger found with this DNI, so it's "unique" for registration.
+        return true;
+    }
+
+    // DNI exists. Now check if any of the found passengers have an email.
+    // If one has an email, an account already exists.
+    for (const doc of querySnapshot.docs) {
+        const passenger = doc.data() as Passenger;
+        if (passenger.email && passenger.email.trim() !== '') {
+            // An account with this DNI and an email already exists.
+            return false; 
+        }
+    }
+
+    // A passenger with this DNI exists, but none have an associated email.
+    // This means they were likely created by an admin. The user is allowed to "claim" this profile by registering.
+    return true;
 };
 
 
@@ -278,7 +295,9 @@ export async function registerPassenger(formData: { username: string; firstName:
     if (!isUnique) throw new Error("El nombre de usuario ya está en uso.");
     
     const dniIsUnique = await isDniUnique(formData.dni);
-    if (!dniIsUnique) throw new Error("Este DNI ya está registrado. Por favor, inicia sesión.");
+    if (!dniIsUnique) {
+        throw new Error("Este DNI ya está registrado con una cuenta de correo electrónico. Por favor, inicia sesión.");
+    }
     
     const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
     const authUser = userCredential.user;
@@ -291,8 +310,20 @@ export async function registerPassenger(formData: { username: string; firstName:
 
     const fullName = `${formData.firstName} ${formData.lastName}`.trim();
     const family = `Familia ${formData.lastName}`.trim();
-
-    const newPassenger: Omit<Passenger, 'id'> = {
+    
+    // Check if a passenger with this DNI but no email already exists
+    const q = query(collection(db, "passengers"), where("dni", "==", formData.dni));
+    const querySnapshot = await getDocs(q);
+    
+    let existingPassengerDoc;
+    if (!querySnapshot.empty) {
+        // Find the first document that doesn't have an email. It's an edge case, but safe.
+        existingPassengerDoc = querySnapshot.docs.find(doc => !doc.data().email);
+    }
+    
+    const passengerDocRef = existingPassengerDoc ? existingPassengerDoc.ref : doc(db, "passengers", authUser.uid);
+    
+    const newPassengerData: Partial<Passenger> = {
         username: formData.username,
         fullName: fullName,
         firstName: formData.firstName,
@@ -303,7 +334,8 @@ export async function registerPassenger(formData: { username: string; firstName:
         nationality: 'Argentina',
         tierId: 'adult'
     };
-    await setDoc(doc(db, "passengers", authUser.uid), newPassenger);
+    
+    await setDoc(passengerDocRef, newPassengerData, { merge: true });
 }
 
 export const validatePassword = (pass: string) => {
@@ -440,5 +472,3 @@ export const savePassenger = async (passengerData: Partial<Passenger>, id?: stri
 };
 
 export const saveCommissionSettings = (settings: CommissionSettings): Promise<string> => saveDocument<CommissionSettings>('settings', settings, 'commissions');
-
-    
