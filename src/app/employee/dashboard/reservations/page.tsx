@@ -559,9 +559,13 @@ export default function ReservationsPage() {
                                             <SelectItem value="Efectivo">Efectivo</SelectItem>
                                         </SelectContent>
                                     </Select>
-                                     {inst.paidAt && inst.paidAt instanceof Date && !isNaN(inst.paidAt.getTime()) && (
-                                        <span className="text-xs text-muted-foreground">{format(inst.paidAt, 'dd/MM/yy')}</span>
-                                    )}
+                                     {(() => {
+                                        const paidAtDate = inst.paidAt instanceof Date ? inst.paidAt : inst.paidAt && (inst.paidAt as any).toDate ? (inst.paidAt as any).toDate() : null;
+                                        if (paidAtDate && !isNaN(paidAtDate.getTime())) {
+                                            return <span className="text-xs text-muted-foreground">{format(paidAtDate, 'dd/MM/yy')}</span>;
+                                        }
+                                        return null;
+                                    })()}
                                 </div>
                             )}
                        </div>
@@ -823,7 +827,6 @@ export default function ReservationsPage() {
                                                     </div>
                                                 </AccordionTrigger>
                                                 <AccordionContent className="p-4 bg-secondary/20 space-y-4">
-                                                     {/* DETAILED CONTENT REMAINS THE SAME */}
                                                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                                                         <Card>
                                                             <CardHeader>
@@ -871,7 +874,7 @@ export default function ReservationsPage() {
                                                               <Separator className="my-2" />
                                                               <div className="space-y-2">
                                                                   {(res.installments?.details || []).map((inst, idx) => {
-                                                                      const paidAtDate = inst.paidAt instanceof Date ? inst.paidAt : (inst.paidAt as any)?.toDate ? (inst.paidAt as any).toDate() : null;
+                                                                      const paidAtDate = inst.paidAt instanceof Date ? inst.paidAt : inst.paidAt && (inst.paidAt as any).toDate ? (inst.paidAt as any).toDate() : null;
                                                                       const isValidDate = paidAtDate instanceof Date && !isNaN(paidAtDate.getTime());
                                                                       return (
                                                                         <div key={idx} className="flex justify-between items-center text-xs">
