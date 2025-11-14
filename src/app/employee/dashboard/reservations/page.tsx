@@ -1,5 +1,4 @@
 
-
 "use client"
 
 import { useState, useMemo, useEffect } from "react"
@@ -560,7 +559,9 @@ export default function ReservationsPage() {
                                             <SelectItem value="Efectivo">Efectivo</SelectItem>
                                         </SelectContent>
                                     </Select>
-                                     {inst.paidAt && <span className="text-xs text-muted-foreground">{format(new Date(inst.paidAt), 'dd/MM/yy')}</span>}
+                                     {inst.paidAt && inst.paidAt instanceof Date && !isNaN(inst.paidAt.getTime()) && (
+                                        <span className="text-xs text-muted-foreground">{format(inst.paidAt, 'dd/MM/yy')}</span>
+                                    )}
                                 </div>
                             )}
                        </div>
@@ -869,19 +870,23 @@ export default function ReservationsPage() {
                                                               <InfoRow label="Saldo" value={`$${(balance).toLocaleString('es-AR')}`} />
                                                               <Separator className="my-2" />
                                                               <div className="space-y-2">
-                                                                  {(res.installments?.details || []).map((inst, idx) => (
-                                                                    <div key={idx} className="flex justify-between items-center text-xs">
-                                                                        <div className="flex items-center gap-2">
-                                                                             {inst.isPaid ? <CheckCircle className="w-4 h-4 text-green-600"/> : <Clock className="w-4 h-4 text-muted-foreground"/>}
-                                                                            <span>Cuota {idx + 1}</span>
+                                                                  {(res.installments?.details || []).map((inst, idx) => {
+                                                                      const paidAtDate = inst.paidAt instanceof Date ? inst.paidAt : (inst.paidAt as any)?.toDate ? (inst.paidAt as any).toDate() : null;
+                                                                      const isValidDate = paidAtDate instanceof Date && !isNaN(paidAtDate.getTime());
+                                                                      return (
+                                                                        <div key={idx} className="flex justify-between items-center text-xs">
+                                                                            <div className="flex items-center gap-2">
+                                                                                {inst.isPaid ? <CheckCircle className="w-4 h-4 text-green-600"/> : <Clock className="w-4 h-4 text-muted-foreground"/>}
+                                                                                <span>Cuota {idx + 1}</span>
+                                                                            </div>
+                                                                            <div className="flex items-center gap-1 font-mono">
+                                                                                {inst.isPaid && inst.paymentMethod && <Badge variant="outline" className="text-[10px] p-0.5 px-1">{paymentMethodAbbreviations[inst.paymentMethod]}</Badge>}
+                                                                                {inst.isPaid && isValidDate && <span className="text-muted-foreground">{format(paidAtDate, 'dd/MM/yy')}</span>}
+                                                                                <span>${(inst.amount || 0).toLocaleString('es-AR')}</span>
+                                                                            </div>
                                                                         </div>
-                                                                        <div className="flex items-center gap-1 font-mono">
-                                                                            {inst.isPaid && inst.paymentMethod && <Badge variant="outline" className="text-[10px] p-0.5 px-1">{paymentMethodAbbreviations[inst.paymentMethod]}</Badge>}
-                                                                            {inst.isPaid && inst.paidAt && <span className="text-muted-foreground">{format(new Date(inst.paidAt), 'dd/MM/yy')}</span>}
-                                                                            <span>${(inst.amount || 0).toLocaleString('es-AR')}</span>
-                                                                        </div>
-                                                                    </div>
-                                                                  ))}
+                                                                      );
+                                                                  })}
                                                               </div>
                                                           </CardContent>
                                                         </Card>

@@ -1,5 +1,4 @@
 
-
 "use client"
 
 import { useState, useMemo, useEffect } from "react"
@@ -61,28 +60,6 @@ import { HistoryDashboard } from "@/components/admin/history-dashboard"
 import { AssignTierDialog } from "@/components/admin/assign-tier-dialog"
 import { format } from "date-fns"
 
-type ActiveTransportUnitInfo = {
-  unitNumber: number;
-  category: LayoutCategory;
-  type: LayoutItemType;
-} | null;
-
-type EditReservationState = {
-  isOpen: boolean;
-  reservation: Reservation | null;
-  originalReservation: Reservation | null;
-}
-
-type AddReservationState = {
-    isOpen: boolean;
-    tour: Tour | null;
-}
-
-type AssignTierState = {
-    isOpen: boolean;
-    reservationId: string | null;
-}
-
 const calculateAge = (dob?: any): number | string => {
     if (!dob) return 'N/A';
     const birthDate = dob.toDate ? dob.toDate() : new Date(dob);
@@ -131,7 +108,29 @@ const InfoRow = ({ label, value, icon }: { label: string, value: string | number
         </div>
         <p className="font-semibold text-right truncate">{value || 'N/A'}</p>
     </div>
-)
+);
+
+type ActiveTransportUnitInfo = {
+  unitNumber: number;
+  category: LayoutCategory;
+  type: LayoutItemType;
+} | null;
+
+type EditReservationState = {
+  isOpen: boolean;
+  reservation: Reservation | null;
+  originalReservation: Reservation | null;
+}
+
+type AddReservationState = {
+    isOpen: boolean;
+    tour: Tour | null;
+}
+
+type AssignTierState = {
+    isOpen: boolean;
+    reservationId: string | null;
+}
 
 export default function ReservationsPage() {
   const [reservations, setReservations] = useState<Reservation[]>([])
@@ -590,7 +589,9 @@ export default function ReservationsPage() {
                                             <SelectItem value="Efectivo">Efectivo</SelectItem>
                                         </SelectContent>
                                     </Select>
-                                    {inst.paidAt && <span className="text-xs text-muted-foreground">{format(new Date(inst.paidAt), 'dd/MM/yy')}</span>}
+                                    {inst.paidAt && inst.paidAt instanceof Date && !isNaN(inst.paidAt.getTime()) && (
+                                        <span className="text-xs text-muted-foreground">{format(inst.paidAt, 'dd/MM/yy')}</span>
+                                    )}
                                 </div>
                             )}
                        </div>
