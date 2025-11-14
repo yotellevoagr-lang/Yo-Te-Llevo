@@ -197,11 +197,13 @@ export default function ReportsPage() {
         const filterByDate = <T extends { date: Date }>(items: T[]) => items.filter(item => item.date >= from && item.date <= to);
         
         const toursInDateRange = allData.tours.filter(t => t.date >= from && t.date <= to);
-        const toursInDateRangeIds = new Set(toursInDateRange.map(t => t.id));
         
         return {
             tours: toursInDateRange,
-            reservations: allData.reservations.filter(r => toursInDateRangeIds.has(r.tripId)),
+            reservations: allData.reservations.filter(r => {
+                const tour = allData.tours.find(t => t.id === r.tripId);
+                return tour && tour.date >= from && tour.date <= to;
+            }),
             customExpenses: filterByDate(allData.customExpenses),
             externalCommissions: filterByDate(allData.externalCommissions),
             excursionIncomes: filterByDate(allData.excursionIncomes),
