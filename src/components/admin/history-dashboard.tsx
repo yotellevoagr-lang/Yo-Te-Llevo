@@ -162,18 +162,18 @@ export function HistoryDashboard({ isOpen, onOpenChange }: HistoryDashboardProps
                       <Accordion type="multiple" className="w-full space-y-2">
                         {pastToursByMonth[monthKey].map(tour => (
                           <AccordionItem key={tour.id} value={tour.id} className="border rounded-md bg-background">
-                            <AccordionTrigger className="p-3 text-base hover:no-underline">
-                               <div className="flex justify-between items-center w-full">
-                                    <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-4">
+                            <div className="flex items-center p-1">
+                                <AccordionTrigger className="p-2 text-base hover:no-underline flex-1">
+                                    <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-4 text-left">
                                         <span className="font-medium">{tour.destination}</span>
                                         <span className="text-xs text-muted-foreground flex items-center gap-1"><Calendar className="w-3 h-3"/> {new Date(tour.date).toLocaleDateString()}</span>
                                     </div>
-                                    <div className="flex items-center gap-2 pr-4">
-                                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); handleEditTour(tour);}}><Edit className="w-4 h-4"/></Button>
-                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={(e) => { e.stopPropagation(); handleDeleteTour(tour.id);}}><Trash2 className="w-4 h-4"/></Button>
-                                    </div>
-                               </div>
-                            </AccordionTrigger>
+                                </AccordionTrigger>
+                                <div className="flex items-center gap-1 pr-2">
+                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEditTour(tour)}><Edit className="w-4 h-4"/></Button>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDeleteTour(tour.id)}><Trash2 className="w-4 h-4"/></Button>
+                                </div>
+                            </div>
                             <AccordionContent className="p-3 border-t bg-muted/20">
                                 <h4 className="font-semibold mb-2">Reservas ({reservations.filter(r => r.tripId === tour.id).length})</h4>
                                 <div className="space-y-1">
@@ -225,3 +225,5 @@ const format = (date: Date, formatString: string): string => {
     }
     return date.toLocaleDateString();
 }
+
+    
