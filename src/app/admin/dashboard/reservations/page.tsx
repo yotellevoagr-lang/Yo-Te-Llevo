@@ -56,7 +56,6 @@ import { Separator } from "@/components/ui/separator"
 import { cn, generateDisplayID } from "@/lib/utils"
 import { getAllFromCollection_client, saveReservation, savePassenger, deleteDocument, saveDocument, getDocumentById } from "@/lib/firestore-services"
 import { useToast } from "@/hooks/use-toast"
-import { HistoryDashboard } from "@/components/admin/history-dashboard"
 import { AssignTierDialog } from "@/components/admin/assign-tier-dialog"
 import { format } from "date-fns"
 
@@ -590,7 +589,9 @@ export default function ReservationsPage() {
                                         </SelectContent>
                                     </Select>
                                     {(() => {
-                                        const paidAtDate = inst.paidAt instanceof Date ? inst.paidAt : inst.paidAt && (inst.paidAt as any).toDate ? (inst.paidAt as any).toDate() : null;
+                                        const paidAtRaw = inst.paidAt;
+                                        if (!paidAtRaw) return null;
+                                        const paidAtDate = paidAtRaw instanceof Date ? paidAtRaw : (paidAtRaw as any).toDate ? (paidAtRaw as any).toDate() : new Date(paidAtRaw);
                                         if (paidAtDate && !isNaN(paidAtDate.getTime())) {
                                             return <span className="text-xs text-muted-foreground">{format(paidAtDate, 'dd/MM/yy')}</span>;
                                         }
@@ -789,7 +790,7 @@ export default function ReservationsPage() {
 
 
     <div className="space-y-6">
-       <div className="flex justify-between items-start">
+      <div className="flex justify-between items-start">
         <div>
           <h2 className="text-2xl font-bold">Gestión de Reservas</h2>
           <p className="text-muted-foreground">
@@ -906,7 +907,9 @@ export default function ReservationsPage() {
                                                               <Separator className="my-2" />
                                                               <div className="space-y-2">
                                                                   {(res.installments?.details || []).map((inst, idx) => {
-                                                                      const paidAtDate = inst.paidAt instanceof Date ? inst.paidAt : inst.paidAt && (inst.paidAt as any).toDate ? (inst.paidAt as any).toDate() : null;
+                                                                      const paidAtRaw = inst.paidAt;
+                                                                      if (!paidAtRaw) return null;
+                                                                      const paidAtDate = paidAtRaw instanceof Date ? paidAtRaw : (paidAtRaw as any).toDate ? (paidAtRaw as any).toDate() : new Date(paidAtRaw);
                                                                       const isValidDate = paidAtDate instanceof Date && !isNaN(paidAtDate.getTime());
                                                                       return (
                                                                         <div key={idx} className="flex justify-between items-center text-xs">
