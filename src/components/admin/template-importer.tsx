@@ -501,7 +501,7 @@ export function TemplateImporter({ isOpen, onOpenChange }: TemplateImporterProps
                                         date={newTripDate}
                                         setDate={setNewTripDate}
                                         captionLayout="dropdown-buttons"
-                                        fromYear={new Date().getFullYear()}
+                                        fromYear={new Date().getFullYear() - 5}
                                         toYear={new Date().getFullYear() + 5}
                                     />
                                 </div>
