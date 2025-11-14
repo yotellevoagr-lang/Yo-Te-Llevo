@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import type { Tour, Reservation, Passenger, Seller, BoardingPoint, Pension, RoomType, LayoutCategory, LayoutItemType, TransportUnit, CustomLayoutConfig, PaymentMethod, Transaction } from "@/lib/types";
-import { getAllFromCollection_client, deleteDocument, saveReservation, saveDocument } from "@/lib/firestore-services";
+import { getAllFromCollection_client, getDocumentById, deleteDocument, saveReservation, saveDocument } from "@/lib/firestore-services";
 import { Loader2, History, Edit, Trash2, Calendar, User, CreditCard, DollarSign, Users, Tag, MapPin, Home, ShieldCheck, BadgePercent, Utensils, BedDouble, PercentSquare, CheckCircle, Clock, Bus, Plane, Ship } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { TripForm } from "./trip-form";
