@@ -8,7 +8,8 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
-  DialogFooter
+  DialogFooter,
+  DialogClose
 } from "@/components/ui/dialog";
 import {
   Accordion,
@@ -17,50 +18,149 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
-import type { Tour, Reservation } from "@/lib/types";
-import { getAllFromCollection_client, deleteDocument } from "@/lib/firestore-services";
-import { Loader2, History, Edit, Trash2, Calendar, User, CreditCard, DollarSign } from "lucide-react";
+import type { Tour, Reservation, Passenger, Seller, BoardingPoint, Pension, RoomType, LayoutCategory, LayoutItemType, TransportUnit, CustomLayoutConfig, PaymentMethod, Transaction } from "@/lib/types";
+import { getAllFromCollection_client, deleteDocument, saveReservation, saveDocument } from "@/lib/firestore-services";
+import { Loader2, History, Edit, Trash2, Calendar, User, CreditCard, DollarSign, Users, Tag, MapPin, Home, ShieldCheck, BadgePercent, Utensils, BedDouble, PercentSquare, CheckCircle, Clock, Bus, Plane, Ship } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { TripForm } from "./trip-form";
 import { Badge } from "../ui/badge";
-import { toTitleCase } from "@/lib/utils";
+import { toTitleCase, generateDisplayID, cn } from "@/lib/utils";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
+import { AssignTierDialog } from "./assign-tier-dialog";
+import { SearchableSelect } from "../searchable-select";
+import { Input } from "../ui/input";
+import { Checkbox } from "../ui/checkbox";
+import { Separator } from "../ui/separator";
+import { SeatSelector } from "../booking/seat-selector";
+import { Label } from "../ui/label";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 interface HistoryDashboardProps {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
 }
 
-const InfoRow = ({ label, value }: { label: string, value: string | number | null | undefined }) => (
-    <div className="flex justify-between items-center text-xs">
-        <p className="text-muted-foreground">{label}</p>
-        <p className="font-medium">{value || 'N/A'}</p>
+const InfoRow = ({ label, value, icon }: { label: string, value: string | number | null | undefined, icon?: React.ReactNode}) => (
+    <div className="flex justify-between items-center">
+        <div className="flex items-center gap-2">
+            {icon}
+            <p className="text-muted-foreground font-medium">{label}</p>
+        </div>
+        <p className="font-semibold text-right truncate">{value || 'N/A'}</p>
     </div>
 );
 
+const calculateAge = (dob?: any): number | string => {
+    if (!dob) return 'N/A';
+    const birthDate = dob.toDate ? dob.toDate() : new Date(dob);
+    if (isNaN(birthDate.getTime())) return 'N/A';
+    
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const m = today.getMonth() - birthDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+    }
+    return age;
+}
+
+const formatDate = (date: any): string => {
+    if (!date) return 'N/A';
+    const d = date.toDate ? date.toDate() : new Date(date);
+    if (isNaN(d.getTime())) return 'Fecha Inválida';
+    return d.toLocaleDateString('es-AR');
+}
+
+const paymentMethodAbbreviations: Record<PaymentMethod, string> = {
+    'Tarjeta': 'TJ',
+    'Transferencia': 'TR',
+    'Efectivo': 'EF'
+};
+
+
+type ActiveTransportUnitInfo = {
+  unitNumber: number;
+  category: LayoutCategory;
+  type: LayoutItemType;
+} | null;
+
+type EditReservationState = {
+  isOpen: boolean;
+  reservation: Reservation | null;
+  originalReservation: Reservation | null;
+}
 
 export function HistoryDashboard({ isOpen, onOpenChange }: HistoryDashboardProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [tours, setTours] = useState<Tour[]>([]);
   const [reservations, setReservations] = useState<Reservation[]>([]);
+  const [passengers, setPassengers] = useState<Passenger[]>([]);
+  const [sellers, setSellers] = useState<Seller[]>([]);
+  const [boardingPoints, setBoardingPoints] = useState<BoardingPoint[]>([]);
+  const [pensions, setPensions] = useState<Pension[]>([]);
+  const [roomTypes, setRoomTypes] = useState<RoomType[]>([]);
+  const [layoutConfig, setLayoutConfig] = useState<Record<LayoutCategory, Record<string, CustomLayoutConfig>> | null>(null);
+
   const [editingTour, setEditingTour] = useState<Tour | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
-  
+  const [activeUnit, setActiveUnit] = useState<ActiveTransportUnitInfo>(null);
+  const [editingReservation, setEditingReservation] = useState<EditReservationState>({ isOpen: false, reservation: null, originalReservation: null });
+  const [assignTierState, setAssignTierState] = useState<{ isOpen: boolean, reservationId: string | null }>({ isOpen: false, reservationId: null });
+  const [localInstallmentCount, setLocalInstallmentCount] = useState<string | number>('');
+
   const { toast } = useToast();
 
   const fetchData = async () => {
     setIsLoading(true);
-    const [toursData, reservationsData] = await Promise.all([
-      getAllFromCollection_client<Tour>('tours'),
-      getAllFromCollection_client<Reservation>('reservations')
-    ]);
-    const processedTours = toursData.map(t => ({
-      ...t,
-      date: t.date ? new Date((t.date as any).seconds ? (t.date as any).toDate() : t.date) : new Date()
-    }));
-    setTours(processedTours);
-    setReservations(reservationsData);
-    setIsLoading(false);
-  }
+    try {
+        const [
+            toursData, 
+            reservationsData, 
+            passengersData, 
+            sellersData, 
+            boardingPointsData, 
+            pensionsData, 
+            roomTypesData, 
+            layoutConfigData
+        ] = await Promise.all([
+            getAllFromCollection_client<Tour>('tours'),
+            getAllFromCollection_client<Reservation>('reservations'),
+            getAllFromCollection_client<Passenger>('passengers'),
+            getAllFromCollection_client<Seller>('sellers'),
+            getAllFromCollection_client<BoardingPoint>('boarding_points'),
+            getAllFromCollection_client<Pension>('pensions'),
+            getAllFromCollection_client<RoomType>('room_types'),
+            getDocumentById<any>('settings', 'layouts')
+        ]);
+        const processedTours = toursData.map(t => ({
+            ...t,
+            date: t.date ? new Date((t.date as any).seconds ? (t.date as any).toDate() : t.date) : new Date()
+        }));
+        setTours(processedTours);
+        setReservations(reservationsData);
+        setPassengers(passengersData);
+        setSellers(sellersData);
+        setBoardingPoints(boardingPointsData);
+        setPensions(pensionsData);
+        setRoomTypes(roomTypesData);
+        if(layoutConfigData) setLayoutConfig(layoutConfigData);
+    } catch (error) {
+        console.error("Error fetching history data:", error);
+        toast({title: "Error", description: "No se pudieron cargar los datos del historial.", variant: "destructive"});
+    } finally {
+        setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -94,7 +194,6 @@ export function HistoryDashboard({ isOpen, onOpenChange }: HistoryDashboardProps
   const handleDeleteTour = async (tourId: string) => {
     if (confirm("¿Estás seguro de que quieres eliminar este viaje y todas sus reservas? Esta acción no se puede deshacer.")) {
         try {
-            // This is a simplified deletion. In a real app, you'd want a Cloud Function to handle this atomically.
             const reservationsToDelete = reservations.filter(r => r.tripId === tourId);
             for (const res of reservationsToDelete) {
                 await deleteDocument('reservations', res.id);
@@ -109,7 +208,6 @@ export function HistoryDashboard({ isOpen, onOpenChange }: HistoryDashboardProps
   }
   
   const handleSaveTour = (savedTour: Tour) => {
-      // For now, just refetch data. More complex logic could update state directly.
       fetchData();
       setIsFormOpen(false);
   }
@@ -127,6 +225,101 @@ export function HistoryDashboard({ isOpen, onOpenChange }: HistoryDashboardProps
     return 'bg-red-500';
   };
 
+  // --- Reservation Management Logic ---
+
+    const handleDialogOpen = (tour: Tour, reservation: Reservation) => {
+        setEditingReservation({ isOpen: true, reservation: JSON.parse(JSON.stringify(reservation)), originalReservation: JSON.parse(JSON.stringify(reservation)) });
+        const unitList = tour.transportUnits || [];
+        if (unitList.length > 0) {
+            const firstUnit = unitList[0];
+            setActiveUnit({ unitNumber: firstUnit.id, category: firstUnit.category, type: firstUnit.type });
+        } else {
+            setActiveUnit(null);
+        }
+    };
+    
+    const handleUpdateReservation = async () => {
+        if (!editingReservation.reservation || !editingReservation.originalReservation) return;
+
+        try {
+            const updatedReservation = { ...editingReservation.reservation };
+            const originalReservation = { ...editingReservation.originalReservation };
+
+            const newInstallments = updatedReservation.installments?.details || [];
+            const originalInstallments = originalReservation.installments?.details || [];
+
+            for (let i = 0; i < newInstallments.length; i++) {
+                const newInst = newInstallments[i];
+                const originalInst = originalInstallments[i];
+
+                const wasJustPaid = newInst.isPaid && (!originalInst || !originalInst.isPaid);
+                const wasJustUnpaid = !newInst.isPaid && originalInst && originalInst.isPaid;
+
+                if (wasJustPaid) {
+                    const tour = tours.find(t => t.id === updatedReservation.tripId);
+                    const transaction: Omit<Transaction, 'id'> = {
+                        amount: newInst.amount,
+                        currency: tour?.currency || 'ARS',
+                        date: new Date(),
+                        description: `Pago cuota reserva ${updatedReservation.id}`,
+                        type: 'income',
+                        category: 'Reservation Payment',
+                        relatedId: updatedReservation.id,
+                        method: newInst.paymentMethod || 'Efectivo',
+                    };
+                    const transactionId = await saveDocument('transactions', transaction);
+                    newInstallments[i].transactionId = transactionId;
+                } else if (wasJustUnpaid && originalInst?.transactionId) {
+                    await deleteDocument('transactions', originalInst.transactionId);
+                    newInstallments[i].transactionId = undefined;
+                }
+            }
+            
+            updatedReservation.installments = {
+                ...updatedReservation.installments!,
+                details: newInstallments
+            };
+            
+            const paidAmount = newInstallments.filter(inst => inst.isPaid).reduce((sum, inst) => sum + inst.amount, 0);
+            const balance = updatedReservation.finalPrice - paidAmount;
+            
+            if (balance <= 0) {
+                updatedReservation.paymentStatus = 'Pagado';
+            } else if (paidAmount > 0) {
+                updatedReservation.paymentStatus = 'Parcial';
+            } else {
+                updatedReservation.paymentStatus = 'Pendiente';
+            }
+
+            await saveReservation(updatedReservation, updatedReservation.id);
+            
+            await fetchData();
+            setEditingReservation({isOpen: false, reservation: null, originalReservation: null });
+            toast({ title: "Reserva Actualizada", description: "Los cambios han sido guardados."});
+        } catch(error) {
+            toast({ title: "Error", description: "No se pudieron guardar los cambios.", variant: "destructive"});
+        }
+    }
+    
+     const handleDeleteReservation = async (reservationId: string) => {
+        try {
+            const reservationToDelete = reservations.find(r => r.id === reservationId);
+            if (reservationToDelete?.installments) {
+                for (const inst of reservationToDelete.installments.details) {
+                    if (inst.transactionId) {
+                        await deleteDocument('transactions', inst.transactionId);
+                    }
+                }
+            }
+            await deleteDocument('reservations', reservationId);
+            await fetchData();
+            setEditingReservation({isOpen: false, reservation: null, originalReservation: null});
+            toast({ title: "Reserva Eliminada", variant: "destructive"});
+        } catch(error) {
+            toast({ title: "Error", description: "No se pudo eliminar la reserva.", variant: "destructive"});
+        }
+    }
+
   return (
     <>
       <TripForm 
@@ -134,8 +327,33 @@ export function HistoryDashboard({ isOpen, onOpenChange }: HistoryDashboardProps
           onOpenChange={setIsFormOpen} 
           onSave={handleSaveTour} 
           tour={editingTour} 
-          boardingPoints={[]} // This might need to be fetched if editing requires it
+          boardingPoints={boardingPoints}
       />
+      <Dialog open={editingReservation.isOpen} onOpenChange={(open) => setEditingReservation({ isOpen: open, reservation: open ? editingReservation.reservation : null, originalReservation: open ? editingReservation.originalReservation : null })}>
+        <DialogContent onOpenAutoFocus={(e) => e.preventDefault()} className="max-w-4xl flex flex-col max-h-[90vh]">
+            <DialogHeader>
+                <DialogTitle>Gestionar Reserva (Historial)</DialogTitle>
+                <DialogDescription>
+                    Modificar detalles de la reserva para {editingReservation.reservation?.passenger} en el viaje a {tours.find(t => t.id === editingReservation.reservation?.tripId)?.destination}.
+                </DialogDescription>
+            </DialogHeader>
+            <div className="flex-1 overflow-y-auto pr-2">
+            </div>
+            <DialogFooter className="mt-auto pt-4 border-t">
+            <AlertDialog>
+                <AlertDialogTrigger asChild>
+                    <Button variant="destructive" className="mr-auto"><Trash2 className="mr-2 h-4 w-4" /> Eliminar Reserva</Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                    <AlertDialogHeader><AlertDialogTitle>¿Confirmas la eliminación?</AlertDialogTitle><AlertDialogDescription>Esta acción eliminará permanentemente la reserva de <strong>{editingReservation.reservation?.passenger}</strong>.</AlertDialogDescription></AlertDialogHeader>
+                    <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={() => { if (editingReservation.reservation) handleDeleteReservation(editingReservation.reservation.id); }} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction></AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+            <DialogClose asChild><Button variant="outline">Cancelar</Button></DialogClose>
+            <Button onClick={handleUpdateReservation}>Guardar Cambios</Button>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <Dialog open={isOpen} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-4xl h-[90vh] flex flex-col">
           <DialogHeader>
@@ -174,27 +392,45 @@ export function HistoryDashboard({ isOpen, onOpenChange }: HistoryDashboardProps
                                     <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDeleteTour(tour.id)}><Trash2 className="w-4 h-4"/></Button>
                                 </div>
                             </div>
-                            <AccordionContent className="p-3 border-t bg-muted/20">
-                                <h4 className="font-semibold mb-2">Reservas ({reservations.filter(r => r.tripId === tour.id).length})</h4>
-                                <div className="space-y-1">
-                                    {reservations.filter(r => r.tripId === tour.id).map(res => {
-                                        const paidAmount = res.installments?.details.reduce((sum, inst) => inst.isPaid ? sum + inst.amount : sum, 0) || 0;
-                                        const balance = res.finalPrice - paidAmount;
-                                        const paymentColor = getPaymentColor(res.finalPrice, balance);
-                                        return (
-                                            <div key={res.id} className="p-2 border rounded bg-background flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-                                                <div className="flex items-center gap-2">
+                            <AccordionContent className="p-1 md:p-3 border-t bg-muted/20">
+                                <Accordion type="multiple" className="w-full space-y-1">
+                                {reservations.filter(r => r.tripId === tour.id).map(res => {
+                                    const paidAmount = res.installments?.details.reduce((sum, inst) => inst.isPaid ? sum + inst.amount : sum, 0) || 0;
+                                    const balance = res.finalPrice - paidAmount;
+                                    const paymentColor = getPaymentColor(res.finalPrice, balance);
+
+                                    return (
+                                        <AccordionItem key={res.id} value={res.id} className="border rounded-md bg-background">
+                                             <AccordionTrigger className="px-2 py-1 md:px-4 hover:no-underline text-sm">
+                                                <div className="flex items-center gap-2 md:gap-4">
                                                     <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${paymentColor}`}></div>
-                                                    <p className="font-semibold text-sm flex items-center gap-1"><User className="w-3 h-3"/>{res.passenger}</p>
+                                                    <span className="font-semibold">{res.passenger}</span>
                                                     <Badge variant="secondary">{res.paxCount} pax</Badge>
                                                 </div>
-                                                <div className="text-xs text-muted-foreground flex items-center gap-1"><CreditCard className="w-3 h-3"/> {res.paymentStatus}</div>
-                                                <div className="text-xs font-mono flex items-center gap-1"><DollarSign className="w-3 h-3"/> ${res.finalPrice.toLocaleString()}</div>
-                                                <Button variant="outline" size="sm" className="h-7 text-xs self-end md:self-center">Gestionar</Button>
-                                            </div>
-                                        )
-                                    })}
-                                </div>
+                                            </AccordionTrigger>
+                                            <AccordionContent className="p-2 md:p-4 bg-secondary/20 space-y-4">
+                                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                                   <div className="lg:col-span-2 p-2 rounded-md bg-background/50 space-y-2 text-xs">
+                                                        <h4 className="font-semibold text-sm mb-1">Pasajeros</h4>
+                                                        {passengers.filter(p => res.passengerIds.includes(p.id)).map(p => (
+                                                            <InfoRow key={p.id} label={p.fullName} value={`DNI: ${p.dni}`} />
+                                                        ))}
+                                                   </div>
+                                                   <div className="lg:col-span-2 p-2 rounded-md bg-background/50 space-y-2 text-xs">
+                                                        <h4 className="font-semibold text-sm mb-1">Pagos</h4>
+                                                        <InfoRow label="Total" value={`$${res.finalPrice.toLocaleString()}`} />
+                                                        <InfoRow label="Pagado" value={`$${paidAmount.toLocaleString()}`} />
+                                                        <InfoRow label="Saldo" value={`$${balance.toLocaleString()}`} />
+                                                   </div>
+                                                </div>
+                                                <div className="flex justify-end gap-2">
+                                                    <Button variant="outline" size="sm" onClick={() => handleDialogOpen(tour, res)}><Edit className="mr-2 h-4 w-4" /> Gestionar Reserva</Button>
+                                                </div>
+                                            </AccordionContent>
+                                        </AccordionItem>
+                                    )
+                                })}
+                                </Accordion>
                             </AccordionContent>
                           </AccordionItem>
                         ))}
@@ -213,17 +449,3 @@ export function HistoryDashboard({ isOpen, onOpenChange }: HistoryDashboardProps
     </>
   );
 }
-
-// Helper to format date if it's not already in use-memo
-const format = (date: Date, formatString: string): string => {
-    // Simple date formatting, for more complex needs use a library like date-fns
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    // Add more formats as needed
-    if (formatString === 'yyyy-MM') {
-        return `${year}-${month}`;
-    }
-    return date.toLocaleDateString();
-}
-
-    
