@@ -30,6 +30,9 @@ export function NotificationPermission() {
   }, []);
 
   const handleRequestPermission = async () => {
+    setShowPrompt(false); // Ocultar inmediatamente
+    sessionStorage.setItem('notification_prompt_dismissed', 'true'); // Marcar como interactuado
+
     if (!messaging) return;
     try {
       const permission = await Notification.requestPermission();
@@ -43,8 +46,6 @@ export function NotificationPermission() {
           }, currentToken);
         }
       }
-      setShowPrompt(false);
-      sessionStorage.setItem('notification_prompt_dismissed', 'true');
     } catch (error) {
       console.error('Error requesting notification permission:', error);
     }
