@@ -197,6 +197,7 @@ export type AssignedCabin = {
 export interface Installment {
     amount: number;
     isPaid: boolean;
+    paidAt?: Date;
     paymentMethod?: PaymentMethod;
     transactionId?: string;
 }
