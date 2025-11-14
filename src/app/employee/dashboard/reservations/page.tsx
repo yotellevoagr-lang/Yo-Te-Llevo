@@ -47,6 +47,7 @@ import { cn, generateDisplayID } from "@/lib/utils"
 import { getAllFromCollection_client, saveReservation, savePassenger, deleteDocument, saveDocument, getDocumentById } from "@/lib/firestore-services"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/components/auth/auth-provider"
+import { format } from "date-fns"
 
 type ActiveTransportUnitInfo = {
   unitNumber: number;
@@ -104,6 +105,16 @@ const getPaymentColor = (finalPrice: number, balance: number): string => {
     }
     return 'bg-red-500';
 };
+
+const InfoRow = ({ label, value, icon }: { label: string, value: string | number | null | undefined, icon?: React.ReactNode}) => (
+    <div className="flex justify-between items-center">
+        <div className="flex items-center gap-2">
+            {icon}
+            <p className="text-muted-foreground font-medium">{label}</p>
+        </div>
+        <p className="font-semibold text-right truncate">{value || 'N/A'}</p>
+    </div>
+)
 
 export default function ReservationsPage() {
   const [reservations, setReservations] = useState<Reservation[]>([])
@@ -520,13 +531,18 @@ export default function ReservationsPage() {
                               <Checkbox checked={inst.isPaid} onCheckedChange={(checked) => {
                                  const newDetails = [...installments.details];
                                  newDetails[index].isPaid = !!checked;
-                                 if (!checked) newDetails[index].paymentMethod = undefined;
+                                 if (checked) {
+                                     newDetails[index].paidAt = new Date();
+                                 } else {
+                                     newDetails[index].paidAt = undefined;
+                                     newDetails[index].paymentMethod = undefined;
+                                 }
                                  setEditingReservation(prev => ({...prev, reservation: {...prev.reservation!, installments: { ...installments, details: newDetails }}}))
                               }}/>
                               <Label>Pagada</Label>
                            </div>
                             {inst.isPaid && (
-                                <div className="pl-8">
+                                <div className="pl-8 flex gap-4 items-center">
                                     <Select 
                                         value={inst.paymentMethod} 
                                         onValueChange={(method: PaymentMethod) => {
@@ -544,6 +560,7 @@ export default function ReservationsPage() {
                                             <SelectItem value="Efectivo">Efectivo</SelectItem>
                                         </SelectContent>
                                     </Select>
+                                     {inst.paidAt && <span className="text-xs text-muted-foreground">{format(new Date(inst.paidAt), 'dd/MM/yy')}</span>}
                                 </div>
                             )}
                        </div>
@@ -860,6 +877,7 @@ export default function ReservationsPage() {
                                                                         </div>
                                                                         <div className="flex items-center gap-1 font-mono">
                                                                             {inst.isPaid && inst.paymentMethod && <Badge variant="outline" className="text-[10px] p-0.5 px-1">{paymentMethodAbbreviations[inst.paymentMethod]}</Badge>}
+                                                                            {inst.isPaid && inst.paidAt && <span className="text-muted-foreground">{format(new Date(inst.paidAt), 'dd/MM/yy')}</span>}
                                                                             <span>${(inst.amount || 0).toLocaleString('es-AR')}</span>
                                                                         </div>
                                                                     </div>
@@ -915,15 +933,3 @@ export default function ReservationsPage() {
     </>
   )
 }
-
-const InfoRow = ({ label, value, icon }: { label: string, value: string | number | null | undefined, icon?: React.ReactNode}) => (
-    <div className="flex justify-between items-center">
-        <div className="flex items-center gap-2">
-            {icon}
-            <p className="text-muted-foreground font-medium">{label}</p>
-        </div>
-        <p className="font-semibold text-right truncate">{value || 'N/A'}</p>
-    </div>
-)
-
-

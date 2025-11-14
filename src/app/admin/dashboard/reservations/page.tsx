@@ -48,7 +48,7 @@ import {
 import { SearchableSelect } from "@/components/searchable-select"
 import { SeatSelector } from "@/components/booking/seat-selector"
 import { MoreHorizontal, CheckCircle, Clock, Trash2, Armchair, Bus, Plane, Ship, Edit, UserPlus, CreditCard, Users, Info, Calendar, MapPin, DollarSign, Home, Tag, ShieldCheck, Utensils, BedDouble, PercentSquare, Check, ChevronsUpDown, BadgePercent, Search } from "lucide-react"
-import type { Tour, Reservation, LayoutCategory, LayoutItemType, Seller, PaymentStatus, Passenger, BoardingPoint, Pension, RoomType, TransportUnit, PaymentMethod, Installment, Transaction, CustomLayoutConfig, PricingTier } from "@/lib/types"
+import type { Tour, Reservation, LayoutCategory, LayoutItemType, Seller, PaymentStatus, Passenger, BoardingPoint, Pension, RoomType, TransportUnit, PaymentMethod, Installment, Transaction, CustomLayoutConfig } from "@/lib/types"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { AddReservationForm } from "@/components/admin/add-reservation-form"
@@ -57,6 +57,9 @@ import { Separator } from "@/components/ui/separator"
 import { cn, generateDisplayID } from "@/lib/utils"
 import { getAllFromCollection_client, saveReservation, savePassenger, deleteDocument, saveDocument, getDocumentById } from "@/lib/firestore-services"
 import { useToast } from "@/hooks/use-toast"
+import { HistoryDashboard } from "@/components/admin/history-dashboard"
+import { AssignTierDialog } from "@/components/admin/assign-tier-dialog"
+import { format } from "date-fns"
 
 type ActiveTransportUnitInfo = {
   unitNumber: number;
@@ -120,109 +123,15 @@ const getPaymentColor = (finalPrice: number, balance: number): string => {
     return 'bg-red-500';
 };
 
-function AssignTierDialog({ 
-    isOpen, 
-    onOpenChange,
-    reservation,
-    tour,
-    passengers,
-    onPassengerTierChange,
-}: { 
-    isOpen: boolean, 
-    onOpenChange: (open: boolean) => void,
-    reservation: Reservation | null,
-    tour: Tour | null,
-    passengers: Passenger[],
-    onPassengerTierChange: (passengerIds: string[], tierId: string) => void
-}) {
-    const [selectedPassengerIds, setSelectedPassengerIds] = useState<string[]>([]);
-    const [selectedTierId, setSelectedTierId] = useState<string>('');
-
-    const reservationPassengers = useMemo(() => {
-        if (!reservation) return [];
-        return passengers.filter(p => reservation.passengerIds.includes(p.id));
-    }, [reservation, passengers]);
-
-    const pricingTiers = useMemo(() => {
-        if (!tour) return [];
-        const existingTiers = tour.pricingTiers || [];
-        const hasExplicitAdultTier = existingTiers.some(tier => tier.name.toLowerCase() === 'adulto');
-        
-        if (hasExplicitAdultTier) {
-            return existingTiers;
-        }
-
-        return [{ id: 'adult', name: 'Adulto (Base)', price: tour.price, currency: tour.currency }, ...existingTiers];
-    }, [tour]);
-
-
-    const handleApply = () => {
-        if (selectedPassengerIds.length > 0 && selectedTierId) {
-            onPassengerTierChange(selectedPassengerIds, selectedTierId);
-            setSelectedPassengerIds([]);
-            setSelectedTierId('');
-        }
-    }
-
-    if (!reservation || !tour) {
-        return null;
-    }
-
-    return (
-        <Dialog open={isOpen} onOpenChange={onOpenChange}>
-            <DialogContent>
-                <DialogHeader>
-                    <DialogTitle>Asignar Tarifa Diferencial</DialogTitle>
-                    <DialogDescription>
-                        Selecciona uno o más pasajeros y luego elige la tarifa que deseas aplicarles.
-                    </DialogDescription>
-                </DialogHeader>
-                <div className="py-4 space-y-4">
-                    <div className="space-y-2 p-3 border rounded-md">
-                        <Label>1. Selecciona Pasajeros</Label>
-                        {reservationPassengers.map(p => {
-                            const currentTier = pricingTiers.find(t => t.id === p.tierId);
-                            const age = calculateAge(p.dob);
-                            return (
-                                <div key={p.id} className="flex items-center space-x-2">
-                                    <Checkbox
-                                        id={`tier-pax-${p.id}`}
-                                        checked={selectedPassengerIds.includes(p.id)}
-                                        onCheckedChange={checked => {
-                                            setSelectedPassengerIds(prev => checked ? [...prev, p.id] : prev.filter(id => id !== p.id))
-                                        }}
-                                    />
-                                    <Label htmlFor={`tier-pax-${p.id}`} className="flex-1 font-normal">
-                                        {p.fullName} <span className="text-muted-foreground text-xs">({currentTier?.name || 'Adulto'} - Edad: {age})</span>
-                                    </Label>
-                                </div>
-                            )
-                        })}
-                    </div>
-                    <div className="space-y-2">
-                        <Label>2. Selecciona la Tarifa a Aplicar</Label>
-                        <Select value={selectedTierId} onValueChange={setSelectedTierId}>
-                            <SelectTrigger><SelectValue placeholder="Seleccionar tarifa..."/></SelectTrigger>
-                            <SelectContent>
-                                {pricingTiers.map(tier => (
-                                    <SelectItem key={tier.id} value={tier.id}>
-                                        {tier.name} (${tier.price.toLocaleString()})
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                </div>
-                <DialogFooter>
-                    <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-                    <Button onClick={handleApply} disabled={selectedPassengerIds.length === 0 || !selectedTierId}>
-                        Aplicar Tarifa
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-    )
-}
+const InfoRow = ({ label, value, icon }: { label: string, value: string | number | null | undefined, icon?: React.ReactNode}) => (
+    <div className="flex justify-between items-center">
+        <div className="flex items-center gap-2">
+            {icon}
+            <p className="text-muted-foreground font-medium">{label}</p>
+        </div>
+        <p className="font-semibold text-right truncate">{value || 'N/A'}</p>
+    </div>
+)
 
 export default function ReservationsPage() {
   const [reservations, setReservations] = useState<Reservation[]>([])
@@ -652,13 +561,18 @@ export default function ReservationsPage() {
                               <Checkbox checked={inst.isPaid} onCheckedChange={(checked) => {
                                  const newDetails = [...installments.details];
                                  newDetails[index].isPaid = !!checked;
-                                 if (!checked) newDetails[index].paymentMethod = undefined;
+                                 if (checked) {
+                                     newDetails[index].paidAt = new Date();
+                                 } else {
+                                     newDetails[index].paidAt = undefined;
+                                     newDetails[index].paymentMethod = undefined;
+                                 }
                                  setEditingReservation(prev => ({...prev, reservation: {...prev.reservation!, installments: { ...installments, details: newDetails }}}))
                               }}/>
                               <Label>Pagada</Label>
                            </div>
                             {inst.isPaid && (
-                                <div className="pl-8">
+                                <div className="pl-8 flex gap-4 items-center">
                                     <Select 
                                         value={inst.paymentMethod} 
                                         onValueChange={(method: PaymentMethod) => {
@@ -676,6 +590,7 @@ export default function ReservationsPage() {
                                             <SelectItem value="Efectivo">Efectivo</SelectItem>
                                         </SelectContent>
                                     </Select>
+                                    {inst.paidAt && <span className="text-xs text-muted-foreground">{format(new Date(inst.paidAt), 'dd/MM/yy')}</span>}
                                 </div>
                             )}
                        </div>
@@ -869,11 +784,13 @@ export default function ReservationsPage() {
 
 
     <div className="space-y-6">
-       <div>
-        <h2 className="text-2xl font-bold">Gestión de Reservas</h2>
-        <p className="text-muted-foreground">
-          Visualiza las reservas, asigna asientos y gestiona los estados.
-        </p>
+       <div className="flex justify-between items-start">
+        <div>
+          <h2 className="text-2xl font-bold">Gestión de Reservas</h2>
+          <p className="text-muted-foreground">
+            Visualiza las reservas, asigna asientos y gestiona los estados.
+          </p>
+        </div>
       </div>
       <Card>
         <CardHeader>
@@ -992,6 +909,7 @@ export default function ReservationsPage() {
                                                                         </div>
                                                                         <div className="flex items-center gap-1 font-mono">
                                                                             {inst.isPaid && inst.paymentMethod && <Badge variant="outline" className="text-[10px] p-0.5 px-1">{paymentMethodAbbreviations[inst.paymentMethod]}</Badge>}
+                                                                            {inst.isPaid && inst.paidAt && <span className="text-muted-foreground">{format(new Date(inst.paidAt), 'dd/MM/yy')}</span>}
                                                                             <span>${(inst.amount || 0).toLocaleString('es-AR')}</span>
                                                                         </div>
                                                                     </div>
@@ -1043,17 +961,3 @@ export default function ReservationsPage() {
     </>
   )
 }
-
-const InfoRow = ({ label, value, icon }: { label: string, value: string | number | null | undefined, icon?: React.ReactNode}) => (
-    <div className="flex justify-between items-center">
-        <div className="flex items-center gap-2">
-            {icon}
-            <p className="text-muted-foreground font-medium">{label}</p>
-        </div>
-        <p className="font-semibold text-right truncate">{value || 'N/A'}</p>
-    </div>
-)
-    
-
-
-
