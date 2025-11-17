@@ -162,10 +162,25 @@ export default function TripsPage() {
   };
 
   const handleDelete = async (tourId: string) => {
-    await deleteDocument('tours', tourId);
-    await fetchData();
-    window.dispatchEvent(new Event('storage'));
-    toast({title: "Viaje Eliminado", variant: "destructive"})
+    try {
+        const reservationsToDelete = reservations.filter(r => r.tripId === tourId);
+        for (const res of reservationsToDelete) {
+            if (res.installments) {
+                for (const inst of res.installments.details) {
+                    if (inst.isPaid && inst.transactionId) {
+                        await deleteDocument('transactions', inst.transactionId);
+                    }
+                }
+            }
+            await deleteDocument('reservations', res.id);
+        }
+        await deleteDocument('tours', tourId);
+        await fetchData();
+        window.dispatchEvent(new Event('storage'));
+        toast({title: "Viaje Eliminado", description: "El viaje y todas sus reservas y transacciones asociadas han sido eliminados.", variant: "destructive"});
+    } catch (error) {
+        toast({ title: "Error al eliminar", description: "No se pudo completar la eliminación del viaje y sus datos asociados.", variant: "destructive" });
+    }
   }
   
   const handleSaveGlobalText = async () => {
@@ -387,3 +402,5 @@ export default function TripsPage() {
     </div>
   )
 }
+
+    

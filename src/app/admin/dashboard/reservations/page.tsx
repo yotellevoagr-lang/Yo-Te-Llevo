@@ -335,7 +335,7 @@ export default function ReservationsPage() {
         const reservationToDelete = reservations.find(r => r.id === reservationId);
         if (reservationToDelete?.installments) {
             for (const inst of reservationToDelete.installments.details) {
-                if (inst.transactionId) {
+                if (inst.isPaid && inst.transactionId) {
                     await deleteDocument('transactions', inst.transactionId);
                 }
             }
@@ -972,3 +972,5 @@ export default function ReservationsPage() {
     </>
   )
 }
+
+    
