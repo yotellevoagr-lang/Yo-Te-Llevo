@@ -198,10 +198,17 @@ export function HistoryDashboard({ isOpen, onOpenChange }: HistoryDashboardProps
         try {
             const reservationsToDelete = reservations.filter(r => r.tripId === tourId);
             for (const res of reservationsToDelete) {
+                if (res.installments) {
+                    for (const inst of res.installments.details) {
+                        if (inst.isPaid && inst.transactionId) {
+                            await deleteDocument('transactions', inst.transactionId);
+                        }
+                    }
+                }
                 await deleteDocument('reservations', res.id);
             }
             await deleteDocument('tours', tourId);
-            toast({ title: "Viaje eliminado", description: "El viaje y sus reservas han sido eliminados." });
+            toast({ title: "Viaje eliminado", description: "El viaje y sus datos asociados han sido eliminados." });
             fetchData();
         } catch (error) {
             toast({ title: "Error", description: "No se pudo eliminar el viaje.", variant: "destructive" });
@@ -308,7 +315,7 @@ export function HistoryDashboard({ isOpen, onOpenChange }: HistoryDashboardProps
             const reservationToDelete = reservations.find(r => r.id === reservationId);
             if (reservationToDelete?.installments) {
                 for (const inst of reservationToDelete.installments.details) {
-                    if (inst.transactionId) {
+                    if (inst.isPaid && inst.transactionId) {
                         await deleteDocument('transactions', inst.transactionId);
                     }
                 }
@@ -347,7 +354,7 @@ export function HistoryDashboard({ isOpen, onOpenChange }: HistoryDashboardProps
                     <Button variant="destructive" className="mr-auto"><Trash2 className="mr-2 h-4 w-4" /> Eliminar Reserva</Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
-                    <AlertDialogHeader><AlertDialogTitle>¿Confirmas la eliminación?</AlertDialogTitle><AlertDialogDescription>Esta acción eliminará permanentemente la reserva de <strong>{editingReservation.reservation?.passenger}</strong>.</AlertDialogDescription></AlertDialogHeader>
+                    <AlertDialogHeader><AlertDialogTitle>¿Confirmas la eliminación?</AlertDialogTitle><AlertDialogDescription>Esta acción no se puede deshacer. Se eliminará permanentemente la reserva de <strong>{editingReservation.reservation?.passenger}</strong>.</AlertDialogDescription></AlertDialogHeader>
                     <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={() => { if (editingReservation.reservation) handleDeleteReservation(editingReservation.reservation.id); }} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction></AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
@@ -403,7 +410,7 @@ export function HistoryDashboard({ isOpen, onOpenChange }: HistoryDashboardProps
 
                                     return (
                                         <AccordionItem key={res.id} value={res.id} className="border rounded-md bg-background">
-                                             <AccordionTrigger className="px-2 py-1 md:px-4 hover:no-underline text-sm">
+                                            <AccordionTrigger className="px-2 py-1 md:px-4 hover:no-underline text-sm">
                                                 <div className="flex items-center gap-2 md:gap-4">
                                                     <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${paymentColor}`}></div>
                                                     <span className="font-semibold">{res.passenger}</span>
@@ -414,7 +421,7 @@ export function HistoryDashboard({ isOpen, onOpenChange }: HistoryDashboardProps
                                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                                                     <Card><CardHeader><CardTitle className="text-lg flex items-center gap-2"><Users className="w-5 h-5 text-primary"/>Pasajero Principal</CardTitle></CardHeader><CardContent className="space-y-3 text-sm"><InfoRow label="Nombre" value={res.passenger}/><InfoRow label="DNI" value={passengers.find(p => p.id === res.passengerIds[0])?.dni}/><InfoRow label="F. Nac." value={formatDate(passengers.find(p => p.id === res.passengerIds[0])?.dob)}/><InfoRow label="Edad" value={calculateAge(passengers.find(p => p.id === res.passengerIds[0])?.dob)}/><InfoRow label="Grupo" value={passengers.find(p => p.id === res.passengerIds[0])?.family}/></CardContent></Card>
                                                     <Card><CardHeader><CardTitle className="text-lg flex items-center gap-2"><Tag className="w-5 h-5 text-primary"/>Detalles de Reserva</CardTitle></CardHeader><CardContent className="space-y-3 text-sm"><InfoRow label="ID Reserva" value={generateDisplayID('R', res, tour, passengers.find(p => p.id === res.passengerIds[0]))} /><InfoRow label="Cantidad" value={`${res.paxCount} pasajero(s)`}/><InfoRow label="Embarque" value={boardingPoints.find(bp => bp.id === res.boardingPointId)?.name}/><InfoRow label="Ubicación" value={[(res.assignedSeats || []).map(s => s.seatId),(res.assignedCabins || []).map(c => c.cabinId)].flat().join(', ')}/><InfoRow label="Vendedor/a" value={sellers.find(s => s.id === res.sellerId)?.name} icon={<PercentSquare className="w-4 h-4 text-purple-600"/>}/></CardContent></Card>
-                                                    <Card><CardHeader><CardTitle className="text-lg flex items-center gap-2"><CreditCard className="w-5 h-5 text-primary"/>Información de Pago</CardTitle></CardHeader><CardContent className="space-y-3 text-sm"><InfoRow label="Monto Total" value={`$${(res.finalPrice).toLocaleString('es-AR')}`} /><InfoRow label="Pagado" value={`$${(paidAmount).toLocaleString('es-AR')}`} /><InfoRow label="Saldo" value={`$${(balance).toLocaleString('es-AR')}`} /><Separator className="my-2" /><div className="space-y-2">{(res.installments?.details || []).map((inst, idx) => (<div key={idx} className="flex justify-between items-center text-xs">{inst.isPaid ? <CheckCircle className="w-4 h-4 text-green-600"/> : <Clock className="w-4 h-4 text-muted-foreground"/>}<span>Cuota {idx + 1}</span><div className="flex items-center gap-1 font-mono">{inst.isPaid && inst.paymentMethod && <Badge variant="outline" className="text-[10px] p-0.5 px-1">{paymentMethodAbbreviations[inst.paymentMethod]}</Badge>}{inst.paidAt && <span className="text-muted-foreground">{format(inst.paidAt, 'dd/MM/yy')}</span>}<span>${(inst.amount || 0).toLocaleString('es-AR')}</span></div></div>))}</div></CardContent></Card>
+                                                    <Card><CardHeader><CardTitle className="text-lg flex items-center gap-2"><CreditCard className="w-5 h-5 text-primary"/>Información de Pago</CardTitle></CardHeader><CardContent className="space-y-3 text-sm"><InfoRow label="Monto Total" value={`$${(res.finalPrice).toLocaleString('es-AR')}`} /><InfoRow label="Pagado" value={`$${(paidAmount).toLocaleString('es-AR')}`} /><InfoRow label="Saldo" value={`$${(balance).toLocaleString('es-AR')}`} /><Separator className="my-2" /><div className="space-y-2">{(res.installments?.details || []).map((inst, idx) => {const paidAtDate = inst.paidAt instanceof Date ? inst.paidAt : inst.paidAt && (inst.paidAt as any).toDate ? (inst.paidAt as any).toDate() : null; const isValidDate = paidAtDate instanceof Date && !isNaN(paidAtDate.getTime()); return (<div key={idx} className="flex justify-between items-center text-xs">{inst.isPaid ? <CheckCircle className="w-4 h-4 text-green-600"/> : <Clock className="w-4 h-4 text-muted-foreground"/>}<span>Cuota {idx + 1}</span><div className="flex items-center gap-1 font-mono">{inst.isPaid && inst.paymentMethod && <Badge variant="outline" className="text-[10px] p-0.5 px-1">{paymentMethodAbbreviations[inst.paymentMethod]}</Badge>}{inst.isPaid && isValidDate && <span className="text-muted-foreground">{format(paidAtDate, 'dd/MM/yy')}</span>}<span>${(inst.amount || 0).toLocaleString('es-AR')}</span></div></div>);})}</div></CardContent></Card>
                                                     <Card><CardHeader><CardTitle className="text-lg flex items-center gap-2"><Home className="w-5 h-5 text-primary"/>Detalles del Viaje</CardTitle></CardHeader><CardContent className="space-y-3 text-sm"><InfoRow label="Seguro" value={(res.insuredPassengerIds?.length || 0) > 0 ? `Sí (${res.insuredPassengerIds?.length})` : 'No'} icon={<ShieldCheck className="w-4 h-4 text-green-600"/>}/><InfoRow label="Liberados" value={(res.releasedPassengerIds?.length || 0) > 0 ? `Sí (${res.releasedPassengerIds?.length})` : 'No'} icon={<BadgePercent className="w-4 h-4 text-blue-600"/>}/><InfoRow label="Pensión" value={pensions.find(p => p.id === res.pensionId)?.name || 'No incluida'} icon={<Utensils className="w-4 h-4 text-orange-600"/>}/><InfoRow label="Tipo de Hab." value={roomTypes.find(rt => rt.id === res.roomTypeId)?.name} icon={<BedDouble className="w-4 h-4 text-blue-600"/>}/></CardContent></Card>
                                                 </div>
                                                 <div className="flex justify-end gap-2 mt-4">
@@ -443,3 +450,5 @@ export function HistoryDashboard({ isOpen, onOpenChange }: HistoryDashboardProps
     </>
   );
 }
+
+    
