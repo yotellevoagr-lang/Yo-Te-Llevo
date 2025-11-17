@@ -25,7 +25,7 @@ interface MonthlyReportArchiveProps {
     tours: Tour[]
     reservations: Reservation[]
     sellers: Seller[]
-    commissionSettings: CommissionSettings
+    commissionSettings: CommissionSettings | null
     customExpenses: CustomExpense[]
     externalCommissions: ExternalCommission[]
     excursionIncomes: ExcursionIncome[]
@@ -82,7 +82,7 @@ export function MonthlyReportArchive({ isOpen, onOpenChange, allData }: MonthlyR
 
     const calculateCommission = (reservation: Reservation): CurrencyTotal => {
         const seller = allData.sellers.find(s => s.id === reservation.sellerId);
-        if (!seller) return INITIAL_CURRENCY_TOTAL;
+        if (!seller || !allData.commissionSettings) return INITIAL_CURRENCY_TOTAL;
         const currency = allData.tours.find(t => t.id === reservation.tripId)?.currency || 'ARS';
         let rate = 0;
         if (seller.useFixedCommission) {
@@ -97,7 +97,7 @@ export function MonthlyReportArchive({ isOpen, onOpenChange, allData }: MonthlyR
     const totalReservationIncome = filteredData.reservations.reduce((acc, res) => {
         const currency = allData.tours.find(t => t.id === res.tripId)?.currency || 'ARS';
         const paidAmount = res.installments?.details.filter(i => i.isPaid).reduce((sum, i) => sum + i.amount, 0) || 0;
-        return { ...acc, [currency]: acc[currency] + paidAmount };
+        return { ...acc, [currency as 'ARS' | 'USD']: (acc[currency as 'ARS' | 'USD'] || 0) + paidAmount };
     }, { ...INITIAL_CURRENCY_TOTAL });
     const totalExcursionIncome = filteredData.excursionIncomes.reduce((acc, item) => ({ ...acc, [item.currency || 'ARS']: (acc[item.currency || 'ARS'] || 0) + item.amount }), { ...INITIAL_CURRENCY_TOTAL });
     const totalExternalCommissions = filteredData.externalCommissions.reduce((acc, item) => ({ ...acc, [item.currency || 'ARS']: (acc[item.currency || 'ARS'] || 0) + item.amount }), { ...INITIAL_CURRENCY_TOTAL });
@@ -161,7 +161,7 @@ export function MonthlyReportArchive({ isOpen, onOpenChange, allData }: MonthlyR
         startY: yPos,
         head: [['Resumen del Mes', 'ARS', 'USD']],
         body: [
-            ['Ingresos Totales', formatCurrency(totalIncome.ARS), formatCurrency(totalIncome.USD)],
+            ['Ingresos Totales', formatCurrency(totalIncome.ARS), formatCurrency(totalIncome.USD, 'USD')],
             ['Gastos Totales', formatCurrency(totalExpenses.ARS, 'ARS'), formatCurrency(totalExpenses.USD, 'USD')],
             ['Ganancia Neta', formatCurrency(netProfit.ARS, 'ARS'), formatCurrency(netProfit.USD, 'USD')]
         ],
