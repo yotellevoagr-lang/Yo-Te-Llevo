@@ -148,6 +148,11 @@ export function AddReservationForm({
             }
             return p;
          }));
+
+         const isFirstPassenger = bookingPassengers.findIndex(p => p.tempId === tempId) === 0;
+         if (isFirstPassenger && passenger.boardingPointId) {
+             setReservationDetails(prev => ({...prev, boardingPointId: passenger.boardingPointId}));
+         }
     }
 
     const addPassengerSlot = () => {
@@ -187,6 +192,8 @@ export function AddReservationForm({
                 passengerIds.push(newId);
                 onPassengerCreated({ ...bp, id: newId } as Passenger);
             } else if (bp.existingId) {
+                // Save any potentially updated fields for the existing passenger
+                await savePassenger({ phone: bp.phone, dob: bp.dob }, bp.existingId);
                 passengerIds.push(bp.existingId);
             }
         }
@@ -251,11 +258,18 @@ export function AddReservationForm({
                                 </div>
                                 <div className="space-y-1">
                                     <Label>Fecha de Nacimiento</Label>
-                                    <DatePicker date={pax.dob ? new Date(pax.dob) : undefined} setDate={d => handlePassengerDataChange(pax.tempId, 'dob', d)} disabled={!pax.isNew} />
+                                    <DatePicker 
+                                      date={pax.dob ? new Date(pax.dob) : undefined} 
+                                      setDate={d => handlePassengerDataChange(pax.tempId, 'dob', d)} 
+                                      disabled={!pax.isNew && !!pax.dob}
+                                      captionLayout="dropdown-buttons"
+                                      fromYear={new Date().getFullYear() - 100}
+                                      toYear={new Date().getFullYear()}
+                                    />
                                 </div>
                                 <div className="space-y-1">
                                     <Label>Teléfono</Label>
-                                    <Input value={pax.phone || ''} onChange={e => handlePassengerDataChange(pax.tempId, 'phone', e.target.value)} disabled={!pax.isNew}/>
+                                    <Input value={pax.phone || ''} onChange={e => handlePassengerDataChange(pax.tempId, 'phone', e.target.value)} disabled={!pax.isNew && !!pax.phone} />
                                 </div>
                             </div>
                         </Card>
