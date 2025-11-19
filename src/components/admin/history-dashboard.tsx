@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/accordion"
 import { Button } from "@/components/ui/button"
 import type { Tour, Reservation, Passenger, Seller, BoardingPoint, Pension, RoomType, LayoutCategory, LayoutItemType, TransportUnit, CustomLayoutConfig, PaymentMethod, Transaction } from "@/lib/types"
-import { getAllFromCollection_client, getDocumentById, deleteDocument, saveReservation, saveDocument } from "@/lib/firestore-services"
+import { getAllFromCollection_client, getDocumentById, deleteDocument, saveReservation, saveDocument, saveTour } from "@/lib/firestore-services"
 import { Loader2, History, Edit, Trash2, Calendar, User, CreditCard, DollarSign, Users, Tag, MapPin, Home, ShieldCheck, BadgePercent, Utensils, BedDouble, PercentSquare, CheckCircle, Clock, Bus, Plane, Ship } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { TripForm } from "./trip-form"
@@ -216,9 +216,11 @@ export function HistoryDashboard({ isOpen, onOpenChange }: HistoryDashboardProps
     }
   }
   
-  const handleSaveTour = (savedTour: Tour) => {
-      fetchData();
-      setIsFormOpen(false);
+  const handleSaveTour = async (tourData: Tour) => {
+    await saveTour(tourData, tourData.id);
+    fetchData();
+    setIsFormOpen(false);
+    toast({ title: "Viaje Guardado", description: "El viaje ha sido actualizado." });
   }
 
   const formatMonthKey = (monthKey: string) => {
@@ -234,9 +236,7 @@ export function HistoryDashboard({ isOpen, onOpenChange }: HistoryDashboardProps
     return 'bg-red-500';
   };
 
-  // --- Reservation Management Logic ---
-
-    const handleDialogOpen = (tour: Tour, reservation: Reservation) => {
+  const handleDialogOpen = (tour: Tour, reservation: Reservation) => {
         setEditingReservation({ isOpen: true, reservation: JSON.parse(JSON.stringify(reservation)), originalReservation: JSON.parse(JSON.stringify(reservation)) });
         const unitList = tour.transportUnits || [];
         if (unitList.length > 0) {
@@ -421,7 +421,10 @@ export function HistoryDashboard({ isOpen, onOpenChange }: HistoryDashboardProps
                                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                                                     <Card><CardHeader><CardTitle className="text-lg flex items-center gap-2"><Users className="w-5 h-5 text-primary"/>Pasajero Principal</CardTitle></CardHeader><CardContent className="space-y-3 text-sm"><InfoRow label="Nombre" value={res.passenger}/><InfoRow label="DNI" value={passengers.find(p => p.id === res.passengerIds[0])?.dni}/><InfoRow label="F. Nac." value={formatDate(passengers.find(p => p.id === res.passengerIds[0])?.dob)}/><InfoRow label="Edad" value={calculateAge(passengers.find(p => p.id === res.passengerIds[0])?.dob)}/><InfoRow label="Grupo" value={passengers.find(p => p.id === res.passengerIds[0])?.family}/></CardContent></Card>
                                                     <Card><CardHeader><CardTitle className="text-lg flex items-center gap-2"><Tag className="w-5 h-5 text-primary"/>Detalles de Reserva</CardTitle></CardHeader><CardContent className="space-y-3 text-sm"><InfoRow label="ID Reserva" value={generateDisplayID('R', res, tour, passengers.find(p => p.id === res.passengerIds[0]))} /><InfoRow label="Cantidad" value={`${res.paxCount} pasajero(s)`}/><InfoRow label="Embarque" value={boardingPoints.find(bp => bp.id === res.boardingPointId)?.name}/><InfoRow label="Ubicación" value={[(res.assignedSeats || []).map(s => s.seatId),(res.assignedCabins || []).map(c => c.cabinId)].flat().join(', ')}/><InfoRow label="Vendedor/a" value={sellers.find(s => s.id === res.sellerId)?.name} icon={<PercentSquare className="w-4 h-4 text-purple-600"/>}/></CardContent></Card>
-                                                    <Card><CardHeader><CardTitle className="text-lg flex items-center gap-2"><CreditCard className="w-5 h-5 text-primary"/>Información de Pago</CardTitle></CardHeader><CardContent className="space-y-3 text-sm"><InfoRow label="Monto Total" value={`$${(res.finalPrice).toLocaleString('es-AR')}`} /><InfoRow label="Pagado" value={`$${(paidAmount).toLocaleString('es-AR')}`} /><InfoRow label="Saldo" value={`$${(balance).toLocaleString('es-AR')}`} /><Separator className="my-2" /><div className="space-y-2">{(res.installments?.details || []).map((inst, idx) => {const paidAtDate = inst.paidAt instanceof Date ? inst.paidAt : inst.paidAt && (inst.paidAt as any).toDate ? (inst.paidAt as any).toDate() : null; const isValidDate = paidAtDate instanceof Date && !isNaN(paidAtDate.getTime()); return (<div key={idx} className="flex justify-between items-center text-xs">{inst.isPaid ? <CheckCircle className="w-4 h-4 text-green-600"/> : <Clock className="w-4 h-4 text-muted-foreground"/>}<span>Cuota {idx + 1}</span><div className="flex items-center gap-1 font-mono">{inst.isPaid && inst.paymentMethod && <Badge variant="outline" className="text-[10px] p-0.5 px-1">{paymentMethodAbbreviations[inst.paymentMethod]}</Badge>}{inst.isPaid && isValidDate && <span className="text-muted-foreground">{format(paidAtDate, 'dd/MM/yy')}</span>}<span>${(inst.amount || 0).toLocaleString('es-AR')}</span></div></div>);})}</div></CardContent></Card>
+                                                    <Card><CardHeader><CardTitle className="text-lg flex items-center gap-2"><CreditCard className="w-5 h-5 text-primary"/>Información de Pago</CardTitle></CardHeader><CardContent className="space-y-3 text-sm"><InfoRow label="Monto Total" value={`$${(res.finalPrice).toLocaleString('es-AR')}`} /><InfoRow label="Pagado" value={`$${(paidAmount).toLocaleString('es-AR')}`} /><InfoRow label="Saldo" value={`$${(balance).toLocaleString('es-AR')}`} /><Separator className="my-2" /><div className="space-y-2">{(res.installments?.details || []).map((inst, idx) => {
+                                                        const paidAtDate = inst.paidAt instanceof Date ? inst.paidAt : inst.paidAt && (inst.paidAt as any).toDate ? (inst.paidAt as any).toDate() : null;
+                                                        const isValidDate = paidAtDate instanceof Date && !isNaN(paidAtDate.getTime());
+                                                        return (<div key={idx} className="flex justify-between items-center text-xs"><div className="flex items-center gap-2">{inst.isPaid ? <CheckCircle className="w-4 h-4 text-green-600"/> : <Clock className="w-4 h-4 text-muted-foreground"/>}<span>Cuota {idx + 1}</span></div><div className="flex items-center gap-1 font-mono">{inst.isPaid && inst.paymentMethod && <Badge variant="outline" className="text-[10px] p-0.5 px-1">{paymentMethodAbbreviations[inst.paymentMethod]}</Badge>}{inst.isPaid && isValidDate && <span className="text-muted-foreground">{format(paidAtDate, 'dd/MM/yy')}</span>}<span>${(inst.amount || 0).toLocaleString('es-AR')}</span></div></div>);})}</div></CardContent></Card>
                                                     <Card><CardHeader><CardTitle className="text-lg flex items-center gap-2"><Home className="w-5 h-5 text-primary"/>Detalles del Viaje</CardTitle></CardHeader><CardContent className="space-y-3 text-sm"><InfoRow label="Seguro" value={(res.insuredPassengerIds?.length || 0) > 0 ? `Sí (${res.insuredPassengerIds?.length})` : 'No'} icon={<ShieldCheck className="w-4 h-4 text-green-600"/>}/><InfoRow label="Liberados" value={(res.releasedPassengerIds?.length || 0) > 0 ? `Sí (${res.releasedPassengerIds?.length})` : 'No'} icon={<BadgePercent className="w-4 h-4 text-blue-600"/>}/><InfoRow label="Pensión" value={pensions.find(p => p.id === res.pensionId)?.name || 'No incluida'} icon={<Utensils className="w-4 h-4 text-orange-600"/>}/><InfoRow label="Tipo de Hab." value={roomTypes.find(rt => rt.id === res.roomTypeId)?.name} icon={<BedDouble className="w-4 h-4 text-blue-600"/>}/></CardContent></Card>
                                                 </div>
                                                 <div className="flex justify-end gap-2 mt-4">
@@ -450,5 +453,3 @@ export function HistoryDashboard({ isOpen, onOpenChange }: HistoryDashboardProps
     </>
   );
 }
-
-    

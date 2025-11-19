@@ -451,7 +451,7 @@ export function TemplateImporter({ isOpen, onOpenChange }: TemplateImporterProps
                 date: newTripDate,
                 pricingTiers: pricingTiers,
                 transportUnits: [],
-                isPublic: false,
+                isPublic: newTripDate >= new Date(),
             };
             const newTripId = await saveDocument('tours', newTripData);
             const createdTrip = await getDocumentById<Tour>('tours', newTripId);
