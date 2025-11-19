@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useMemo, useEffect } from "react"
@@ -301,29 +302,29 @@ export function MonthlyReportArchive({ isOpen, onOpenChange, allData }: MonthlyR
                 if (!report) return null;
                 return (
                     <AccordionItem key={monthKey} value={monthKey} className="border rounded-lg">
-                        <AccordionTrigger className="p-3 hover:no-underline font-semibold">
-                            <div className="flex justify-between items-center w-full pr-2">
+                        <div className="flex items-center p-3">
+                            <AccordionTrigger className="hover:no-underline font-semibold flex-1">
                                 <span>{formatMonthKey(monthKey)}</span>
-                                <Button size="sm" onClick={(e) => {e.stopPropagation(); generatePdf(monthKey)}} disabled={isLoading}>
-                                    {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Download className="mr-2 h-4 w-4"/>}
-                                    Descargar Mes
-                                </Button>
-                            </div>
-                        </AccordionTrigger>
+                            </AccordionTrigger>
+                            <Button size="sm" onClick={(e) => {e.stopPropagation(); generatePdf(monthKey)}} disabled={isLoading} className="ml-4">
+                                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Download className="mr-2 h-4 w-4"/>}
+                                Descargar Mes
+                            </Button>
+                        </div>
                         <AccordionContent className="p-3 border-t bg-muted/30">
                            <div className="space-y-2">
                             {report.tripReports.map(({ tour, tourIncome, tourCommissions, hotelCost, transportCost, extrasCost, tourNetProfit }) => (
                                 <Accordion key={tour.id} type="single" collapsible className="bg-background rounded-md border">
                                     <AccordionItem value={tour.id} className="border-b-0">
-                                        <AccordionTrigger className="p-2 text-sm hover:no-underline">
-                                             <div className="flex justify-between items-center w-full pr-2">
+                                        <div className="flex items-center p-2">
+                                            <AccordionTrigger className="text-sm hover:no-underline flex-1">
                                                 <span>{tour.destination}</span>
-                                                <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); generatePdf(monthKey, tour.id)}} disabled={isLoading}>
-                                                    <Download className="mr-2 h-4 w-4"/>
-                                                    Desglose
-                                                </Button>
-                                            </div>
-                                        </AccordionTrigger>
+                                            </AccordionTrigger>
+                                            <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); generatePdf(monthKey, tour.id)}} disabled={isLoading}>
+                                                <Download className="mr-2 h-4 w-4"/>
+                                                Desglose
+                                            </Button>
+                                        </div>
                                         <AccordionContent className="p-3 border-t text-xs space-y-1">
                                             <p><strong>Ingresos:</strong> {formatCurrency(tourIncome.ARS)} | {formatCurrency(tourIncome.USD, 'USD')}</p>
                                             <p><strong>Gastos Totales:</strong> {formatCurrency(hotelCost.ARS + transportCost.ARS + extrasCost.ARS + tourCommissions.ARS)} | {formatCurrency(hotelCost.USD + transportCost.USD + extrasCost.USD + tourCommissions.USD, 'USD')}</p>
