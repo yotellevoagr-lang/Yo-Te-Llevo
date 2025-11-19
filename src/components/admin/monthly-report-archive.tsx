@@ -155,7 +155,7 @@ export function MonthlyReportArchive({ isOpen, onOpenChange, allData }: MonthlyR
     const tripReports = filteredData.tours.map(tour => {
         const tourReservations = allData.reservations.filter(r => r.tripId === tour.id);
         
-        const tripIncomeByMethod = tourReservations.reduce((acc, res) => {
+        const tourIncomeByMethod = tourReservations.reduce((acc, res) => {
             const paidInstallments = res.installments?.details.filter(i => i.isPaid) || [];
             paidInstallments.forEach(inst => {
                 const method = inst.paymentMethod || 'Efectivo';
@@ -165,7 +165,7 @@ export function MonthlyReportArchive({ isOpen, onOpenChange, allData }: MonthlyR
             return acc;
         }, {} as Record<PaymentMethod, CurrencyTotal>);
 
-        const tourIncome = Object.values(tripIncomeByMethod).reduce(addTotals, INITIAL_CURRENCY_TOTAL);
+        const tourIncome = Object.values(tourIncomeByMethod).reduce(addTotals, INITIAL_CURRENCY_TOTAL);
         const tourCommissions = tourReservations.reduce((acc, res) => addTotals(acc, calculateCommission(res)), { ...INITIAL_CURRENCY_TOTAL });
         const costs = tour.costs || { transport: [], hotel: { amount: 0, currency: 'ARS' }, extras: [] };
         const hotelCost = { ...INITIAL_CURRENCY_TOTAL, [costs.hotel?.currency || 'ARS']: costs.hotel?.amount || 0 };
@@ -424,5 +424,3 @@ export function MonthlyReportArchive({ isOpen, onOpenChange, allData }: MonthlyR
     </>
   );
 }
-
-    
