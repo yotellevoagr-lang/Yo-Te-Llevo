@@ -24,6 +24,8 @@ import jsPDF from "jspdf"
 import autoTable from "jspdf-autotable"
 import { toTitleCase } from "@/lib/utils"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { toPng } from 'html-to-image';
+
 
 interface MonthlyReportArchiveProps {
   isOpen: boolean
@@ -53,6 +55,7 @@ const addTotals = (t1: CurrencyTotal, t2: CurrencyTotal): CurrencyTotal => ({
 
 export function MonthlyReportArchive({ isOpen, onOpenChange, allData }: MonthlyReportArchiveProps) {
   const [isLoading, setIsLoading] = useState(false);
+  const [chartData, setChartData] = useState<any[]>([]);
 
   const archivedMonths = useMemo(() => {
     if (!allData) return [];
@@ -226,46 +229,64 @@ export function MonthlyReportArchive({ isOpen, onOpenChange, allData }: MonthlyR
         addText(`Reporte Mensual: ${monthName}`, 105, yPos, { align: 'center' }); yPos += 10;
         
         const profitMargin = report.totalIncome.ARS === 0 ? 0 : (report.netProfit.ARS / report.totalIncome.ARS) * 100;
-        let performanceText = "Regular.";
-        if(profitMargin > 30) performanceText = "Excelente!";
-        else if (profitMargin > 15) performanceText = "Bueno.";
         
         autoTable(doc, {
             startY: yPos,
-            head: [['Resumen del Mes', 'Total ARS', 'Total USD']],
+            head: [['Resumen del Mes (ARS)', 'Total']],
             body: [
-                ['Ingresos Totales', formatCurrency(report.totalIncome.ARS), formatCurrency(report.totalIncome.USD, 'USD')],
-                ['Gastos Totales', formatCurrency(report.totalExpenses.ARS), formatCurrency(report.totalExpenses.USD, 'USD')],
-                [{content: 'Ganancia Neta', styles: {fontStyle: 'bold'}}, {content: formatCurrency(report.netProfit.ARS), styles: {fontStyle: 'bold'}}, {content: formatCurrency(report.netProfit.USD, 'USD'), styles: {fontStyle: 'bold'}}],
-                ['Margen de Ganancia', `${profitMargin.toFixed(2)}%`, 'N/A'],
-                ['Rendimiento del Mes', performanceText, '']
+                ['Ingresos Totales', formatCurrency(report.totalIncome.ARS)],
+                ['Gastos Totales', formatCurrency(report.totalExpenses.ARS)],
+                [{content: 'Ganancia Neta', styles: {fontStyle: 'bold'}}, {content: formatCurrency(report.netProfit.ARS), styles: {fontStyle: 'bold'}}],
+                ['Margen de Ganancia', `${profitMargin.toFixed(2)}%`],
             ],
             theme: 'grid', headStyles: { fillColor: [74, 85, 104] }
         });
         yPos = (doc as any).lastAutoTable.finalY + 10;
 
-        addText('Desglose de Ingresos', 14, yPos); yPos += 7;
+        // Prepare chart data
+        const newChartData = [{ name: monthName, Ingresos: report.totalIncome.ARS, Gastos: report.totalExpenses.ARS }];
+        setChartData(newChartData);
+
+        // Wait for state to update and chart to render
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        const chartElement = document.getElementById('pdf-chart-container');
+        if (chartElement) {
+            try {
+                const chartImage = await toPng(chartElement, { width: 500, height: 250 });
+                addText('Rendimiento (ARS)', 105, yPos, { align: 'center' }); yPos += 5;
+                doc.addImage(chartImage, 'PNG', 15, yPos, 180, 65);
+                yPos += 75;
+            } catch (e) {
+                console.error("Chart generation failed", e);
+            }
+        }
+        
+        if (yPos > 250) { doc.addPage(); yPos = 20; }
+
+
+        addText('Desglose de Ingresos (ARS)', 14, yPos); yPos += 7;
         autoTable(doc, {
-            startY: yPos, head: [['Categoría', 'Monto ARS', 'Monto USD']],
+            startY: yPos, head: [['Categoría', 'Monto ARS']],
             body: [
-                ['Reservas (Tarjeta)', formatCurrency(report.incomeByMethod['Tarjeta']?.ARS || 0), formatCurrency(report.incomeByMethod['Tarjeta']?.USD || 0, 'USD')],
-                ['Reservas (Transferencia)', formatCurrency(report.incomeByMethod['Transferencia']?.ARS || 0), formatCurrency(report.incomeByMethod['Transferencia']?.USD || 0, 'USD')],
-                ['Reservas (Efectivo)', formatCurrency(report.incomeByMethod['Efectivo']?.ARS || 0), formatCurrency(report.incomeByMethod['Efectivo']?.USD || 0, 'USD')],
-                ['Comisiones Externas', formatCurrency(report.totalExternalCommissions.ARS), formatCurrency(report.totalExternalCommissions.USD, 'USD')],
-                ['Ingresos por Excursión', formatCurrency(report.totalExcursionIncome.ARS), formatCurrency(report.totalExcursionIncome.USD, 'USD')],
+                ['Reservas (Tarjeta)', formatCurrency(report.incomeByMethod['Tarjeta']?.ARS || 0)],
+                ['Reservas (Transferencia)', formatCurrency(report.incomeByMethod['Transferencia']?.ARS || 0)],
+                ['Reservas (Efectivo)', formatCurrency(report.incomeByMethod['Efectivo']?.ARS || 0)],
+                ['Comisiones Externas', formatCurrency(report.totalExternalCommissions.ARS)],
+                ['Ingresos por Excursión', formatCurrency(report.totalExcursionIncome.ARS)],
             ],
             theme: 'striped', headStyles: { fillColor: [22, 163, 74] }
         });
         yPos = (doc as any).lastAutoTable.finalY + 10;
         
-        addText('Desglose de Gastos', 14, yPos); yPos += 7;
+        addText('Desglose de Gastos (ARS)', 14, yPos); yPos += 7;
         autoTable(doc, {
-            startY: yPos, head: [['Categoría', 'Monto ARS', 'Monto USD']],
+            startY: yPos, head: [['Categoría', 'Monto ARS']],
             body: [
-                ['Costo Fijo de Viajes (Transporte, Hotel)', formatCurrency(report.totalTourFixedCosts.ARS), formatCurrency(report.totalTourFixedCosts.USD, 'USD')],
-                ['Comisiones de Vendedores', formatCurrency(report.totalCommissionsPaid.ARS), formatCurrency(report.totalCommissionsPaid.USD, 'USD')],
-                ['Costos Extras de Viajes', formatCurrency(report.totalTourExtraCosts.ARS), formatCurrency(report.totalTourExtraCosts.USD, 'USD')],
-                ['Gastos Manuales', formatCurrency(report.totalCustomExpenses.ARS), formatCurrency(report.totalCustomExpenses.USD, 'USD')],
+                ['Costo Fijo de Viajes (Transporte, Hotel)', formatCurrency(report.totalTourFixedCosts.ARS)],
+                ['Comisiones de Vendedores', formatCurrency(report.totalCommissionsPaid.ARS)],
+                ['Costos Extras de Viajes', formatCurrency(report.totalTourExtraCosts.ARS)],
+                ['Gastos Manuales', formatCurrency(report.totalCustomExpenses.ARS)],
             ],
             theme: 'striped', headStyles: { fillColor: [220, 38, 38] }
         });
@@ -308,67 +329,84 @@ export function MonthlyReportArchive({ isOpen, onOpenChange, allData }: MonthlyR
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl">
-        <DialogHeader>
-          <DialogTitle>Historial de Reportes Mensuales</DialogTitle>
-          <DialogDescription>
-            Consulta y descarga reportes detallados en PDF de los meses finalizados.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="py-4 space-y-3 max-h-[60vh] overflow-y-auto">
-          {archivedMonths.length > 0 ? (
-            <Accordion type="multiple" className="w-full space-y-2">
-            {archivedMonths.map(monthKey => {
-                const report = calculateReportForMonth(monthKey);
-                if (!report) return null;
-                return (
-                    <AccordionItem key={monthKey} value={monthKey} className="border rounded-lg">
-                        <div className="flex items-center p-3">
-                            <AccordionTrigger className="hover:no-underline font-semibold flex-1">
-                                <span>{formatMonthKey(monthKey)}</span>
-                            </AccordionTrigger>
-                            <Button size="sm" onClick={(e) => {e.stopPropagation(); generatePdf(monthKey)}} disabled={isLoading} className="ml-4">
-                                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Download className="mr-2 h-4 w-4"/>}
-                                Descargar Mes
-                            </Button>
-                        </div>
-                        <AccordionContent className="p-3 border-t bg-muted/30">
-                           <div className="space-y-2">
-                            {report.tripReports.map(({ tour, tourIncome, tourCommissions, hotelCost, transportCost, extrasCost, tourNetProfit }) => (
-                                <Accordion key={tour.id} type="single" collapsible className="bg-background rounded-md border">
-                                    <AccordionItem value={tour.id} className="border-b-0">
-                                        <div className="flex items-center p-2">
-                                            <AccordionTrigger className="text-sm hover:no-underline flex-1">
-                                                <span>{tour.destination}</span>
-                                            </AccordionTrigger>
-                                            <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); generatePdf(monthKey, tour.id)}} disabled={isLoading}>
-                                                <Download className="mr-2 h-4 w-4"/>
-                                                Desglose
-                                            </Button>
-                                        </div>
-                                        <AccordionContent className="p-3 border-t text-xs space-y-1">
-                                            <p><strong>Ingresos:</strong> {formatCurrency(tourIncome.ARS)} | {formatCurrency(tourIncome.USD, 'USD')}</p>
-                                            <p><strong>Gastos Totales:</strong> {formatCurrency(hotelCost.ARS + transportCost.ARS + extrasCost.ARS + tourCommissions.ARS)} | {formatCurrency(hotelCost.USD + transportCost.USD + extrasCost.USD + tourCommissions.USD, 'USD')}</p>
-                                            <p className="font-bold"><strong>Ganancia Neta:</strong> {formatCurrency(tourNetProfit.ARS)} | {formatCurrency(tourNetProfit.USD, 'USD')}</p>
-                                        </AccordionContent>
-                                    </AccordionItem>
-                                </Accordion>
-                            ))}
-                           </div>
-                        </AccordionContent>
-                    </AccordionItem>
-                )
-            })}
-            </Accordion>
-          ) : (
-            <p className="text-center text-muted-foreground p-4">No hay reportes archivados disponibles.</p>
-          )}
+    <>
+      <div id="pdf-chart-container" style={{ width: 500, height: 250, position: 'absolute', left: -9999, top: 0, backgroundColor: 'white', padding: '10px' }}>
+            {chartData.length > 0 && (
+                <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="name" />
+                        <YAxis tickFormatter={(value) => `$${(value / 1000)}k`} />
+                        <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                        <Legend />
+                        <Bar dataKey="Ingresos" fill="#16a34a" />
+                        <Bar dataKey="Gastos" fill="#dc2626" />
+                    </BarChart>
+                </ResponsiveContainer>
+            )}
         </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cerrar</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      <Dialog open={isOpen} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Historial de Reportes Mensuales</DialogTitle>
+            <DialogDescription>
+              Consulta y descarga reportes detallados en PDF de los meses finalizados.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-3 max-h-[60vh] overflow-y-auto">
+            {archivedMonths.length > 0 ? (
+              <Accordion type="multiple" className="w-full space-y-2">
+              {archivedMonths.map(monthKey => {
+                  const report = calculateReportForMonth(monthKey);
+                  if (!report) return null;
+                  return (
+                      <AccordionItem key={monthKey} value={monthKey} className="border rounded-lg">
+                          <div className="flex items-center p-3">
+                              <AccordionTrigger className="hover:no-underline font-semibold flex-1">
+                                  <span>{formatMonthKey(monthKey)}</span>
+                              </AccordionTrigger>
+                              <Button size="sm" onClick={(e) => {e.stopPropagation(); generatePdf(monthKey)}} disabled={isLoading} className="ml-4">
+                                  {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Download className="mr-2 h-4 w-4"/>}
+                                  Descargar Mes
+                              </Button>
+                          </div>
+                          <AccordionContent className="p-3 border-t bg-muted/30">
+                            <div className="space-y-2">
+                              {report.tripReports.map(({ tour, tourIncome, tourCommissions, hotelCost, transportCost, extrasCost, tourNetProfit }) => (
+                                  <Accordion key={tour.id} type="single" collapsible className="bg-background rounded-md border">
+                                      <AccordionItem value={tour.id} className="border-b-0">
+                                          <div className="flex items-center p-2">
+                                              <AccordionTrigger className="text-sm hover:no-underline flex-1">
+                                                  <span>{tour.destination}</span>
+                                              </AccordionTrigger>
+                                              <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); generatePdf(monthKey, tour.id)}} disabled={isLoading}>
+                                                  <Download className="mr-2 h-4 w-4"/>
+                                                  Desglose
+                                              </Button>
+                                          </div>
+                                          <AccordionContent className="p-3 border-t text-xs space-y-1">
+                                              <p><strong>Ingresos:</strong> {formatCurrency(tourIncome.ARS)} | {formatCurrency(tourIncome.USD, 'USD')}</p>
+                                              <p><strong>Gastos Totales:</strong> {formatCurrency(hotelCost.ARS + transportCost.ARS + extrasCost.ARS + tourCommissions.ARS)} | {formatCurrency(hotelCost.USD + transportCost.USD + extrasCost.USD + tourCommissions.USD, 'USD')}</p>
+                                              <p className="font-bold"><strong>Ganancia Neta:</strong> {formatCurrency(tourNetProfit.ARS)} | {formatCurrency(tourNetProfit.USD, 'USD')}</p>
+                                          </AccordionContent>
+                                      </AccordionItem>
+                                  </Accordion>
+                              ))}
+                            </div>
+                          </AccordionContent>
+                      </AccordionItem>
+                  )
+              })}
+              </Accordion>
+            ) : (
+              <p className="text-center text-muted-foreground p-4">No hay reportes archivados disponibles.</p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => onOpenChange(false)}>Cerrar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
