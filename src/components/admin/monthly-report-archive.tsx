@@ -49,18 +49,23 @@ export function MonthlyReportArchive({ isOpen, onOpenChange, allData }: MonthlyR
 
   const archivedMonths = useMemo(() => {
     if (!allData) return [];
+    
+    const now = new Date();
+    // Set 'now' to the start of today to correctly compare dates.
+    now.setHours(0, 0, 0, 0);
+
     const relevantMonths = new Set<string>();
-    allData.tours.forEach(tour => {
+
+    // Only consider tours that have already passed
+    allData.tours
+      .filter(tour => new Date(tour.date) < now)
+      .forEach(tour => {
         const monthKey = tour.date.toISOString().slice(0, 7); // YYYY-MM
         relevantMonths.add(monthKey);
     });
-
-    const now = new Date();
-    const currentMonthKey = now.toISOString().slice(0, 7);
     
     return Array.from(relevantMonths)
-        .filter(month => month < currentMonthKey)
-        .sort((a, b) => b.localeCompare(a))
+        .sort((a, b) => b.localeCompare(a)) // Sort descending
         .slice(0, 12); // Show up to 12 past months
   }, [allData]);
 
