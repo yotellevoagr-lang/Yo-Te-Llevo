@@ -1,5 +1,4 @@
 
-
 "use client"
 
 import { useEffect, useState, useMemo } from "react"
@@ -313,8 +312,8 @@ export function TripForm({ isOpen, onOpenChange, onSave, tour, boardingPoints }:
     }
   }
   
-  const removeGalleryItem = (item: GalleryItem | GalleryFile) => {
-      if ('isNew' in item && item.isNew) {
+  const removeGalleryItem = (item: (GalleryItem & {isNew: false}) | (GalleryFile & {isNew: true})) => {
+      if (item.isNew) {
           removeNewGalleryFile(item.id);
       } else {
           removeExistingGalleryItem(item.id);
@@ -350,9 +349,12 @@ export function TripForm({ isOpen, onOpenChange, onSave, tour, boardingPoints }:
     setIsLoading(true);
 
     try {
-        let finalBackgroundImageUrl = backgroundImagePreview;
+        let finalBackgroundImageUrl = formData.backgroundImage; // Keep old one if no new one is set
         if (backgroundImageFile) {
             finalBackgroundImageUrl = await fileToDataUrl(backgroundImageFile);
+        } else if (backgroundImagePreview !== formData.backgroundImage) {
+            // Case where a different existing image was selected as background
+            finalBackgroundImageUrl = backgroundImagePreview;
         }
         
         const uploadedGalleryItems: GalleryItem[] = [];
@@ -403,8 +405,8 @@ export function TripForm({ isOpen, onOpenChange, onSave, tour, boardingPoints }:
   };
 
   const allMediaItems = useMemo(() => {
-    const existingItems = (formData.gallery || []).map(item => ({ ...item, isNew: false }));
-    const newItems = newGalleryFiles.map(file => ({ ...file, isNew: true }));
+    const existingItems = (formData.gallery || []).map(item => ({ ...item, isNew: false as const }));
+    const newItems = newGalleryFiles.map(file => ({ ...file, isNew: true as const }));
     return [...existingItems, ...newItems];
   }, [formData.gallery, newGalleryFiles]);
 
@@ -499,7 +501,7 @@ export function TripForm({ isOpen, onOpenChange, onSave, tour, boardingPoints }:
                                     <h4 className="font-semibold mb-2">Galería Actual</h4>
                                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                                       {allMediaItems.map(item => {
-                                        const url = 'previewUrl' in item ? item.previewUrl : item.url;
+                                        const url = 'previewUrl' in item ? item.previewUrl : getDisplayUrl(item.url);
                                         const isMain = backgroundImagePreview === url;
                                         return (
                                           <div key={item.id} className="relative group aspect-square">

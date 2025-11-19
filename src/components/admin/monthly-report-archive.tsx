@@ -13,7 +13,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Loader2, Download } from "lucide-react"
 import type { Tour, Reservation, Seller, CommissionSettings, CustomExpense, ExternalCommission, ExcursionIncome, PaymentMethod } from "@/lib/types"
-import { startOfMonth, endOfMonth, subMonths } from "date-fns"
+import { endOfMonth } from "date-fns"
 import jsPDF from "jspdf"
 import autoTable from "jspdf-autotable"
 import { toTitleCase } from "@/lib/utils"
@@ -29,7 +29,7 @@ interface MonthlyReportArchiveProps {
     customExpenses: CustomExpense[]
     externalCommissions: ExternalCommission[]
     excursionIncomes: ExcursionIncome[]
-  }
+  } | null
 }
 
 type CurrencyTotal = { ARS: number; USD: number };
@@ -48,6 +48,7 @@ export function MonthlyReportArchive({ isOpen, onOpenChange, allData }: MonthlyR
   const [isLoading, setIsLoading] = useState(false);
 
   const archivedMonths = useMemo(() => {
+    if (!allData) return [];
     const relevantMonths = new Set<string>();
     allData.tours.forEach(tour => {
         const monthKey = tour.date.toISOString().slice(0, 7); // YYYY-MM
@@ -60,10 +61,11 @@ export function MonthlyReportArchive({ isOpen, onOpenChange, allData }: MonthlyR
     return Array.from(relevantMonths)
         .filter(month => month < currentMonthKey)
         .sort((a, b) => b.localeCompare(a))
-        .slice(0, 5); // Get last 5 completed months
-  }, [allData.tours]);
+        .slice(0, 12); // Show up to 12 past months
+  }, [allData]);
 
   const calculateReportForMonth = (monthKey: string) => {
+    if (!allData) return null;
     const from = new Date(monthKey + '-01T00:00:00');
     const to = endOfMonth(from);
 
@@ -142,7 +144,12 @@ export function MonthlyReportArchive({ isOpen, onOpenChange, allData }: MonthlyR
 
   const generateAndDownloadPdf = async (monthKey: string) => {
     setIsLoading(true);
-    const { totalIncome, totalExpenses, netProfit, tripReports, filteredData } = calculateReportForMonth(monthKey);
+    const report = calculateReportForMonth(monthKey);
+    if (!report) {
+        setIsLoading(false);
+        return;
+    }
+    const { totalIncome, totalExpenses, netProfit, tripReports, filteredData } = report;
     const monthName = toTitleCase(new Date(monthKey + '-02').toLocaleString('es-ES', { month: 'long', year: 'numeric' }));
 
     const doc = new jsPDF();
@@ -228,7 +235,7 @@ export function MonthlyReportArchive({ isOpen, onOpenChange, allData }: MonthlyR
         <DialogHeader>
           <DialogTitle>Historial de Reportes Mensuales</DialogTitle>
           <DialogDescription>
-            Descarga reportes detallados en PDF de los meses finalizados. Se muestran los últimos 5 meses con actividad.
+            Descarga reportes detallados en PDF de los meses finalizados. Se muestran los últimos 12 meses con actividad.
           </DialogDescription>
         </DialogHeader>
         <div className="py-4 space-y-3">
@@ -253,5 +260,3 @@ export function MonthlyReportArchive({ isOpen, onOpenChange, allData }: MonthlyR
     </Dialog>
   );
 }
-
-    
