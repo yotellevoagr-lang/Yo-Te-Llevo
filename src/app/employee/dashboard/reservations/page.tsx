@@ -561,7 +561,7 @@ export default function ReservationsPage() {
                                         </SelectContent>
                                     </Select>
                                      <DatePicker
-                                        date={inst.paidAt ? (inst.paidAt instanceof Date ? inst.paidAt : (inst.paidAt as any).toDate()) : undefined}
+                                        date={inst.paidAt ? (inst.paidAt instanceof Date ? inst.paidAt : (inst.paidAt as any).toDate ? (inst.paidAt as any).toDate() : new Date(inst.paidAt as any)) : undefined}
                                         setDate={(d) => {
                                             const newDetails = [...installments.details];
                                             newDetails[index].paidAt = d;
@@ -877,7 +877,8 @@ export default function ReservationsPage() {
                                                               <Separator className="my-2" />
                                                               <div className="space-y-2">
                                                                   {(res.installments?.details || []).map((inst, idx) => {
-                                                                      const paidAtDate = inst.paidAt instanceof Date ? inst.paidAt : inst.paidAt && (inst.paidAt as any).toDate ? (inst.paidAt as any).toDate() : null;
+                                                                      const paidAtRaw = inst.paidAt;
+                                                                      const paidAtDate = paidAtRaw instanceof Date ? paidAtRaw : paidAtRaw && (paidAtRaw as any).toDate ? (paidAtRaw as any).toDate() : null;
                                                                       const isValidDate = paidAtDate instanceof Date && !isNaN(paidAtDate.getTime());
                                                                       return (
                                                                         <div key={idx} className="flex justify-between items-center text-xs">
@@ -944,3 +945,5 @@ export default function ReservationsPage() {
     </>
   )
 }
+
+    

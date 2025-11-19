@@ -590,7 +590,7 @@ export default function ReservationsPage() {
                                         </SelectContent>
                                     </Select>
                                     <DatePicker
-                                        date={inst.paidAt ? (inst.paidAt instanceof Date ? inst.paidAt : (inst.paidAt as any).toDate()) : undefined}
+                                        date={inst.paidAt ? (inst.paidAt instanceof Date ? inst.paidAt : (inst.paidAt as any).toDate ? (inst.paidAt as any).toDate() : new Date(inst.paidAt as any)) : undefined}
                                         setDate={(d) => {
                                             const newDetails = [...installments.details];
                                             newDetails[index].paidAt = d;
@@ -973,4 +973,6 @@ export default function ReservationsPage() {
     </>
   )
 }
+    
+
     
