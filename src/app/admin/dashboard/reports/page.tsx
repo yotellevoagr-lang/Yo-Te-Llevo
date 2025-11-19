@@ -196,7 +196,8 @@ export default function ReportsPage() {
 
         const filterByDate = <T extends { date: Date }>(items: T[]) => items.filter(item => item.date >= from && item.date <= to);
         
-        const toursInDateRange = allData.tours.filter(t => t.date >= from && t.date <= to);
+        // This is the main change: only tours that HAVE NOT passed are included for the main report view.
+        const toursInDateRange = allData.tours.filter(t => t.date >= from && t.date <= to && t.date >= new Date());
         
         return {
             tours: toursInDateRange,
@@ -508,3 +509,5 @@ export default function ReportsPage() {
         </>
     );
 }
+
+    
