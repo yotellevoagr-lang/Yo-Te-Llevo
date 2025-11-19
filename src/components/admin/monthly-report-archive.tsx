@@ -118,6 +118,18 @@ export function MonthlyReportArchive({ isOpen, onOpenChange, allData }: MonthlyR
         const paidAmount = res.installments?.details.filter(i => i.isPaid).reduce((sum, i) => sum + i.amount, 0) || 0;
         return { ...acc, [currency as 'ARS' | 'USD']: (acc[currency as 'ARS' | 'USD'] || 0) + paidAmount };
     }, { ...INITIAL_CURRENCY_TOTAL });
+    
+    const incomeByMethod = filteredData.reservations.reduce((acc, res) => {
+        const tour = allData.tours.find(t => t.id === res.tripId);
+        const paidInstallments = res.installments?.details.filter(i => i.isPaid) || [];
+        paidInstallments.forEach(inst => {
+            const method = inst.paymentMethod || 'Efectivo';
+            if (!acc[method]) acc[method] = {...INITIAL_CURRENCY_TOTAL};
+            acc[method] = { ...acc[method], [tour?.currency || 'ARS']: (acc[method][tour?.currency || 'ARS'] || 0) + inst.amount };
+        });
+        return acc;
+    }, {} as Record<PaymentMethod, CurrencyTotal>);
+
     const totalExcursionIncome = filteredData.excursionIncomes.reduce((acc, item) => ({ ...acc, [item.currency || 'ARS']: (acc[item.currency || 'ARS'] || 0) + item.amount }), { ...INITIAL_CURRENCY_TOTAL });
     const totalExternalCommissions = filteredData.externalCommissions.reduce((acc, item) => ({ ...acc, [item.currency || 'ARS']: (acc[item.currency || 'ARS'] || 0) + item.amount }), { ...INITIAL_CURRENCY_TOTAL });
     const totalIncome = [totalReservationIncome, totalExcursionIncome, totalExternalCommissions].reduce(addTotals, { ...INITIAL_CURRENCY_TOTAL });
@@ -153,7 +165,7 @@ export function MonthlyReportArchive({ isOpen, onOpenChange, allData }: MonthlyR
         return { tour, tourIncome, tourCommissions, hotelCost, transportCost, extrasCost, tourNetProfit };
     });
 
-    return { totalIncome, totalExpenses, netProfit, tripReports, filteredData, totalCommissionsPaid, totalTourFixedCosts, totalTourExtraCosts, totalCustomExpenses, totalExcursionIncome, totalExternalCommissions };
+    return { totalIncome, totalExpenses, netProfit, tripReports, filteredData, totalCommissionsPaid, totalTourFixedCosts, totalTourExtraCosts, totalCustomExpenses, totalExcursionIncome, totalExternalCommissions, incomeByMethod };
   }
 
   const generatePdf = async (monthKey: string, tripId?: string) => {
@@ -213,28 +225,6 @@ export function MonthlyReportArchive({ isOpen, onOpenChange, allData }: MonthlyR
         const monthName = toTitleCase(new Date(monthKey + '-02').toLocaleString('es-ES', { month: 'long', year: 'numeric' }));
         addText(`Reporte Mensual: ${monthName}`, 105, yPos, { align: 'center' }); yPos += 10;
         
-        const chartData = [{ name: 'Mes', Ingresos: report.totalIncome.ARS, Gastos: report.totalExpenses.ARS }];
-        const chartElement = document.createElement('div');
-        chartElement.style.width = '700px';
-        chartElement.style.height = '350px';
-        document.body.appendChild(chartElement);
-        
-        const chartComponent = (
-            <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis tickFormatter={(value) => `$${(value/1000)}k`} />
-                    <Tooltip formatter={(value: number) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS'}).format(value)} />
-                    <Legend />
-                    <Bar dataKey="Ingresos" fill="#16a34a" />
-                    <Bar dataKey="Gastos" fill="#dc2626" />
-                </BarChart>
-            </ResponsiveContainer>
-        );
-        // This part is tricky, we need to render the chart to an image.
-        // We'll skip this for now and just add tables.
-
         const profitMargin = report.totalIncome.ARS === 0 ? 0 : (report.netProfit.ARS / report.totalIncome.ARS) * 100;
         let performanceText = "Regular.";
         if(profitMargin > 30) performanceText = "Excelente!";
@@ -253,28 +243,60 @@ export function MonthlyReportArchive({ isOpen, onOpenChange, allData }: MonthlyR
             theme: 'grid', headStyles: { fillColor: [74, 85, 104] }
         });
         yPos = (doc as any).lastAutoTable.finalY + 10;
+
+        addText('Desglose de Ingresos', 14, yPos); yPos += 7;
+        autoTable(doc, {
+            startY: yPos, head: [['Categoría', 'Monto ARS', 'Monto USD']],
+            body: [
+                ['Reservas (Tarjeta)', formatCurrency(report.incomeByMethod['Tarjeta']?.ARS || 0), formatCurrency(report.incomeByMethod['Tarjeta']?.USD || 0, 'USD')],
+                ['Reservas (Transferencia)', formatCurrency(report.incomeByMethod['Transferencia']?.ARS || 0), formatCurrency(report.incomeByMethod['Transferencia']?.USD || 0, 'USD')],
+                ['Reservas (Efectivo)', formatCurrency(report.incomeByMethod['Efectivo']?.ARS || 0), formatCurrency(report.incomeByMethod['Efectivo']?.USD || 0, 'USD')],
+                ['Comisiones Externas', formatCurrency(report.totalExternalCommissions.ARS), formatCurrency(report.totalExternalCommissions.USD, 'USD')],
+                ['Ingresos por Excursión', formatCurrency(report.totalExcursionIncome.ARS), formatCurrency(report.totalExcursionIncome.USD, 'USD')],
+            ],
+            theme: 'striped', headStyles: { fillColor: [22, 163, 74] }
+        });
+        yPos = (doc as any).lastAutoTable.finalY + 10;
         
-        doc.addPage();
-        yPos = 20;
-
-        addText('Desglose de Ingresos', 14, yPos); yPos += 5;
-        autoTable(doc, { startY: yPos, head: [['Categoría', 'Descripción', 'Monto']], body: [
-                ...report.filteredData.excursionIncomes.map(i => ['Ingreso por Excursión', i.description, formatCurrency(i.amount, i.currency)]),
-                ...report.filteredData.externalCommissions.map(i => ['Comisión Externa', i.description, formatCurrency(i.amount, i.currency)]),
-            ]
+        addText('Desglose de Gastos', 14, yPos); yPos += 7;
+        autoTable(doc, {
+            startY: yPos, head: [['Categoría', 'Monto ARS', 'Monto USD']],
+            body: [
+                ['Costo Fijo de Viajes (Transporte, Hotel)', formatCurrency(report.totalTourFixedCosts.ARS), formatCurrency(report.totalTourFixedCosts.USD, 'USD')],
+                ['Comisiones de Vendedores', formatCurrency(report.totalCommissionsPaid.ARS), formatCurrency(report.totalCommissionsPaid.USD, 'USD')],
+                ['Costos Extras de Viajes', formatCurrency(report.totalTourExtraCosts.ARS), formatCurrency(report.totalTourExtraCosts.USD, 'USD')],
+                ['Gastos Manuales', formatCurrency(report.totalCustomExpenses.ARS), formatCurrency(report.totalCustomExpenses.USD, 'USD')],
+            ],
+            theme: 'striped', headStyles: { fillColor: [220, 38, 38] }
         });
         yPos = (doc as any).lastAutoTable.finalY + 10;
-
-        addText('Desglose de Gastos', 14, yPos); yPos += 5;
-        autoTable(doc, { startY: yPos, head: [['Categoría', 'Descripción', 'Monto']], body: [
-                ['Costo Fijo de Viajes', `Hotel, transporte, etc.`, `${formatCurrency(report.totalTourFixedCosts.ARS)} | ${formatCurrency(report.totalTourFixedCosts.USD, 'USD')}`],
-                ['Comisiones de Vendedores', `Pagado a vendedores`, `${formatCurrency(report.totalCommissionsPaid.ARS)} | ${formatCurrency(report.totalCommissionsPaid.USD, 'USD')}`],
-                ['Costos Extras de Viajes', `Coordinadores, imprevistos, etc.`, `${formatCurrency(report.totalTourExtraCosts.ARS)} | ${formatCurrency(report.totalTourExtraCosts.USD, 'USD')}`],
-                ...report.filteredData.customExpenses.map(e => ['Gasto Manual', e.description, formatCurrency(e.amount, e.currency)])
-            ]
-        });
-        yPos = (doc as any).lastAutoTable.finalY + 10;
-
+        
+        if (report.tripReports.length > 0) {
+            doc.addPage();
+            yPos = 20;
+            addText('Análisis por Viaje', 105, yPos, { align: 'center' }); yPos += 10;
+            
+            report.tripReports.forEach((tripRep, index) => {
+                if (index > 0) yPos = (doc as any).lastAutoTable.finalY + 15;
+                if (yPos > 260) {
+                    doc.addPage();
+                    yPos = 20;
+                }
+                addText(tripRep.tour.destination, 14, yPos); yPos += 7;
+                autoTable(doc, {
+                    startY: yPos,
+                    head: [['Concepto', 'ARS', 'USD']],
+                    body: [
+                        ['Ingresos', formatCurrency(tripRep.tourIncome.ARS), formatCurrency(tripRep.tourIncome.USD, 'USD')],
+                        ['Costos Fijos', formatCurrency(tripRep.hotelCost.ARS + tripRep.transportCost.ARS + tripRep.extrasCost.ARS), formatCurrency(tripRep.hotelCost.USD + tripRep.transportCost.USD + tripRep.extrasCost.USD, 'USD')],
+                        ['Comisiones', formatCurrency(tripRep.tourCommissions.ARS), formatCurrency(tripRep.tourCommissions.USD, 'USD')],
+                        [{content: 'Ganancia Neta', styles:{fontStyle: 'bold'}}, {content: formatCurrency(tripRep.tourNetProfit.ARS), styles:{fontStyle: 'bold'}}, {content: formatCurrency(tripRep.tourNetProfit.USD, 'USD'), styles:{fontStyle: 'bold'}}],
+                    ],
+                    theme: 'grid'
+                });
+            });
+        }
+        
         doc.save(`Reporte_${monthKey}.pdf`);
     }
 
