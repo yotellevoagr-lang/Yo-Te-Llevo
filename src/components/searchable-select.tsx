@@ -23,9 +23,10 @@ interface SearchableSelectProps {
     placeholder?: string;
     listHeight?: string;
     disabled?: boolean;
+    className?: string; // Add className prop
 }
 
-export function SearchableSelect({ options, value, onChange, placeholder, listHeight = 'h-60', disabled = false }: SearchableSelectProps) {
+export function SearchableSelect({ options, value, onChange, placeholder, listHeight = 'h-60', disabled = false, className }: SearchableSelectProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
     const wrapperRef = useRef<HTMLDivElement>(null);
@@ -51,13 +52,14 @@ export function SearchableSelect({ options, value, onChange, placeholder, listHe
     }, [wrapperRef]);
 
     const filteredOptions = useMemo(() => {
+        if (!searchTerm && value) return options;
         if (!searchTerm) return options;
         const lowercasedTerm = searchTerm.toLowerCase();
         return options.filter(opt => 
             opt.label.toLowerCase().includes(lowercasedTerm) || 
             (opt.keywords && opt.keywords.some(kw => kw.toLowerCase().includes(lowercasedTerm)))
         );
-    }, [options, searchTerm]);
+    }, [options, searchTerm, value]);
 
     const handleSelect = (optionValue: string, optionLabel: string) => {
         onChange(optionValue);
@@ -75,6 +77,9 @@ export function SearchableSelect({ options, value, onChange, placeholder, listHe
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const newValue = e.target.value;
         setSearchTerm(newValue);
+        if (value) {
+            onChange(''); // Clear the actual value if user starts typing
+        }
         if (!isOpen) setIsOpen(true);
     };
     
@@ -90,7 +95,7 @@ export function SearchableSelect({ options, value, onChange, placeholder, listHe
 
 
     return (
-        <div className="relative" ref={wrapperRef}>
+        <div className={cn("relative", className)} ref={wrapperRef}>
             <div className="relative">
                 <Input
                     placeholder={placeholder}
@@ -98,7 +103,7 @@ export function SearchableSelect({ options, value, onChange, placeholder, listHe
                     onChange={handleInputChange}
                     onFocus={() => setIsOpen(true)}
                     disabled={disabled}
-                    className="h-14 text-base md:text-lg pl-12"
+                    className="h-10 text-base"
                 />
                 {value && !disabled && (
                     <Button

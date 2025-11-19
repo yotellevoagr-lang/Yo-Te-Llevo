@@ -99,29 +99,31 @@ export async function isUsernameUnique(username: string, currentUserId?: string)
     return isUniqueInPassengers && isUniqueInEmployees && isUniqueInAdmin;
 }
 
-export async function isDniUnique(dni: string): Promise<boolean> {
+export async function isDniUnique(dni: string, currentUserId?: string): Promise<boolean> {
     if (!dni || dni.trim() === '') return true; // Let required validation handle empty.
 
     const q = query(collection(db, 'passengers'), where('dni', '==', dni));
     const querySnapshot = await getDocs(q);
 
     if (querySnapshot.empty) {
-        // No passenger found with this DNI, so it's "unique" for registration.
         return true;
     }
 
-    // DNI exists. Now check if any of the found passengers have an email.
-    // If one has an email, an account already exists.
+    // It's not unique. Check if it's the current user we are editing.
+    if (currentUserId && querySnapshot.docs.every(doc => doc.id === currentUserId)) {
+        return true;
+    }
+    
+    // Check if any found passenger has an email, indicating an account exists.
     for (const doc of querySnapshot.docs) {
         const passenger = doc.data() as Passenger;
-        if (passenger.email && passenger.email.trim() !== '') {
-            // An account with this DNI and an email already exists.
+        // If we find a doc with the same DNI that is NOT the user being edited AND has an email, it's a conflict.
+        if (doc.id !== currentUserId && passenger.email && passenger.email.trim() !== '') {
             return false; 
         }
     }
-
-    // A passenger with this DNI exists, but none have an associated email.
-    // This means they were likely created by an admin. The user is allowed to "claim" this profile by registering.
+    
+    // DNI exists but on profiles without an email account (or on the current user), so it's ok to register or update.
     return true;
 };
 
@@ -477,7 +479,10 @@ export const savePassenger = async (passengerData: Partial<Passenger>, id?: stri
         }
     }
     
-    const dataToSave = { ...passengerData, dob: dobValue };
+    const dataToSave: Partial<Passenger> = { ...passengerData };
+    if (dobValue) {
+        dataToSave.dob = dobValue;
+    }
 
     if (!finalId) {
         const docRef = await addDoc(collection(db, collectionName), dataToSave);
