@@ -24,6 +24,7 @@ import { DatePicker } from "../ui/date-picker"
 import { savePassenger, saveReservation, isDniUnique } from "@/lib/firestore-services"
 import { useAuth } from "@/components/auth/auth-provider"
 import { cn } from "@/lib/utils"
+import { Card } from "@/components/ui/card"
 
 interface AddReservationFormProps {
   isOpen: boolean
@@ -320,4 +321,3 @@ export function AddReservationForm({
         </Dialog>
     );
 }
-
