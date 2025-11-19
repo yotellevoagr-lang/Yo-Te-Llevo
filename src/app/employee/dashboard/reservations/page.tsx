@@ -568,6 +568,9 @@ export default function ReservationsPage() {
                                             setEditingReservation(prev => ({...prev, reservation: {...prev.reservation!, installments: { ...installments, details: newDetails }}}))
                                         }}
                                         className="h-8"
+                                        captionLayout="dropdown-buttons"
+                                        fromYear={new Date().getFullYear() - 5}
+                                        toYear={new Date().getFullYear()}
                                     />
                                 </div>
                             )}
