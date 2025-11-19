@@ -17,7 +17,7 @@ import { useToast } from "@/hooks/use-toast"
 import type { Passenger, Seller, Reservation, PaymentStatus, Tour, BoardingPoint, RoomType, CreatorContext } from "@/lib/types"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
 import { SearchableSelect } from "@/components/searchable-select"
-import { UserPlus, XCircle, Trash2 } from "lucide-react"
+import { UserPlus, XCircle, Trash2, Users } from "lucide-react"
 import { Checkbox } from "../ui/checkbox"
 import { ScrollArea } from "../ui/scroll-area"
 import { DatePicker } from "../ui/date-picker"
@@ -116,6 +116,16 @@ export function AddReservationForm({
           keywords: [s.dni]
         }));
     }, [sellers]);
+    
+    const familyMembersToAdd = useMemo(() => {
+        if (bookingPassengers.length === 0 || bookingPassengers[0].isNew) return [];
+        const mainPassenger = bookingPassengers[0];
+        if (!mainPassenger.family) return [];
+
+        const alreadyInBookingIds = new Set(bookingPassengers.map(bp => bp.existingId));
+
+        return passengers.filter(p => p.family === mainPassenger.family && !alreadyInBookingIds.has(p.id));
+    }, [bookingPassengers, passengers]);
 
     const handlePassengerDataChange = (tempId: string, field: keyof BookingPassenger, value: any) => {
         setBookingPassengers(prev => prev.map(p => {
@@ -163,6 +173,17 @@ export function AddReservationForm({
         setBookingPassengers(prev => prev.filter(p => p.tempId !== tempId));
     }
     
+    const addFamilyMemberToBooking = (member: Passenger) => {
+        const newBookingPassenger: BookingPassenger = {
+            tempId: `existing-${member.id}`,
+            isNew: false,
+            existingId: member.id,
+            ...member,
+            dob: member.dob ? (member.dob instanceof Date ? member.dob : new Date(member.dob)) : null,
+        };
+        setBookingPassengers(prev => [...prev, newBookingPassenger]);
+    };
+
     const handleSubmitReservation = async () => {
         if (bookingPassengers.length === 0 || !bookingPassengers[0]?.fullName || !bookingPassengers[0]?.dni) {
             toast({ title: "Faltan datos", description: "El primer pasajero debe tener nombre y DNI completos.", variant: "destructive" });
@@ -234,13 +255,13 @@ export function AddReservationForm({
                    <div className="space-y-4">
                      {bookingPassengers.map((pax, index) => (
                         <Card key={pax.tempId} className="p-4 relative">
-                            <Label className="font-semibold text-base mb-2 block">{index === 0 ? 'Pasajero Principal' : `Acompañante ${index}`}</Label>
+                            <Label className="font-semibold text-base mb-2 block">{index === 0 ? 'Pasajero Principal' : `Acompañante ${index + 1}`}</Label>
                             {index > 0 && (
                                 <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-7 w-7 text-destructive" onClick={() => removePassengerSlot(pax.tempId)}>
                                     <Trash2 className="w-4 h-4"/>
                                 </Button>
                             )}
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-4">
                                <SearchableSelect
                                   options={availablePassengersForSearch.map(p => ({ value: p.id, label: `${p.fullName} (${p.dni})`, keywords: [p.dni]}))}
                                   value={pax.existingId || ''}
@@ -248,33 +269,53 @@ export function AddReservationForm({
                                   placeholder="Buscar pasajero existente..."
                                   className="col-span-2"
                                />
-                                <div className="space-y-1">
-                                    <Label>Nombre Completo</Label>
-                                    <Input value={pax.fullName || ''} onChange={e => handlePassengerDataChange(pax.tempId, 'fullName', e.target.value)} disabled={!pax.isNew} />
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-1">
+                                        <Label>Nombre Completo</Label>
+                                        <Input value={pax.fullName || ''} onChange={e => handlePassengerDataChange(pax.tempId, 'fullName', e.target.value)} disabled={!pax.isNew} />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <Label>DNI</Label>
+                                        <Input value={pax.dni || ''} onChange={e => handlePassengerDataChange(pax.tempId, 'dni', e.target.value)} disabled={!pax.isNew}/>
+                                    </div>
                                 </div>
-                                 <div className="space-y-1">
-                                    <Label>DNI</Label>
-                                    <Input value={pax.dni || ''} onChange={e => handlePassengerDataChange(pax.tempId, 'dni', e.target.value)} disabled={!pax.isNew}/>
-                                </div>
-                                <div className="space-y-1">
-                                    <Label>Fecha de Nacimiento</Label>
-                                    <DatePicker 
-                                      date={pax.dob ? new Date(pax.dob) : undefined} 
-                                      setDate={d => handlePassengerDataChange(pax.tempId, 'dob', d)} 
-                                      disabled={!pax.isNew && !!pax.dob}
-                                      captionLayout="dropdown-buttons"
-                                      fromYear={new Date().getFullYear() - 100}
-                                      toYear={new Date().getFullYear()}
-                                    />
-                                </div>
-                                <div className="space-y-1">
-                                    <Label>Teléfono</Label>
-                                    <Input value={pax.phone || ''} onChange={e => handlePassengerDataChange(pax.tempId, 'phone', e.target.value)} disabled={!pax.isNew && !!pax.phone} />
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-1">
+                                        <Label>Fecha de Nacimiento</Label>
+                                        <DatePicker 
+                                          date={pax.dob ? new Date(pax.dob) : undefined} 
+                                          setDate={d => handlePassengerDataChange(pax.tempId, 'dob', d)} 
+                                          disabled={!pax.isNew && !!pax.dob}
+                                          captionLayout="dropdown-buttons"
+                                          fromYear={new Date().getFullYear() - 100}
+                                          toYear={new Date().getFullYear()}
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <Label>Teléfono</Label>
+                                        <Input value={pax.phone || ''} onChange={e => handlePassengerDataChange(pax.tempId, 'phone', e.target.value)} disabled={!pax.isNew && !!pax.phone} />
+                                    </div>
                                 </div>
                             </div>
                         </Card>
                      ))}
                      <Button variant="outline" size="sm" onClick={addPassengerSlot}><UserPlus className="w-4 h-4 mr-2"/>Añadir Pasajero</Button>
+                     
+                     {familyMembersToAdd.length > 0 && (
+                        <Card className="p-4 mt-4">
+                            <Label className="font-semibold text-base mb-2 block flex items-center gap-2"><Users className="w-5 h-5"/> Añadir desde Grupo Familiar</Label>
+                             <div className="space-y-2">
+                                {familyMembersToAdd.map(member => (
+                                    <div key={member.id} className="flex items-center justify-between p-2 rounded-md hover:bg-muted/50">
+                                        <p>{member.fullName} <span className="text-xs text-muted-foreground">({member.dni})</span></p>
+                                        <Button size="sm" variant="secondary" onClick={() => addFamilyMemberToBooking(member)}>
+                                            <UserPlus className="w-4 h-4 mr-2"/> Añadir
+                                        </Button>
+                                    </div>
+                                ))}
+                            </div>
+                        </Card>
+                     )}
                    </div>
                    
                    <div className="space-y-4 pt-6 mt-6 border-t">

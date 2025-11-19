@@ -1,5 +1,4 @@
 
-
 "use client"
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react"
@@ -16,7 +15,7 @@ import { useToast } from "@/hooks/use-toast"
 import { getTourById, savePassenger, saveReservation, getAllFromCollection_client, getDocumentById, saveDocument } from "@/lib/firestore-services"
 import type { Tour, Reservation, Passenger, Seller, CustomLayoutConfig, LayoutCategory, CreatorContext, GalleryItem, LocationVote, GeneralSettings } from "@/lib/types"
 import { DatePicker } from "@/components/ui/date-picker"
-import { ArrowLeft, CalendarIcon, ClockIcon, MapPin, PlusIcon, TicketIcon, UsersIcon, HeartIcon, ArrowRight, ShieldCheck, Trash2, Loader2, InfoIcon, Video, Edit, ChevronsUpDown, ThumbsUp, MessageSquare } from "lucide-react"
+import { ArrowLeft, CalendarIcon, ClockIcon, MapPin, PlusIcon, TicketIcon, UsersIcon, HeartIcon, ArrowRight, ShieldCheck, Trash2, Loader2, InfoIcon, Video, Edit, ChevronsUpDown, ThumbsUp, MessageSquare, Users } from "lucide-react"
 import Link from "next/link"
 import { Checkbox } from "@/components/ui/checkbox"
 import { getDisplayUrl, cn } from "@/lib/utils"
@@ -782,7 +781,7 @@ export default function BookingPage() {
                                             {isProfileComplete(passenger) ? (
                                                 <div className="flex items-center justify-between">
                                                     <p>{passenger.fullName}</p>
-                                                    <Button variant="link" onClick={() => setEditingMember(passenger)}>Editar</Button>
+                                                    <Button variant="link" onClick={() => setEditingMember(passenger as BookingPassenger)}>Editar</Button>
                                                 </div>
                                             ) : (
                                                 <div className="space-y-4 pt-2">
@@ -800,7 +799,7 @@ export default function BookingPage() {
                                 
                                 {familyMembers.length > 0 && (
                                     <div className="p-4 border rounded-lg space-y-3">
-                                        <Label className="font-semibold">Añadir desde mi grupo familiar</Label>
+                                        <Label className="font-semibold flex items-center gap-2"><Users className="w-5 h-5" />Añadir desde mi grupo familiar</Label>
                                         {familyMembers.map(member => {
                                             const isMemberComplete = isProfileComplete(member);
                                             const isSelected = bookingPassengers.some(bp => bp.id === member.id);
