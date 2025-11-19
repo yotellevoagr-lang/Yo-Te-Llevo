@@ -46,6 +46,7 @@ import { cn, generateDisplayID } from "@/lib/utils"
 import { getAllFromCollection_client, saveReservation, savePassenger, deleteDocument, saveDocument, getDocumentById } from "@/lib/firestore-services"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/components/auth/auth-provider"
+import { DatePicker } from "@/components/ui/date-picker"
 import { format } from "date-fns"
 
 type ActiveTransportUnitInfo = {
@@ -283,7 +284,7 @@ export default function ReservationsPage() {
                 const transaction: Omit<Transaction, 'id'> = {
                     amount: newInst.amount,
                     currency: tour?.currency || 'ARS',
-                    date: new Date(),
+                    date: newInst.paidAt || new Date(),
                     description: `Pago cuota reserva ${updatedReservation.id}`,
                     type: 'income',
                     category: 'Reservation Payment',
@@ -530,9 +531,9 @@ export default function ReservationsPage() {
                               <Checkbox checked={inst.isPaid} onCheckedChange={(checked) => {
                                  const newDetails = [...installments.details];
                                  newDetails[index].isPaid = !!checked;
-                                 if (checked) {
+                                 if (checked && !newDetails[index].paidAt) {
                                      newDetails[index].paidAt = new Date();
-                                 } else {
+                                 } else if (!checked) {
                                      newDetails[index].paidAt = undefined;
                                      newDetails[index].paymentMethod = undefined;
                                  }
@@ -559,13 +560,15 @@ export default function ReservationsPage() {
                                             <SelectItem value="Efectivo">Efectivo</SelectItem>
                                         </SelectContent>
                                     </Select>
-                                     {(() => {
-                                        const paidAtDate = inst.paidAt instanceof Date ? inst.paidAt : inst.paidAt && (inst.paidAt as any).toDate ? (inst.paidAt as any).toDate() : null;
-                                        if (paidAtDate && !isNaN(paidAtDate.getTime())) {
-                                            return <span className="text-xs text-muted-foreground">{format(paidAtDate, 'dd/MM/yy')}</span>;
-                                        }
-                                        return null;
-                                    })()}
+                                     <DatePicker
+                                        date={inst.paidAt ? (inst.paidAt instanceof Date ? inst.paidAt : (inst.paidAt as any).toDate()) : undefined}
+                                        setDate={(d) => {
+                                            const newDetails = [...installments.details];
+                                            newDetails[index].paidAt = d;
+                                            setEditingReservation(prev => ({...prev, reservation: {...prev.reservation!, installments: { ...installments, details: newDetails }}}))
+                                        }}
+                                        className="h-8"
+                                    />
                                 </div>
                             )}
                        </div>
