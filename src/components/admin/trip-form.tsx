@@ -115,6 +115,16 @@ export function TripForm({ isOpen, onOpenChange, onSave, tour, boardingPoints }:
     fetchAuxiliaryData();
   }, []);
 
+  const resetFormState = useCallback(() => {
+        setFormData({ destination: "", date: new Date(), price: 0, ...defaultTourData });
+        setTransportUnits([]);
+        setBackgroundImagePreview(null);
+        setNextId(1);
+        setNewGalleryFiles([]);
+        setBackgroundImageFile(null);
+        setIsLoading(false);
+  }, []);
+
   useEffect(() => {
     if (isOpen) {
         if (tour) {
@@ -151,16 +161,17 @@ export function TripForm({ isOpen, onOpenChange, onSave, tour, boardingPoints }:
             setNextId((tour.transportUnits?.length || 0) + 1);
 
         } else {
-            setFormData({destination: "", date: new Date(), price: 0, ...defaultTourData});
-            setTransportUnits([]);
-            setBackgroundImagePreview(null);
-            setNextId(1);
+            resetFormState();
         }
-        setNewGalleryFiles([]);
-        setBackgroundImageFile(null);
-        setIsLoading(false); 
+    } else {
+        // Cleanup object URLs on close to free memory
+        newGalleryFiles.forEach(f => URL.revokeObjectURL(f.previewUrl));
+        if (backgroundImageFile) {
+           URL.revokeObjectURL(backgroundImagePreview!);
+        }
+        resetFormState();
     }
-  }, [tour, isOpen])
+  }, [tour, isOpen, resetFormState])
   
   const handleFormChange = (field: keyof typeof formData, value: any) => {
     setFormData(prev => ({...prev, [field]: value}));
@@ -256,11 +267,10 @@ export function TripForm({ isOpen, onOpenChange, onSave, tour, boardingPoints }:
       if (e.target.files && e.target.files[0]) {
           const file = e.target.files[0];
           setBackgroundImageFile(file);
-          const reader = new FileReader();
-          reader.onload = (event) => {
-              setBackgroundImagePreview(event.target?.result as string);
-          };
-          reader.readAsDataURL(file);
+          if (backgroundImagePreview && backgroundImagePreview.startsWith('blob:')) {
+              URL.revokeObjectURL(backgroundImagePreview);
+          }
+          setBackgroundImagePreview(URL.createObjectURL(file));
       }
   };
   
@@ -291,6 +301,7 @@ export function TripForm({ isOpen, onOpenChange, onSave, tour, boardingPoints }:
     if (!fileToRemove) return;
     const wasBackgroundImage = fileToRemove.previewUrl === backgroundImagePreview;
     const updatedNewFiles = newGalleryFiles.filter(f => f.id !== id);
+    URL.revokeObjectURL(fileToRemove.previewUrl);
     setNewGalleryFiles(updatedNewFiles);
     if (wasBackgroundImage) {
         setBackgroundImageFile(null);
@@ -349,11 +360,10 @@ export function TripForm({ isOpen, onOpenChange, onSave, tour, boardingPoints }:
     setIsLoading(true);
 
     try {
-        let finalBackgroundImageUrl = formData.backgroundImage; // Keep old one if no new one is set
-        if (backgroundImageFile) {
+        let finalBackgroundImageUrl = formData.backgroundImage; 
+        if (backgroundImageFile && backgroundImagePreview?.startsWith('blob:')) {
             finalBackgroundImageUrl = await fileToDataUrl(backgroundImageFile);
         } else if (backgroundImagePreview !== formData.backgroundImage) {
-            // Case where a different existing image was selected as background
             finalBackgroundImageUrl = backgroundImagePreview;
         }
         
