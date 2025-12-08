@@ -23,7 +23,7 @@ else
 fi
 echo ""
 
-# 2. Conecta tu repositorio local con el de GitHub y descarga cambios.
+# 2. Conecta tu repositorio local con el de GitHub.
 echo "Paso 2: Verificando la conexión con el repositorio remoto..."
 if git remote | grep -q "origin"; then
     git remote set-url origin $GITHUB_URL
@@ -34,15 +34,25 @@ else
 fi
 echo ""
 
-# Sincroniza con la rama remota antes de hacer cualquier cambio.
-echo "Paso 2.5: Descargando cambios remotos..."
+# 2.5 Guardar cambios locales temporalmente
+echo "Paso 2.5: Guardando cambios locales temporalmente..."
+git stash
+echo ""
+
+# 2.6 Sincroniza con la rama remota.
+echo "Paso 2.6: Descargando cambios remotos..."
 git pull origin $BRANCH_NAME --rebase
 if [ $? -ne 0 ]; then
     echo "⚠️  Error al hacer 'git pull'. Puede haber conflictos que necesites resolver manualmente."
+    git stash pop # Intenta recuperar los cambios guardados
     exit 1
 fi
 echo ""
 
+# 2.7 Vuelve a aplicar los cambios locales
+echo "Paso 2.7: Aplicando cambios locales guardados..."
+git stash pop
+echo ""
 
 # 3. Añade todos los archivos modificados y nuevos al área de preparación.
 echo "Paso 3: Añadiendo todos los cambios al área de preparación (git add .)..."
