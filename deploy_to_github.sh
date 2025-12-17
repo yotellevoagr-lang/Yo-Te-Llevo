@@ -6,8 +6,8 @@
 
 # --- CONFIGURACIÓN ---
 # Reemplaza esto con la URL de tu repositorio de GitHub.
-GITHUB_URL="https://github.com/yotellevoagr-lang/Yo-Te-Llevo.git"
-BRANCH_NAME="principal2" # Puedes cambiar esto a la rama que prefieras
+GITHUB_URL="https://${GITHUB_USER}:${GITHUB_TOKEN}@github.com/yotellevoagr-lang/Yo-Te-Llevo.git"
+BRANCH_NAME="principal2"
 
 echo "--- Iniciando el proceso de despliegue a GitHub en la rama '$BRANCH_NAME' ---"
 echo ""
