@@ -54,9 +54,8 @@ const Slideshow = ({ items }: { items: { id: string; image: string; destination:
          <Image
             src="https://placehold.co/1920x1080/000000/FFFFFF.png?text=YO+TE+LLEVO"
             alt="YO TE LLEVO"
-            layout="fill"
-            objectFit="cover"
-            className="brightness-[0.6]"
+            fill
+            className="brightness-[0.6] object-cover"
             data-ai-hint="travel agency hero"
             priority
           />
@@ -73,10 +72,9 @@ const Slideshow = ({ items }: { items: { id: string; image: string; destination:
                         key={item.id}
                         src={imageUrl}
                         alt={item.destination}
-                        layout="fill"
-                        objectFit="cover"
+                        fill
                         className={cn(
-                            "brightness-[0.6] transition-opacity duration-1000 ease-in-out",
+                            "brightness-[0.6] transition-opacity duration-1000 ease-in-out object-cover",
                             index === currentIndex ? "opacity-100" : "opacity-0"
                         )}
                         priority={index === 0}
@@ -254,10 +252,10 @@ export default function Home() {
                                 className="w-full h-full object-cover rounded-2xl shadow-2xl"
                             />
                         ) : (
-                            <Image src={getDisplayUrl(generalSettings.aboutUsMedia.url)} alt="Sobre Nosotros" className="object-cover rounded-2xl shadow-2xl" layout="fill" data-ai-hint="happy travelers" />
+                            <Image src={getDisplayUrl(generalSettings.aboutUsMedia.url)} alt="Sobre Nosotros" className="object-cover rounded-2xl shadow-2xl" fill data-ai-hint="happy travelers" />
                         )
                     ) : (
-                        <Image src="https://placehold.co/600x400.png" alt="Grupo de amigos viajando" className="object-cover rounded-2xl shadow-2xl" layout="fill" data-ai-hint="friends traveling" />
+                        <Image src="https://placehold.co/600x400.png" alt="Grupo de amigos viajando" className="object-cover rounded-2xl shadow-2xl" fill data-ai-hint="friends traveling" />
                     )}
                 </div>
             </div>

@@ -18,6 +18,16 @@ import {
 } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
 import { Search, PlusCircle, MoreHorizontal, Edit, Trash2, UserPlus, Pencil } from "lucide-react"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import type { Passenger, Employee, BoardingPoint } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import { PassengerForm } from "@/components/admin/passenger-form"
@@ -59,6 +69,8 @@ export default function PassengersPage() {
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [selectedPassenger, setSelectedPassenger] = useState<Passenger | null>(null)
   const [prefilledFamily, setPrefilledFamily] = useState<string | undefined>(undefined);
+  const [passengerToDelete, setPassengerToDelete] = useState<Passenger | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const { toast } = useToast();
   
   const fetchData = async () => {
@@ -99,21 +111,31 @@ export default function PassengersPage() {
         await savePassenger(passengerData);
         await fetchData();
         window.dispatchEvent(new Event('storage'));
-        toast({ title: passenger ? "Pasajero actualizado" : "Pasajero creado", description: "Los datos se guardaron correctamente." });
+        toast({ title: selectedPassenger ? "Pasajero actualizado" : "Pasajero creado", description: "Los datos se guardaron correctamente." });
         setIsFormOpen(false);
     } catch (error) {
         toast({ title: "Error", description: "No se pudieron guardar los datos del pasajero.", variant: "destructive"});
     }
   }
   
-  const handleDelete = async (passengerId: string) => {
+  const handleDeleteClick = (passenger: Passenger) => {
+    setPassengerToDelete(passenger);
+    setIsDeleteDialogOpen(true);
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!passengerToDelete) return;
+    
     try {
-        await deleteDocument('passengers', passengerId);
+        await deleteDocument('passengers', passengerToDelete.id);
         await fetchData();
         window.dispatchEvent(new Event('storage'));
-        toast({ title: "Pasajero eliminado", variant: "destructive" });
+        toast({ title: "Pasajero eliminado", description: "El pasajero ha sido eliminado correctamente.", variant: "destructive" });
     } catch (error) {
         toast({ title: "Error", description: "No se pudo eliminar el pasajero.", variant: "destructive"});
+    } finally {
+        setIsDeleteDialogOpen(false);
+        setPassengerToDelete(null);
     }
   }
 
@@ -163,6 +185,20 @@ export default function PassengersPage() {
 
   return (
     <>
+    <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Esta acción no se puede deshacer. Se eliminará permanentemente al pasajero <strong>{passengerToDelete?.fullName}</strong>.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel onClick={() => setPassengerToDelete(null)}>Cancelar</AlertDialogCancel>
+          <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
     <PassengerForm 
         isOpen={isFormOpen}
         onOpenChange={setIsFormOpen}
@@ -271,7 +307,7 @@ export default function PassengersPage() {
                                                             <DropdownMenuItem onClick={() => handleEdit(p)}>
                                                                 <Edit className="mr-2 h-4 w-4" /> Editar
                                                             </DropdownMenuItem>
-                                                            <DropdownMenuItem onClick={() => handleDelete(p.id)} className="text-destructive">
+                                                            <DropdownMenuItem onClick={() => handleDeleteClick(p)} className="text-destructive">
                                                                 <Trash2 className="mr-2 h-4 w-4" /> Eliminar
                                                             </DropdownMenuItem>
                                                         </DropdownMenuContent>
