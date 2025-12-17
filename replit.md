@@ -39,7 +39,15 @@ The project uses Firebase configuration stored in `.env`:
 - `FIREBASE_SERVICE_ACCOUNT_KEY` - For server-side Firebase Admin
 
 ## Recent Changes
+- 2025-12-17: Bug fixes and improvements
+  - Fixed passenger deletion dialog (AlertDialog was nested inside DropdownMenu causing intermittent failures)
+  - Added graceful error handling when Firebase Admin is not configured
+  - Fixed runtime error in employee passengers page (undefined variable)
+  - Updated legacy image props (layout="fill") to modern Next.js 15 syntax (fill)
 - 2025-12-17: Initial Replit import
   - Downgraded Next.js from 16 to 15 for compatibility
   - Configured dev server to bind to 0.0.0.0:5000
   - Added allowedDevOrigins for Replit proxy support
+
+## Known Issues
+- FIREBASE_SERVICE_ACCOUNT_KEY needs to be configured in Replit Secrets for user deletion from Firebase Auth to work (currently only removes from Firestore)
