@@ -33,6 +33,7 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  allowedDevOrigins: ['*'],
 };
 
 export default withPWA(nextConfig);
