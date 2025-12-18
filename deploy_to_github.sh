@@ -1,92 +1,93 @@
 #!/bin/bash
 
 # --- Script para Subir Cambios a GitHub ---
-# Este script añade todos los cambios actuales, crea un commit
-# y lo sube a la rama especificada en GitHub, preservando el historial.
+# Pide credenciales interactivamente y sube los cambios a una nueva rama
+# para evitar conflictos con ramas protegidas.
 
-# --- CONFIGURACIÓN ---
-# Reemplaza esto con la URL de tu repositorio de GitHub.
-GITHUB_URL="https://${GITHUB_USER}:${GITHUB_TOKEN}@github.com/yotellevoagr-lang/Yo-Te-Llevo.git"
-BRANCH_NAME="principal2"
-
-echo "--- Iniciando el proceso de despliegue a GitHub en la rama '$BRANCH_NAME' ---"
+# 1. Pide las credenciales al usuario de forma segura.
+echo "--- Configuración de Credenciales de GitHub ---"
+read -p "Introduce tu nombre de usuario de GitHub: " GITHUB_USERNAME
+read -sp "Introduce tu Token de Acceso Personal (no se mostrará): " GITHUB_TOKEN
+echo ""
 echo ""
 
-# 1. Asegurarse de que el repositorio Git esté inicializado y conectado.
+# Verifica que las credenciales no estén vacías.
+if [ -z "$GITHUB_USERNAME" ] || [ -z "$GITHUB_TOKEN" ]; then
+  echo "❌ Error: El nombre de usuario y el token son obligatorios."
+  exit 1
+fi
+
+# 2. Configura el nombre de la nueva rama.
+# Usa la fecha y hora para garantizar que sea un nombre único.
+BRANCH_NAME="update-$(date +'%Y-%m-%d-%H%M%S')"
+echo "--- Iniciando el proceso de despliegue a GitHub en la nueva rama: '$BRANCH_NAME' ---"
+echo ""
+
+# 3. Asegurarse de que el repositorio Git esté inicializado.
 if [ ! -d ".git" ]; then
   echo "Paso 1: No se encontró repositorio Git. Inicializando uno nuevo..."
   git init
-  git branch -M $BRANCH_NAME
 else
   echo "Paso 1: Repositorio Git encontrado."
-  git checkout -B $BRANCH_NAME
 fi
+git checkout -B $BRANCH_NAME
 echo ""
 
-# 2. Conecta tu repositorio local con el de GitHub.
+# 4. Conecta tu repositorio local con el de GitHub usando la URL estándar.
 echo "Paso 2: Verificando la conexión con el repositorio remoto..."
+REMOTE_URL="https://github.com/yotellevoagr-lang/Yo-Te-Llevo.git"
 if git remote | grep -q "origin"; then
-    git remote set-url origin $GITHUB_URL
-    echo "El remoto 'origin' ya existía, URL actualizada si fue necesario."
+    git remote set-url origin $REMOTE_URL
+    echo "El remoto 'origin' ya existía, URL actualizada."
 else
-    git remote add origin $GITHUB_URL
+    git remote add origin $REMOTE_URL
     echo "¡Conectado al repositorio remoto en GitHub!"
 fi
 echo ""
 
-# 2.5 Guardar cambios locales temporalmente
-echo "Paso 2.5: Guardando cambios locales temporalmente..."
-git stash
-echo ""
-
-# 2.6 Sincroniza con la rama remota.
-echo "Paso 2.6: Descargando cambios remotos..."
-git pull origin $BRANCH_NAME --rebase
-if [ $? -ne 0 ]; then
-    echo "⚠️  Error al hacer 'git pull'. Puede haber conflictos que necesites resolver manualmente."
-    git stash pop # Intenta recuperar los cambios guardados
-    exit 1
-fi
-echo ""
-
-# 2.7 Vuelve a aplicar los cambios locales
-echo "Paso 2.7: Aplicando cambios locales guardados..."
-git stash pop
-echo ""
-
-# 3. Añade todos los archivos modificados y nuevos al área de preparación.
+# 5. Añade todos los archivos modificados y nuevos al área de preparación.
 echo "Paso 3: Añadiendo todos los cambios al área de preparación (git add .)..."
 git add .
 echo "¡Archivos añadidos!"
 echo ""
 
-# 4. Pide un mensaje para el commit y crea el commit.
+# 6. Pide un mensaje para el commit y crea el commit.
 echo "Paso 4: Creando un nuevo commit..."
-echo "Por favor, introduce un mensaje para este commit (o presiona Enter para usar uno por defecto):"
-read COMMIT_MESSAGE
+read -p "Por favor, introduce un mensaje para este commit (o presiona Enter para usar 'Actualización de archivos'): " COMMIT_MESSAGE
 
-# Si el mensaje está vacío, usamos uno por defecto.
 if [ -z "$COMMIT_MESSAGE" ]; then
     COMMIT_MESSAGE="Actualización de archivos y funcionalidades"
 fi
 
-git commit -m "$COMMIT_MESSAGE"
-# Verificamos si el commit se creó o si no había nada que commitear.
-if [ $? -eq 0 ]; then
-  echo "¡Commit creado exitosamente!"
-else
-  echo "No se encontraron cambios para commitear. Sincronizando con el repositorio remoto..."
+# Verifica si hay algo que commitear antes de intentarlo.
+if git diff-index --quiet HEAD --; then
+    echo "No se encontraron cambios para commitear. No se subirá nada."
+    echo ""
+    echo "🎉 --- ¡PROCESO COMPLETADO (SIN CAMBIOS)! --- 🎉"
+    exit 0
 fi
+
+git commit -m "$COMMIT_MESSAGE"
+echo "¡Commit creado exitosamente!"
 echo ""
 
-# 5. Sube todos los commits a GitHub.
+# 7. Sube todos los commits a la NUEVA rama en GitHub.
+# Construye la URL con las credenciales solo para el comando PUSH.
 echo "Paso 5: Subiendo los cambios a la rama '$BRANCH_NAME' en GitHub..."
-git push -u origin $BRANCH_NAME
-if [ $? -ne 0 ]; then
-    echo "❌ Error al subir los cambios a GitHub. Revisa los mensajes de error anteriores."
+PUSH_URL="https://${GITHUB_USERNAME}:${GITHUB_TOKEN}@github.com/yotellevoagr-lang/Yo-Te-Llevo.git"
+
+if ! git push -u "$PUSH_URL" "$BRANCH_NAME"; then
+    echo "❌ Error al subir los cambios a GitHub. Revisa los mensajes de error anteriores y verifica tus credenciales."
     exit 1
 fi
 echo ""
 
+# 8. Proporciona el enlace para crear el Pull Request.
+echo "Paso 6: ¡Tus cambios están en una nueva rama! Ahora crea un Pull Request."
+echo "Copia y pega el siguiente enlace en tu navegador para fusionar tus cambios:"
+echo ""
+echo "🔗  https://github.com/yotellevoagr-lang/Yo-Te-Llevo/pull/new/$BRANCH_NAME"
+echo ""
+
 echo "🎉 --- ¡PROCESO COMPLETADO! --- 🎉"
-echo "Tus cambios han sido subidos a GitHub. Revisa tu repositorio para confirmarlo."
+echo "Sigue el enlace de arriba para finalizar la integración de tus cambios."
