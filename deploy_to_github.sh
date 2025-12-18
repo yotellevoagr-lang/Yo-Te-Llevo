@@ -3,6 +3,7 @@
 # --- Script para Subir Cambios a GitHub ---
 # Pide credenciales una vez y las guarda en la configuración local de Git.
 # Sube los cambios a una nueva rama para evitar conflictos con ramas protegidas.
+# Fuerza la creación de un commit y la subida para asegurar el despliegue.
 
 # 1. Verifica si las credenciales ya están guardadas en la configuración de Git.
 GITHUB_USERNAME=$(git config --local user.name)
@@ -77,24 +78,17 @@ if [ -z "$COMMIT_MESSAGE" ]; then
     COMMIT_MESSAGE="Actualización de archivos y funcionalidades"
 fi
 
-# Verifica si hay algo que commitear antes de intentarlo.
-if git diff-index --quiet HEAD --; then
-    echo "No se encontraron cambios para commitear. No se subirá nada."
-    echo ""
-    echo "🎉 --- ¡PROCESO COMPLETADO (SIN CAMBIOS)! --- 🎉"
-    exit 0
-fi
-
-git commit -m "$COMMIT_MESSAGE"
+# Crea el commit, permitiendo que esté vacío si no hay cambios.
+git commit --allow-empty -m "$COMMIT_MESSAGE"
 echo "¡Commit creado exitosamente!"
 echo ""
 
 # 7. Sube todos los commits a la NUEVA rama en GitHub.
-# Construye la URL con las credenciales solo para el comando PUSH.
+# Construye la URL con las credenciales solo para el comando PUSH y fuerza la subida.
 echo "Paso 5: Subiendo los cambios a la rama '$BRANCH_NAME' en GitHub..."
 PUSH_URL="https://${GITHUB_USERNAME}:${GITHUB_TOKEN}@github.com/yotellevoagr-lang/Yo-Te-Llevo.git"
 
-if ! git push -u "$PUSH_URL" "$BRANCH_NAME"; then
+if ! git push --force -u "$PUSH_URL" "$BRANCH_NAME"; then
     echo "❌ Error al subir los cambios a GitHub. Revisa los mensajes de error anteriores y verifica tus credenciales."
     # Limpia las credenciales guardadas si fallan, para que el script las pida de nuevo la próxima vez.
     git config --local --unset user.name
