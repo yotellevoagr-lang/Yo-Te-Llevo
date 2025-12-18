@@ -1,20 +1,38 @@
 #!/bin/bash
 
 # --- Script para Subir Cambios a GitHub ---
-# Pide credenciales interactivamente y sube los cambios a una nueva rama
-# para evitar conflictos con ramas protegidas.
+# Pide credenciales una vez y las guarda en la configuración local de Git.
+# Sube los cambios a una nueva rama para evitar conflictos con ramas protegidas.
 
-# 1. Pide las credenciales al usuario de forma segura.
-echo "--- Configuración de Credenciales de GitHub ---"
-read -p "Introduce tu nombre de usuario de GitHub: " GITHUB_USERNAME
-read -sp "Introduce tu Token de Acceso Personal (no se mostrará): " GITHUB_TOKEN
-echo ""
-echo ""
+# 1. Verifica si las credenciales ya están guardadas en la configuración de Git.
+GITHUB_USERNAME=$(git config --local user.name)
+GITHUB_TOKEN=$(git config --local user.token)
 
-# Verifica que las credenciales no estén vacías.
 if [ -z "$GITHUB_USERNAME" ] || [ -z "$GITHUB_TOKEN" ]; then
-  echo "❌ Error: El nombre de usuario y el token son obligatorios."
-  exit 1
+  echo "--- Configuración de Credenciales de GitHub (se guardarán localmente) ---"
+  read -p "Introduce tu nombre de usuario de GitHub: " GITHUB_USERNAME_INPUT
+  read -sp "Introduce tu Token de Acceso Personal (no se mostrará): " GITHUB_TOKEN_INPUT
+  echo "" # Nueva línea después de la entrada de la contraseña.
+  echo ""
+
+  # Verifica que las credenciales no estén vacías.
+  if [ -z "$GITHUB_USERNAME_INPUT" ] || [ -z "$GITHUB_TOKEN_INPUT" ]; then
+    echo "❌ Error: El nombre de usuario y el token son obligatorios."
+    exit 1
+  fi
+  
+  # Guarda las credenciales en la configuración local de Git para uso futuro.
+  git config --local user.name "$GITHUB_USERNAME_INPUT"
+  git config --local user.token "$GITHUB_TOKEN_INPUT"
+  
+  # Asigna las credenciales recién ingresadas para la ejecución actual.
+  GITHUB_USERNAME=$GITHUB_USERNAME_INPUT
+  GITHUB_TOKEN=$GITHUB_TOKEN_INPUT
+  echo "✅ ¡Credenciales guardadas de forma segura en la configuración local de Git!"
+  echo ""
+else
+  echo "✅ Credenciales de GitHub encontradas en la configuración local de Git."
+  echo ""
 fi
 
 # 2. Configura el nombre de la nueva rama.
@@ -23,7 +41,7 @@ BRANCH_NAME="update-$(date +'%Y-%m-%d-%H%M%S')"
 echo "--- Iniciando el proceso de despliegue a GitHub en la nueva rama: '$BRANCH_NAME' ---"
 echo ""
 
-# 3. Asegurarse de que el repositorio Git esté inicializado.
+# 3. Asegurarse de que el repositorio Git esté inicializado y crea la nueva rama.
 if [ ! -d ".git" ]; then
   echo "Paso 1: No se encontró repositorio Git. Inicializando uno nuevo..."
   git init
@@ -78,6 +96,10 @@ PUSH_URL="https://${GITHUB_USERNAME}:${GITHUB_TOKEN}@github.com/yotellevoagr-lan
 
 if ! git push -u "$PUSH_URL" "$BRANCH_NAME"; then
     echo "❌ Error al subir los cambios a GitHub. Revisa los mensajes de error anteriores y verifica tus credenciales."
+    # Limpia las credenciales guardadas si fallan, para que el script las pida de nuevo la próxima vez.
+    git config --local --unset user.name
+    git config --local --unset user.token
+    echo "⚠️  Las credenciales guardadas se han eliminado porque fallaron. Se te volverán a pedir en la próxima ejecución."
     exit 1
 fi
 echo ""
