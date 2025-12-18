@@ -16,8 +16,6 @@ import {
   TableBody,
   TableCell,
 } from "@/components/ui/table"
-import { Input } from "@/components/ui/input"
-import { Search, PlusCircle, MoreHorizontal, Edit, Trash2, UserPlus, Pencil } from "lucide-react"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,6 +26,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { Input } from "@/components/ui/input"
+import { Search, PlusCircle, MoreHorizontal, Edit, Trash2, UserPlus, Pencil } from "lucide-react"
 import type { Passenger, Employee, BoardingPoint } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import { PassengerForm } from "@/components/admin/passenger-form"
@@ -36,6 +36,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator
 } from "@/components/ui/dropdown-menu"
 import {
   Accordion,
@@ -47,6 +48,7 @@ import { useToast } from "@/hooks/use-toast"
 import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
 import { getAllFromCollection_client, savePassenger, deleteDocument } from "@/lib/firestore-services"
+import { deleteUser } from "@/ai/flows/delete-user-flow"
 
 const calculateAge = (dob: any) => {
     if (!dob) return null;
@@ -108,7 +110,7 @@ export default function PassengersPage() {
 
   const handleSave = async (passengerData: Passenger) => {
     try {
-        await savePassenger(passengerData);
+        await savePassenger(passengerData, passengerData.id);
         await fetchData();
         window.dispatchEvent(new Event('storage'));
         toast({ title: selectedPassenger ? "Pasajero actualizado" : "Pasajero creado", description: "Los datos se guardaron correctamente." });
@@ -127,12 +129,25 @@ export default function PassengersPage() {
     if (!passengerToDelete) return;
     
     try {
+        try {
+            await deleteUser(passengerToDelete.id);
+        } catch (authError: any) {
+            console.log("Auth deletion skipped or failed:", authError.message);
+        }
+        
         await deleteDocument('passengers', passengerToDelete.id);
+        
+        const employeeToDelete = employees.find(e => e.id === passengerToDelete.id);
+        if (employeeToDelete) {
+            await deleteDocument('employees', passengerToDelete.id);
+        }
+
         await fetchData();
         window.dispatchEvent(new Event('storage'));
         toast({ title: "Pasajero eliminado", description: "El pasajero ha sido eliminado correctamente.", variant: "destructive" });
-    } catch (error) {
-        toast({ title: "Error", description: "No se pudo eliminar el pasajero.", variant: "destructive"});
+    } catch (error: any) {
+        console.error("Error deleting passenger:", error);
+        toast({ title: "Error", description: error.message || "No se pudo eliminar el pasajero.", variant: "destructive"});
     } finally {
         setIsDeleteDialogOpen(false);
         setPassengerToDelete(null);
@@ -154,8 +169,8 @@ export default function PassengersPage() {
          toast({ title: "Error", description: "No se pudo actualizar el nombre de la familia.", variant: "destructive"});
      }
   }
-
-    const passengerCountsByDNI = useMemo(() => {
+  
+  const passengerCountsByDNI = useMemo(() => {
     const counts = new Map<string, number>();
     passengers.forEach(p => {
         if(p.dni) counts.set(p.dni, (counts.get(p.dni) || 0) + 1);
@@ -188,9 +203,9 @@ export default function PassengersPage() {
     <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+          <AlertDialogTitle>¿Estás absolutamente seguro?</AlertDialogTitle>
           <AlertDialogDescription>
-            Esta acción no se puede deshacer. Se eliminará permanentemente al pasajero <strong>{passengerToDelete?.fullName}</strong>.
+            Esta acción no se puede deshacer. Se eliminará permanentemente al pasajero <strong>{passengerToDelete?.fullName}</strong> y su cuenta de acceso asociada.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -307,6 +322,7 @@ export default function PassengersPage() {
                                                             <DropdownMenuItem onClick={() => handleEdit(p)}>
                                                                 <Edit className="mr-2 h-4 w-4" /> Editar
                                                             </DropdownMenuItem>
+                                                            <DropdownMenuSeparator />
                                                             <DropdownMenuItem onClick={() => handleDeleteClick(p)} className="text-destructive">
                                                                 <Trash2 className="mr-2 h-4 w-4" /> Eliminar
                                                             </DropdownMenuItem>

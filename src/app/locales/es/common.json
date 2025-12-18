@@ -28,7 +28,7 @@
     "my_account": "Mi Cuenta",
     "admin_panel": "Panel de Administración",
     "employee_panel": "Panel de Empleado",
-    "my_profile": "Mi Perfil",
+    "my_profile": "Mis Datos",
     "my_trips": "Mis Viajes",
     "loading": "Cargando",
     "auth": {
@@ -44,6 +44,7 @@
         "passengers": "Pasajeros",
         "employees": "Empleados",
         "sellers": "Vendedores",
+        "chatbot": "Chatbot",
         "tickets": "Tickets",
         "receipts": "Recibos",
         "reports": "Reportes",

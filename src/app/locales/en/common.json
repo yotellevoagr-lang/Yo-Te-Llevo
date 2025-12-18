@@ -28,7 +28,7 @@
     "my_account": "My Account",
     "admin_panel": "Admin Panel",
     "employee_panel": "Employee Panel",
-    "my_profile": "My Profile",
+    "my_profile": "My Data",
     "my_trips": "My Trips",
     "loading": "Loading",
     "auth": {
@@ -44,6 +44,7 @@
         "passengers": "Passengers",
         "employees": "Employees",
         "sellers": "Sellers",
+        "chatbot": "Chatbot",
         "tickets": "Tickets",
         "receipts": "Receipts",
         "reports": "Reports",

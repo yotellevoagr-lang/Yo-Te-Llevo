@@ -1,4 +1,5 @@
 
+
 "use client"
 
 import Link from "next/link"
@@ -109,7 +110,7 @@ export function SiteHeader() {
                         <h3 className="text-sm font-semibold text-muted-foreground px-2">{t('my_account')}</h3>
                         {userRole === 'admin' && <button onClick={() => handleNavigation('/admin/dashboard')} className="w-full text-left flex items-center gap-2 text-foreground hover:text-primary"><LayoutDashboard />{t('admin_panel')}</button>}
                         {userRole === 'employee' && <button onClick={() => handleNavigation('/employee/dashboard')} className="w-full text-left flex items-center gap-2 text-foreground hover:text-primary"><LayoutDashboard />{t('employee_panel')}</button>}
-                         <button onClick={() => handleNavigation('/profile')} className="w-full text-left flex items-center gap-2 text-foreground hover:text-primary"><UserCog />Mis Datos</button>
+                         <button onClick={() => handleNavigation('/profile')} className="w-full text-left flex items-center gap-2 text-foreground hover:text-primary"><UserCog />{t('my_profile')}</button>
                         <button onClick={() => handleNavigation('/profile/my-trips')} className="w-full text-left flex items-center gap-2 text-foreground hover:text-primary"><Plane />{t('my_trips')}</button>
                         {availableRoles.length > 1 && (
                              <button onClick={() => handleNavigation('/login/select-role')} className="w-full text-left flex items-center gap-2 text-foreground hover:text-primary"><Shuffle />Cambiar de Panel</button>
@@ -174,7 +175,7 @@ export function SiteHeader() {
                         {userRole === 'admin' && <DropdownMenuItem asChild><Link href="/admin/dashboard"><LayoutDashboard className="mr-2"/>{t('admin_panel')}</Link></DropdownMenuItem>}
                         {userRole === 'employee' && <DropdownMenuItem asChild><Link href="/employee/dashboard"><LayoutDashboard className="mr-2"/>{t('employee_panel')}</Link></DropdownMenuItem>}
                          <DropdownMenuItem asChild>
-                            <Link href="/profile"><UserCog className="mr-2"/>Mis Datos</Link>
+                            <Link href="/profile"><UserCog className="mr-2"/>{t('my_profile')}</Link>
                          </DropdownMenuItem>
                          <DropdownMenuItem asChild>
                             <Link href="/settings"><Settings className="mr-2"/>Ajustes</Link>

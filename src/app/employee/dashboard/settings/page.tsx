@@ -8,10 +8,11 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
 import { Settings as SettingsIcon, Save, Eye, EyeOff, Loader2 } from "lucide-react"
-import type { Employee } from "@/lib/types"
+import type { Employee, Passenger } from "@/lib/types"
 import { useAuth } from "@/components/auth/auth-provider"
-import { saveDocument } from "@/lib/firestore-services"
+import { savePassenger, saveDocument } from "@/lib/firestore-services"
 import { updatePassword, EmailAuthProvider, reauthenticateWithCredential } from "firebase/auth"
+import { auth } from "@/lib/firebase"
 
 export default function EmployeeSettingsPage() {
     const { toast } = useToast()
@@ -45,7 +46,7 @@ export default function EmployeeSettingsPage() {
         try {
             // Save to both collections
             await saveDocument('employees', { ...formData }, user.id);
-            await saveDocument('passengers', { fullName: formData.name, ...formData }, user.id);
+            await savePassenger({ fullName: formData.name, dni: formData.dni, phone: formData.phone }, user.id);
             
             toast({ title: "¡Datos guardados!", description: "Tu información personal ha sido actualizada en ambos perfiles." });
         } catch (error) {

@@ -44,6 +44,8 @@ import { cn } from "@/lib/utils"
 
 type GlobalTextType = 'observations' | 'cancellationPolicy' | null;
 
+const MAX_POPUP_TOURS = 3;
+
 export default function TripsPage() {
   const [tours, setTours] = useState<Tour[]>([])
   const [reservations, setReservations] = useState<Reservation[]>([])
@@ -78,7 +80,7 @@ export default function TripsPage() {
     if(settingsData) {
       setGeneralSettings(settingsData);
     }
-     if(layoutConfigData) setLayoutConfig(layoutConfigData);
+    if(layoutConfigData) setLayoutConfig(layoutConfigData);
   }
 
   useEffect(() => {
@@ -127,6 +129,8 @@ export default function TripsPage() {
     return Array.from(types);
   }, [activeTours]);
 
+  const hasFeaturedTours = useMemo(() => activeTours.some(t => t.isFeatured), [activeTours]);
+
   const handleCreate = () => {
     setSelectedTour(null)
     setIsFormOpen(true)
@@ -137,16 +141,13 @@ export default function TripsPage() {
     setIsFormOpen(true)
   }
 
-  const handleSave = async (tourData: Tour, imageAsDataUrl: string | null) => {
+  const handleSave = async (tourData: Tour) => {
     const tourToSave: Partial<Tour> = { ...tourData };
+    
     if (!tourToSave.id) {
         const globalSettings = await getDocumentById<GeneralSettings>('settings', 'general');
         tourToSave.observations = globalSettings?.observations || "";
         tourToSave.cancellationPolicy = globalSettings?.cancellationPolicy || "";
-    }
-    
-    if (imageAsDataUrl) {
-      tourToSave.backgroundImage = imageAsDataUrl;
     }
     
     await saveTour(tourToSave, tourToSave.id);
@@ -161,10 +162,25 @@ export default function TripsPage() {
   };
 
   const handleDelete = async (tourId: string) => {
-    await deleteDocument('tours', tourId);
-    await fetchData();
-    window.dispatchEvent(new Event('storage'));
-    toast({title: "Viaje Eliminado", variant: "destructive"})
+    try {
+        const reservationsToDelete = reservations.filter(r => r.tripId === tourId);
+        for (const res of reservationsToDelete) {
+            if (res.installments) {
+                for (const inst of res.installments.details) {
+                    if (inst.isPaid && inst.transactionId) {
+                        await deleteDocument('transactions', inst.transactionId);
+                    }
+                }
+            }
+            await deleteDocument('reservations', res.id);
+        }
+        await deleteDocument('tours', tourId);
+        await fetchData();
+        window.dispatchEvent(new Event('storage'));
+        toast({title: "Viaje Eliminado", description: "El viaje y todas sus reservas y transacciones asociadas han sido eliminados.", variant: "destructive"});
+    } catch (error) {
+        toast({ title: "Error al eliminar", description: "No se pudo completar la eliminación del viaje y sus datos asociados.", variant: "destructive" });
+    }
   }
   
   const handleSaveGlobalText = async () => {
@@ -183,12 +199,38 @@ export default function TripsPage() {
     setGlobalTextType(null);
   }
 
-  const handleVisibilityChange = async (tour: Tour, isPublic: boolean) => {
-    const updatedTour = { ...tour, isPublic };
+  const handleToggleChange = async (tour: Tour, field: 'isPublic' | 'isFeatured' | 'showAsPopup', value: boolean) => {
+    let updatedTour: Tour = { ...tour, [field]: value };
+    
+    // If we're setting a tour as popup, check the limit.
+    if (field === 'showAsPopup' && value) {
+        const popupCount = tours.filter(t => t.showAsPopup).length;
+        if (popupCount >= MAX_POPUP_TOURS) {
+            toast({
+                title: "Límite de Popups alcanzado",
+                description: `Solo puedes tener ${MAX_POPUP_TOURS} viajes en el popup a la vez. Desactiva otro primero.`,
+                variant: "destructive"
+            });
+            return; // Prevent update
+        }
+    }
+    
+    // If a trip is no longer featured, it can't be a popup.
+    if (field === 'isFeatured' && !value) {
+        updatedTour.showAsPopup = false;
+    }
+
+
     await saveTour(updatedTour, tour.id);
     setTours(prevTours => prevTours.map(t => t.id === tour.id ? updatedTour : t));
     window.dispatchEvent(new Event('storage'));
-    toast({ title: "Visibilidad actualizada", description: `El viaje a ${tour.destination} ahora es ${isPublic ? 'público' : 'privado'}.`});
+    
+    let message = "";
+    if (field === 'isPublic') message = `El viaje a ${tour.destination} ahora es ${value ? 'público' : 'privado'}.`;
+    if (field === 'isFeatured') message = `El viaje a ${tour.destination} ahora ${value ? 'es destacado' : 'ya no es destacado'}.`;
+    if (field === 'showAsPopup') message = `El viaje a ${tour.destination} ${value ? 'se mostrará en el popup' : 'ya no se mostrará en el popup'}.`;
+
+    toast({ title: "Visibilidad actualizada", description: message });
   }
   
   const isDialogForObservations = globalTextType === 'observations';
@@ -258,6 +300,8 @@ export default function TripsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Público</TableHead>
+                  <TableHead>Destacado</TableHead>
+                  {hasFeaturedTours && <TableHead>Popup</TableHead>}
                   <TableHead>Destino</TableHead>
                   <TableHead>Fecha</TableHead>
                   <TableHead>Precio</TableHead>
@@ -283,14 +327,32 @@ export default function TripsPage() {
                   const currencySymbol = tour.currency === 'USD' ? 'U$S' : '$';
 
                   return (
-                    <TableRow key={tour.id} className={cn(!tour.isPublic && "bg-pink-100/50 hover:bg-pink-100/70")}>
+                    <TableRow key={tour.id} className={cn(!tour.isPublic && "bg-orange-50", tour.isFeatured && "bg-pink-100 hover:bg-pink-200")}>
                       <TableCell>
                           <Switch
                               checked={tour.isPublic}
-                              onCheckedChange={(checked) => handleVisibilityChange(tour, checked)}
+                              onCheckedChange={(checked) => handleToggleChange(tour, 'isPublic', checked)}
                               aria-label="Publicar viaje"
                           />
                       </TableCell>
+                       <TableCell>
+                          <Switch
+                              checked={tour.isFeatured}
+                              onCheckedChange={(checked) => handleToggleChange(tour, 'isFeatured', checked)}
+                              aria-label="Marcar como destacado"
+                          />
+                      </TableCell>
+                      {hasFeaturedTours && (
+                        <TableCell>
+                          {tour.isFeatured && (
+                             <Switch
+                                checked={tour.showAsPopup}
+                                onCheckedChange={(checked) => handleToggleChange(tour, 'showAsPopup', checked)}
+                                aria-label="Mostrar en popup"
+                            />
+                          )}
+                        </TableCell>
+                      )}
                       <TableCell className="font-medium">{tour.destination}</TableCell>
                       <TableCell>
                         {new Date(tour.date).toLocaleDateString("es-AR", {
