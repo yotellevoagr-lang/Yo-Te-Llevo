@@ -37,7 +37,7 @@ import { Separator } from "@/components/ui/separator"
 import { arrayRemove, writeBatch } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 import { doc } from "firebase/firestore"
-import { uploadFileToStorage } from "@/lib/storage-service"
+import { uploadFileToStorage, deleteFileFromStorage, isStorageUrl } from "@/lib/storage-service"
 
 const fileToDataUrl = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -170,7 +170,8 @@ export default function SettingsPage() {
     const [pwaIconFile, setPwaIconFile] = useState<File | null>(null);
     const [pwaIconPreview, setPwaIconPreview] = useState<string | null>(null);
     const [pwaScreenshots, setPwaScreenshots] = useState<File[]>([]);
-    const [pwaScreenshotPreviews, setPwaScreenshotPreviews] = useState<string[]>([]);
+    const [existingPwaScreenshotUrls, setExistingPwaScreenshotUrls] = useState<string[]>([]);
+    const [newPwaScreenshotPreviews, setNewPwaScreenshotPreviews] = useState<string[]>([]);
 
 
     const [layoutConfig, setLayoutConfig] = useState<Record<LayoutCategory, Record<string, CustomLayoutConfig>>>({ vehicles: {}, airplanes: {}, cruises: {} });
@@ -223,7 +224,8 @@ export default function SettingsPage() {
                 setLogoPreview(generalSettingsData.logoUrl || null);
                 setPwaIconPreview(generalSettingsData.pwaIconUrl || null);
                 setAboutUsMediaPreview(generalSettingsData.aboutUsMedia || null);
-                setPwaScreenshotPreviews(generalSettingsData.pwaScreenshots || []);
+                const existingScreenshots = generalSettingsData.pwaScreenshots || [];
+                setExistingPwaScreenshotUrls(existingScreenshots);
                 setTravelTags(generalSettingsData.availableTags || []);
             }
             if (domainSettingsData) setDomainSettings(domainSettingsData);
@@ -274,16 +276,31 @@ export default function SettingsPage() {
             fileList.forEach(file => {
                 const reader = new FileReader();
                 reader.onloadend = () => {
-                    setPwaScreenshotPreviews(prev => [...prev, reader.result as string]);
+                    setNewPwaScreenshotPreviews(prev => [...prev, reader.result as string]);
                 };
                 reader.readAsDataURL(file);
             });
         }
     };
     
+    const [removedStorageUrls, setRemovedStorageUrls] = useState<string[]>([]);
+    
+    const allPwaScreenshotPreviews = [...existingPwaScreenshotUrls, ...newPwaScreenshotPreviews];
+    
     const removePwaScreenshot = (index: number) => {
-        setPwaScreenshots(prev => prev.filter((_, i) => i !== index));
-        setPwaScreenshotPreviews(prev => prev.filter((_, i) => i !== index));
+        const existingCount = existingPwaScreenshotUrls.length;
+        
+        if (index < existingCount) {
+            const urlToRemove = existingPwaScreenshotUrls[index];
+            if (urlToRemove && isStorageUrl(urlToRemove)) {
+                setRemovedStorageUrls(prev => [...prev, urlToRemove]);
+            }
+            setExistingPwaScreenshotUrls(prev => prev.filter((_, i) => i !== index));
+        } else {
+            const newIndex = index - existingCount;
+            setNewPwaScreenshotPreviews(prev => prev.filter((_, i) => i !== newIndex));
+            setPwaScreenshots(prev => prev.filter((_, i) => i !== newIndex));
+        }
     };
 
     const handleAboutUsMediaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -350,26 +367,53 @@ export default function SettingsPage() {
     };
 
     const handleSavePwaScreenshots = async () => {
-        if (pwaScreenshotPreviews.length === 0 && pwaScreenshots.length === 0) {
-            await saveDocument('settings', { pwaScreenshots: [] }, 'general');
-            toast({ title: "Capturas de pantalla eliminadas." });
+        if (existingPwaScreenshotUrls.length === 0 && pwaScreenshots.length === 0) {
+            setIsSaving('pwa-screenshots');
+            try {
+                for (const url of removedStorageUrls) {
+                    const deleted = await deleteFileFromStorage(url);
+                    if (!deleted) {
+                        toast({ title: "Error", description: "No se pudo eliminar un archivo. Intenta de nuevo.", variant: "destructive" });
+                        setIsSaving(null);
+                        return;
+                    }
+                }
+                await saveDocument('settings', { pwaScreenshots: [] }, 'general');
+                setRemovedStorageUrls([]);
+                toast({ title: "Capturas de pantalla eliminadas." });
+            } catch (error) {
+                console.error("Error deleting PWA screenshots:", error);
+                toast({ title: "Error", description: "No se pudieron eliminar las capturas.", variant: "destructive" });
+            } finally {
+                setIsSaving(null);
+            }
             return;
         }
 
         setIsSaving('pwa-screenshots');
         try {
+            for (const url of removedStorageUrls) {
+                const deleted = await deleteFileFromStorage(url);
+                if (!deleted) {
+                    toast({ title: "Error", description: "No se pudo eliminar un archivo. Intenta de nuevo.", variant: "destructive" });
+                    setIsSaving(null);
+                    return;
+                }
+            }
+            setRemovedStorageUrls([]);
+            
             const uploadedUrls: string[] = [];
             for (const screenshot of pwaScreenshots) {
                 const url = await uploadFileToStorage(screenshot, 'settings');
                 uploadedUrls.push(url);
             }
-            const existingUrls = pwaScreenshotPreviews.filter(url => url.includes('firebasestorage.googleapis.com'));
-            const allUrls = [...existingUrls, ...uploadedUrls];
+            const allUrls = [...existingPwaScreenshotUrls, ...uploadedUrls];
             await saveDocument('settings', { pwaScreenshots: allUrls }, 'general');
-            setPwaScreenshotPreviews(allUrls);
+            setExistingPwaScreenshotUrls(allUrls);
+            setNewPwaScreenshotPreviews([]);
+            setPwaScreenshots([]);
             window.dispatchEvent(new Event('storage'));
             toast({ title: "Capturas guardadas", description: "Las capturas de pantalla de la PWA han sido actualizadas." });
-            setPwaScreenshots([]);
         } catch (error) {
             console.error("Error saving PWA screenshots:", error);
             toast({ title: "Error", description: "No se pudieron guardar las capturas.", variant: "destructive" });
@@ -727,7 +771,7 @@ export default function SettingsPage() {
                             <div className="space-y-2 pt-4">
                                 <Label htmlFor="pwaScreenshots">Capturas de Pantalla de la App</Label>
                                 <Input id="pwaScreenshots" type="file" accept="image/png, image/jpeg" multiple onChange={handlePwaScreenshotsChange} className="file:text-primary-foreground file:font-bold file:mr-4 file:px-4 file:py-2 file:rounded-full file:border-0 file:bg-primary hover:file:bg-primary/90"/>
-                                {pwaScreenshotPreviews.length > 0 && <div className="space-y-2"><Label>Vistas previas</Label><div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 p-4 border rounded-md bg-muted">{pwaScreenshotPreviews.map((preview, index) => (<div key={index} className="relative group aspect-[9/16]"><Image src={getDisplayUrl(preview)} alt={`Captura ${index + 1}`} layout="fill" objectFit="cover" className="rounded-md"/><Button variant="destructive" size="icon" className="absolute top-1 right-1 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => removePwaScreenshot(index)}><Trash2 className="w-4 h-4"/></Button></div>))}</div></div>}
+                                {allPwaScreenshotPreviews.length > 0 && <div className="space-y-2"><Label>Vistas previas</Label><div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 p-4 border rounded-md bg-muted">{allPwaScreenshotPreviews.map((preview, index) => (<div key={index} className="relative group aspect-[9/16]"><Image src={getDisplayUrl(preview)} alt={`Captura ${index + 1}`} fill style={{objectFit: "cover"}} className="rounded-md"/><Button variant="destructive" size="icon" className="absolute top-1 right-1 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => removePwaScreenshot(index)}><Trash2 className="w-4 h-4"/></Button></div>))}</div></div>}
                                 <Button onClick={handleSavePwaScreenshots} disabled={isSaving === 'pwa-screenshots'} className="mt-2">{isSaving === 'pwa-screenshots' && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}Guardar Capturas</Button>
                             </div>
                         </div>

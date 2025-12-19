@@ -39,21 +39,34 @@ export async function uploadMultipleFilesToStorage(
   return Promise.all(uploadPromises);
 }
 
-export async function deleteFileFromStorage(fileUrl: string): Promise<void> {
+export async function deleteFileFromStorage(fileUrl: string): Promise<boolean> {
   try {
-    if (!fileUrl.includes('firebasestorage.googleapis.com')) {
-      return;
+    if (!isStorageUrl(fileUrl)) {
+      return true;
     }
     
-    const storageRef = ref(storage, fileUrl);
+    const pathMatch = fileUrl.match(/\/o\/(.+?)\?/);
+    if (!pathMatch) {
+      console.warn('Could not extract path from storage URL:', fileUrl);
+      return false;
+    }
+    const filePath = decodeURIComponent(pathMatch[1]);
+    const storageRef = ref(storage, filePath);
     await deleteObject(storageRef);
+    return true;
   } catch (error: any) {
     if (error.code === 'storage/object-not-found') {
       console.warn('File not found in storage, may have been already deleted:', fileUrl);
-      return;
+      return true;
     }
-    throw error;
+    console.error('Error deleting file from storage:', error);
+    return false;
   }
+}
+
+export async function deleteMultipleFilesFromStorage(urls: string[]): Promise<void> {
+  const deletePromises = urls.map(url => deleteFileFromStorage(url));
+  await Promise.all(deletePromises);
 }
 
 export function isStorageUrl(url: string): boolean {
