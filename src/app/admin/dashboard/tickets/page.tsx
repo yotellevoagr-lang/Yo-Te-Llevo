@@ -39,29 +39,42 @@ export default function TicketsAdminPage() {
   const [pensions, setPensions] = useState<Pension[]>([]);
   const [allTickets, setAllTickets] = useState<Ticket[]>([]);
   const [selectedTripId, setSelectedTripId] = useState<string>("all");
+  const [isLoading, setIsLoading] = useState(true);
   const ticketRefs = useRef<Record<string, HTMLDivElement | null>>({});
   
   const fetchData = async () => {
-      const [reservationsData, toursData, sellersData, passengersData, boardingPointsData, pensionsData] = await Promise.all([
-          getAllFromCollection_client<Reservation>('reservations'),
-          getAllFromCollection_client<Tour>('tours'),
-          getAllFromCollection_client<Seller>('sellers'),
-          getAllFromCollection_client<Passenger>('passengers'),
-          getAllFromCollection_client<BoardingPoint>('boarding_points'),
-          getAllFromCollection_client<Pension>('pensions')
-      ]);
-      
-      const processedTours = toursData.map(t => {
-        const date = (t.date as any)?.toDate ? (t.date as any).toDate() : new Date(t.date);
-        return { ...t, date };
-      });
-      
-      setReservations(reservationsData);
-      setTours(processedTours);
-      setSellers(sellersData);
-      setPassengers(passengersData);
-      setBoardingPoints(boardingPointsData);
-      setPensions(pensionsData);
+      try {
+        setIsLoading(true);
+        const [reservationsData, toursData, sellersData, passengersData, boardingPointsData, pensionsData] = await Promise.all([
+            getAllFromCollection_client<Reservation>('reservations'),
+            getAllFromCollection_client<Tour>('tours'),
+            getAllFromCollection_client<Seller>('sellers'),
+            getAllFromCollection_client<Passenger>('passengers'),
+            getAllFromCollection_client<BoardingPoint>('boarding_points'),
+            getAllFromCollection_client<Pension>('pensions')
+        ]);
+        
+        const processedTours = toursData.map(t => {
+          const date = (t.date as any)?.toDate ? (t.date as any).toDate() : new Date(t.date);
+          return { ...t, date };
+        });
+        
+        setReservations(reservationsData);
+        setTours(processedTours);
+        setSellers(sellersData);
+        setPassengers(passengersData);
+        setBoardingPoints(boardingPointsData);
+        setPensions(pensionsData);
+      } catch (error) {
+        console.error('Error cargando datos:', error);
+        toast({
+          title: "Error",
+          description: "No se pudieron cargar los datos",
+          variant: "destructive"
+        });
+      } finally {
+        setIsLoading(false);
+      }
   };
 
   useEffect(() => {
@@ -197,7 +210,14 @@ export default function TicketsAdminPage() {
         </CardContent>
        </Card>
 
-      {Object.keys(ticketsByTrip).length === 0 ? (
+      {isLoading ? (
+        <Card>
+            <CardContent className="p-12 text-center flex flex-col items-center gap-4">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+                <p className="text-muted-foreground">Cargando tickets...</p>
+            </CardContent>
+        </Card>
+      ) : Object.keys(ticketsByTrip).length === 0 ? (
         <Card>
             <CardContent className="p-12 text-center flex flex-col items-center gap-4">
                 <TicketCheck className="w-16 h-16 text-muted-foreground/50"/>
