@@ -19,7 +19,7 @@ import { Checkbox } from "../ui/checkbox"
 import Image from "next/image"
 import { Loader2 } from "lucide-react"
 import { getDisplayUrl } from "@/lib/utils"
-import { uploadFileToStorage } from "@/lib/storage-service"
+import { uploadFileToStorage, deleteFileFromStorage, isStorageUrl } from "@/lib/storage-service"
 
 interface FlyerFormProps {
   isOpen: boolean
@@ -93,11 +93,14 @@ export function FlyerForm({ isOpen, onOpenChange, onSave, flyer, tours }: FlyerF
     
     setIsUploading(true);
 
+    let uploadedUrl: string | null = null;
     try {
         let mediaUrl = flyer?.url || '';
+        const previousUrl = flyer?.url;
 
         if (file) {
-            mediaUrl = await uploadFileToStorage(file, 'flyers');
+            uploadedUrl = await uploadFileToStorage(file, 'flyers');
+            mediaUrl = uploadedUrl;
         }
         
         const finalData = { 
@@ -108,8 +111,18 @@ export function FlyerForm({ isOpen, onOpenChange, onSave, flyer, tours }: FlyerF
         };
         onSave(finalData);
         
+        if (file && previousUrl && isStorageUrl(previousUrl)) {
+            const deleted = await deleteFileFromStorage(previousUrl);
+            if (!deleted) {
+                console.warn('No se pudo eliminar el archivo anterior del Storage');
+            }
+        }
+        
     } catch (error) {
         console.error("Error uploading file:", error);
+        if (uploadedUrl) {
+            await deleteFileFromStorage(uploadedUrl);
+        }
         toast({ title: "Error al subir archivo", description: "No se pudo subir el archivo. Verifica tu conexión.", variant: "destructive"});
     } finally {
         setIsUploading(false);
@@ -117,7 +130,7 @@ export function FlyerForm({ isOpen, onOpenChange, onSave, flyer, tours }: FlyerF
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+    <Dialog open={isOpen} onOpenChange={(open) => { if (!isUploading) onOpenChange(open); }}>
       <DialogContent className="sm:max-w-lg flex flex-col max-h-[90vh]">
         <DialogHeader>
           <DialogTitle>{flyer ? "Editar Flyer" : "Subir Nuevo Flyer"}</DialogTitle>
@@ -166,7 +179,7 @@ export function FlyerForm({ isOpen, onOpenChange, onSave, flyer, tours }: FlyerF
         </div>
         
         <DialogFooter className="mt-auto pt-4 border-t">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isUploading}>Cancelar</Button>
           <Button onClick={handleSubmit} disabled={isUploading}>
             {isUploading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {isUploading ? "Subiendo..." : "Guardar Flyer"}

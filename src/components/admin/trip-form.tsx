@@ -36,7 +36,7 @@ import { getDocumentById } from "@/lib/firestore-services"
 import { cn } from "@/lib/utils"
 import Image from "next/image"
 import { getDisplayUrl } from "@/lib/utils"
-import { uploadFileToStorage, uploadMultipleFilesToStorage } from "@/lib/storage-service"
+import { uploadFileToStorage, uploadMultipleFilesToStorage, deleteFileFromStorage, isStorageUrl } from "@/lib/storage-service"
 
 interface TripFormProps {
   isOpen: boolean
@@ -95,6 +95,7 @@ export function TripForm({ isOpen, onOpenChange, onSave, tour, boardingPoints }:
   const [newGalleryFiles, setNewGalleryFiles] = useState<GalleryFile[]>([]);
   const [backgroundImageFile, setBackgroundImageFile] = useState<File | null>(null);
   const [backgroundImagePreview, setBackgroundImagePreview] = useState<string | null>(null);
+  const [deletedStorageUrls, setDeletedStorageUrls] = useState<string[]>([]);
 
   const { toast } = useToast();
 
@@ -124,6 +125,7 @@ export function TripForm({ isOpen, onOpenChange, onSave, tour, boardingPoints }:
         setNewGalleryFiles([]);
         setBackgroundImageFile(null);
         setIsLoading(false);
+        setDeletedStorageUrls([]);
   }, []);
 
   useEffect(() => {
@@ -317,6 +319,9 @@ export function TripForm({ isOpen, onOpenChange, onSave, tour, boardingPoints }:
     const wasBackgroundImage = itemToRemove.url === formData.backgroundImage;
     const updatedGallery = (formData.gallery || []).filter(g => g.id !== id);
     handleFormChange('gallery', updatedGallery);
+    if (isStorageUrl(itemToRemove.url)) {
+        setDeletedStorageUrls(prev => [...prev, itemToRemove.url]);
+    }
     if (wasBackgroundImage) {
         setBackgroundImageFile(null);
         const nextImage = [...updatedGallery, ...newGalleryFiles].find(item => item.type === 'image');
@@ -359,6 +364,7 @@ export function TripForm({ isOpen, onOpenChange, onSave, tour, boardingPoints }:
     }
     
     setIsLoading(true);
+    const urlsToDelete = [...deletedStorageUrls];
 
     try {
         let finalBackgroundImageUrl = formData.backgroundImage; 
@@ -404,6 +410,14 @@ export function TripForm({ isOpen, onOpenChange, onSave, tour, boardingPoints }:
         };
   
         onSave(tourDataToSave);
+        
+        for (const url of urlsToDelete) {
+            const deleted = await deleteFileFromStorage(url);
+            if (!deleted) {
+                console.warn('No se pudo eliminar archivo del Storage:', url);
+            }
+        }
+        setDeletedStorageUrls([]);
         setIsLoading(false);
         
     } catch (error) {
@@ -421,7 +435,7 @@ export function TripForm({ isOpen, onOpenChange, onSave, tour, boardingPoints }:
 
 
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+    <Dialog open={isOpen} onOpenChange={(open) => { if (!isLoading) onOpenChange(open); }}>
       <DialogContent className="sm:max-w-3xl flex flex-col max-h-[90vh]">
         <DialogHeader>
           <DialogTitle>{tour ? "Editar Viaje" : "Crear Nuevo Viaje"}</DialogTitle>

@@ -39,12 +39,19 @@ The project uses Firebase configuration stored in `.env`:
 - `FIREBASE_SERVICE_ACCOUNT_KEY` - For server-side Firebase Admin
 
 ## Recent Changes
+- 2025-12-19: Mejoras en gestión de archivos de Firebase Storage
+  - Al eliminar imágenes/videos de la galería, se eliminan de Firebase Storage al guardar
+  - Botones "Guardar" y "Cancelar" se bloquean mientras se guarda para evitar duplicados
+  - Dialogs no se pueden cerrar mientras se guarda
+  - Al reemplazar archivos (logo, ícono, flyers), el archivo anterior se elimina del Storage
+  - Rollback automático: si falla el guardado, el archivo recién subido se elimina
 - 2025-12-19: Migración a Firebase Storage para medios
   - Imágenes y videos ahora se suben a Firebase Storage (no más límite de 1MB de Firestore)
   - Viajes: imagen de fondo y galería ahora usan Storage
   - Flyers: imágenes y videos usan Storage
   - Configuración: logo, ícono PWA, capturas PWA y "Sobre Nosotros" usan Storage
   - Nuevo servicio storage-service.ts para subir/eliminar archivos
+  - CORS configurado para permitir subidas desde dominios externos
 - 2025-12-19: Tickets y sincronización de panel de empleados
   - Tickets ahora generan solo UN ticket por reserva (del pasajero principal/titular)
   - El componente TravelTicket muestra el titular diferenciado de los integrantes (solo nombre y DNI)

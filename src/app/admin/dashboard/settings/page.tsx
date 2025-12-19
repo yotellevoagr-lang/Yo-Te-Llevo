@@ -325,20 +325,34 @@ export default function SettingsPage() {
     }
     
     const handleSaveLogo = async () => {
-        if (!logoFile || !logoPreview) {
+        if (!logoFile) {
             toast({ title: "Sin cambios", description: "No se ha seleccionado un nuevo archivo de logo." });
             return;
         }
         setIsSaving('logo');
+        let uploadedLogoUrl: string | null = null;
         try {
-            const logoUrl = await uploadFileToStorage(logoFile, 'settings', 'logo');
-            await saveDocument('settings', { logoUrl }, 'general');
-            setLogoPreview(logoUrl);
+            const currentSettings = await getDocumentById<GeneralSettings>('settings', 'general');
+            const previousLogoUrl = currentSettings?.logoUrl;
+            
+            uploadedLogoUrl = await uploadFileToStorage(logoFile, 'settings', 'logo');
+            await saveDocument('settings', { logoUrl: uploadedLogoUrl }, 'general');
+            
+            if (previousLogoUrl && isStorageUrl(previousLogoUrl)) {
+                const deleted = await deleteFileFromStorage(previousLogoUrl);
+                if (!deleted) {
+                    console.warn('No se pudo eliminar el logo anterior del Storage');
+                }
+            }
+            setLogoPreview(uploadedLogoUrl);
             window.dispatchEvent(new Event('storage'));
             toast({ title: "Logo guardado", description: "El logo del sitio ha sido actualizado." });
             setLogoFile(null);
         } catch (error) {
             console.error("Error saving logo:", error);
+            if (uploadedLogoUrl) {
+                await deleteFileFromStorage(uploadedLogoUrl);
+            }
             toast({ title: "Error", description: "No se pudo guardar el logo.", variant: "destructive" });
         } finally {
             setIsSaving(null);
@@ -346,20 +360,34 @@ export default function SettingsPage() {
     };
 
     const handleSavePwaIcon = async () => {
-        if (!pwaIconFile || !pwaIconPreview) {
+        if (!pwaIconFile) {
             toast({ title: "Sin cambios", description: "No se ha seleccionado un nuevo archivo de ícono." });
             return;
         }
         setIsSaving('pwa-icon');
+        let uploadedIconUrl: string | null = null;
         try {
-            const pwaIconUrl = await uploadFileToStorage(pwaIconFile, 'settings', 'pwa-icon');
-            await saveDocument('settings', { pwaIconUrl }, 'general');
-            setPwaIconPreview(pwaIconUrl);
+            const currentSettings = await getDocumentById<GeneralSettings>('settings', 'general');
+            const previousPwaIconUrl = currentSettings?.pwaIconUrl;
+            
+            uploadedIconUrl = await uploadFileToStorage(pwaIconFile, 'settings', 'pwa-icon');
+            await saveDocument('settings', { pwaIconUrl: uploadedIconUrl }, 'general');
+            
+            if (previousPwaIconUrl && isStorageUrl(previousPwaIconUrl)) {
+                const deleted = await deleteFileFromStorage(previousPwaIconUrl);
+                if (!deleted) {
+                    console.warn('No se pudo eliminar el ícono anterior del Storage');
+                }
+            }
+            setPwaIconPreview(uploadedIconUrl);
             window.dispatchEvent(new Event('storage'));
             toast({ title: "Ícono Guardado", description: "El ícono de la app se ha actualizado." });
             setPwaIconFile(null);
         } catch (error) {
             console.error("Error saving PWA icon:", error);
+            if (uploadedIconUrl) {
+                await deleteFileFromStorage(uploadedIconUrl);
+            }
             toast({ title: "Error", description: "No se pudo guardar el ícono.", variant: "destructive" });
         } finally {
             setIsSaving(null);
@@ -423,24 +451,38 @@ export default function SettingsPage() {
     };
 
     const handleSaveAboutUsMedia = async () => {
-        if (!aboutUsMediaFile || !aboutUsMediaPreview) {
+        if (!aboutUsMediaFile) {
              toast({ title: "Sin cambios", description: "No se ha seleccionado un nuevo archivo." });
             return;
         }
         setIsSaving('about-us');
+        let uploadedMediaUrl: string | null = null;
         try {
-            const mediaUrl = await uploadFileToStorage(aboutUsMediaFile, 'settings', 'about-us');
+            const currentSettings = await getDocumentById<GeneralSettings>('settings', 'general');
+            const previousAboutUsUrl = currentSettings?.aboutUsMedia?.url;
+            
+            uploadedMediaUrl = await uploadFileToStorage(aboutUsMediaFile, 'settings', 'about-us');
             const mediaType = aboutUsMediaFile.type.startsWith('video') ? 'video' : 'image';
-            const newAboutUsMedia = { url: mediaUrl, type: mediaType };
+            const newAboutUsMedia = { url: uploadedMediaUrl, type: mediaType };
 
             await saveDocument('settings', { aboutUsMedia: newAboutUsMedia }, 'general');
-            setAboutUsMediaPreview({ url: mediaUrl, type: mediaType as 'image' | 'video' });
+            
+            if (previousAboutUsUrl && isStorageUrl(previousAboutUsUrl)) {
+                const deleted = await deleteFileFromStorage(previousAboutUsUrl);
+                if (!deleted) {
+                    console.warn('No se pudo eliminar el multimedia anterior del Storage');
+                }
+            }
+            setAboutUsMediaPreview({ url: uploadedMediaUrl, type: mediaType as 'image' | 'video' });
             window.dispatchEvent(new Event('storage'));
             
             toast({ title: "Multimedia guardada", description: "La sección 'Sobre Nosotros' ha sido actualizada." });
             setAboutUsMediaFile(null);
         } catch (error) {
             console.error("Error saving about us media:", error);
+            if (uploadedMediaUrl) {
+                await deleteFileFromStorage(uploadedMediaUrl);
+            }
             toast({ title: "Error", description: "No se pudo subir el archivo. Verifica tu conexión.", variant: "destructive" });
         } finally {
             setIsSaving(null);
