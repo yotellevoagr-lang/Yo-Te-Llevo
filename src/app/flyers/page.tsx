@@ -15,10 +15,15 @@ import { getAllFromCollection_client } from "@/lib/firestore-services";
 import { getDisplayUrl } from "@/lib/utils";
 import type { Flyer, Tour } from "@/lib/types";
 
-const FlyerCard = ({ flyer, tour, onImageClick }: { flyer: Flyer, tour?: Tour, onImageClick: (flyer: Flyer) => void }) => {
+const FlyerCard = ({ flyer, tour, onImageClick, showPromo = false }: { flyer: Flyer, tour?: Tour, onImageClick: (flyer: Flyer) => void, showPromo?: boolean }) => {
     return (
         <Card className="w-full overflow-hidden transition-all duration-300 ease-in-out border-2 border-transparent rounded-2xl group hover:shadow-2xl hover:border-primary hover:-translate-y-2">
             <CardContent className="p-0">
+                {flyer.name && (
+                    <div className="px-4 py-2 bg-primary/10 text-center">
+                        <span className="text-sm font-medium text-primary">{flyer.name}</span>
+                    </div>
+                )}
                 <div className="relative overflow-hidden aspect-[9/16] cursor-pointer" onClick={() => onImageClick(flyer)}>
                      {flyer.type === 'video' ? (
                         <video 
@@ -32,20 +37,24 @@ const FlyerCard = ({ flyer, tour, onImageClick }: { flyer: Flyer, tour?: Tour, o
                     ) : (
                         <Image
                             src={getDisplayUrl(flyer.url)}
-                            alt={flyer.name}
+                            alt={flyer.name || 'Flyer'}
                             fill
                             sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
                             className="object-cover transition-transform duration-500 group-hover:scale-110"
                         />
                     )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent flex flex-col justify-end p-6">
-                        <h3 className="text-3xl font-headline text-white drop-shadow-lg">{flyer.name}</h3>
-                        {tour && <p className="text-white/90 drop-shadow-md">{tour.destination}</p>}
+                        {tour && <p className="text-white/90 drop-shadow-md text-lg">{tour.destination}</p>}
                     </div>
                      <div className="absolute top-4 right-4 bg-black/30 backdrop-blur-sm p-2 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity">
                         <Maximize className="w-5 h-5"/>
                     </div>
                 </div>
+                {showPromo && (
+                    <div className="px-4 py-2 bg-primary text-center">
+                        <span className="text-sm font-bold text-white">PROMO</span>
+                    </div>
+                )}
                 {tour && (
                     <div className="p-6 bg-card">
                         <Button asChild size="lg" className="w-full text-base rounded-xl">
@@ -93,10 +102,10 @@ export default function FlyersPage() {
         setIsViewerOpen(true);
     };
 
-    const promotionalFlyers = useMemo(() => flyers.filter(f => f.isGeneralPromotion), [flyers]);
+    const promotionalFlyers = useMemo(() => flyers.filter(f => f.isGeneralPromotion && !f.tourId), [flyers]);
     
     const flyersByTrip = useMemo(() => {
-        const tripFlyers = flyers.filter(f => f.tourId && !f.isGeneralPromotion);
+        const tripFlyers = flyers.filter(f => f.tourId);
         return tripFlyers.reduce((acc, flyer) => {
             if (flyer.tourId) {
                 if (!acc[flyer.tourId]) {
@@ -116,6 +125,14 @@ export default function FlyersPage() {
     const unassignedFlyers = useMemo(() => {
         return flyers.filter(f => !f.isGeneralPromotion && !f.tourId);
     }, [flyers]);
+    
+    const sortFlyersByPromo = (flyersList: Flyer[]) => {
+        return [...flyersList].sort((a, b) => {
+            if (a.isGeneralPromotion && !b.isGeneralPromotion) return -1;
+            if (!a.isGeneralPromotion && b.isGeneralPromotion) return 1;
+            return 0;
+        });
+    };
 
     return (
         <div className="flex flex-col min-h-screen">
@@ -156,7 +173,7 @@ export default function FlyersPage() {
                 <div className="space-y-16">
                     {promotionalFlyers.length > 0 && (
                         <div>
-                             <h2 className="text-2xl font-bold tracking-tighter sm:text-4xl font-headline mb-8">Promociones Generales</h2>
+                             <h2 className="text-2xl font-bold tracking-tighter sm:text-4xl font-headline mb-8">PROMO</h2>
                              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                                 {promotionalFlyers.map(flyer => (
                                     <FlyerCard key={flyer.id} flyer={flyer} onImageClick={handleImageClick}/>
@@ -165,12 +182,12 @@ export default function FlyersPage() {
                         </div>
                     )}
                     
-                    {Object.values(flyersByTrip).map(({ tour, flyers }) => (
+                    {Object.values(flyersByTrip).map(({ tour, flyers: tripFlyers }) => (
                          <div key={tour.id}>
                              <h2 className="text-2xl font-bold tracking-tighter sm:text-4xl font-headline mb-8">{tour.destination}</h2>
                               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                                {flyers.map(flyer => (
-                                    <FlyerCard key={flyer.id} flyer={flyer} tour={tour} onImageClick={handleImageClick}/>
+                                {sortFlyersByPromo(tripFlyers).map(flyer => (
+                                    <FlyerCard key={flyer.id} flyer={flyer} tour={tour} onImageClick={handleImageClick} showPromo={flyer.isGeneralPromotion}/>
                                 ))}
                             </div>
                         </div>
@@ -178,7 +195,7 @@ export default function FlyersPage() {
                     
                     {unassignedFlyers.length > 0 && (
                         <div>
-                             <h2 className="text-2xl font-bold tracking-tighter sm:text-4xl font-headline mb-8">Otros Flyers</h2>
+                             <h2 className="text-2xl font-bold tracking-tighter sm:text-4xl font-headline mb-8">Viajes</h2>
                              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                                 {unassignedFlyers.map(flyer => (
                                     <FlyerCard key={flyer.id} flyer={flyer} onImageClick={handleImageClick}/>
