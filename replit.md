@@ -39,6 +39,11 @@ The project uses Firebase configuration stored in `.env`:
 - `FIREBASE_SERVICE_ACCOUNT_KEY` - For server-side Firebase Admin
 
 ## Recent Changes
+- 2025-12-19: Tickets y sincronización de panel de empleados
+  - Tickets ahora generan solo UN ticket por reserva (del pasajero principal/titular)
+  - El componente TravelTicket muestra el titular diferenciado de los integrantes (solo nombre y DNI)
+  - Panel de empleados sincronizado con admin: trips ahora incluye Destacado, Popup y eliminación en cascada
+  - Eliminación de viajes ahora borra también reservas y transacciones asociadas
 - 2025-12-17: Bug fixes and improvements
   - Fixed passenger deletion dialog (AlertDialog was nested inside DropdownMenu causing intermittent failures)
   - Added graceful error handling when Firebase Admin is not configured
