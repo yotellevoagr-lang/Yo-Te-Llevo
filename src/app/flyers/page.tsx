@@ -86,10 +86,6 @@ export default function FlyersPage() {
 
     useEffect(() => {
         fetchData();
-        window.addEventListener('storage', fetchData);
-        return () => {
-          window.removeEventListener('storage', fetchData);
-        };
     }, []);
 
     const handleImageClick = (flyer: Flyer) => {
