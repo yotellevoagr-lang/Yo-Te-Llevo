@@ -37,6 +37,7 @@ import { Separator } from "@/components/ui/separator"
 import { arrayRemove, writeBatch } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 import { doc } from "firebase/firestore"
+import { uploadFileToStorage } from "@/lib/storage-service"
 
 const fileToDataUrl = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -313,11 +314,14 @@ export default function SettingsPage() {
         }
         setIsSaving('logo');
         try {
-            await saveDocument('settings', { logoUrl: logoPreview }, 'general');
+            const logoUrl = await uploadFileToStorage(logoFile, 'settings', 'logo');
+            await saveDocument('settings', { logoUrl }, 'general');
+            setLogoPreview(logoUrl);
             window.dispatchEvent(new Event('storage'));
             toast({ title: "Logo guardado", description: "El logo del sitio ha sido actualizado." });
             setLogoFile(null);
         } catch (error) {
+            console.error("Error saving logo:", error);
             toast({ title: "Error", description: "No se pudo guardar el logo.", variant: "destructive" });
         } finally {
             setIsSaving(null);
@@ -331,7 +335,9 @@ export default function SettingsPage() {
         }
         setIsSaving('pwa-icon');
         try {
-            await saveDocument('settings', { pwaIconUrl: pwaIconPreview }, 'general');
+            const pwaIconUrl = await uploadFileToStorage(pwaIconFile, 'settings', 'pwa-icon');
+            await saveDocument('settings', { pwaIconUrl }, 'general');
+            setPwaIconPreview(pwaIconUrl);
             window.dispatchEvent(new Event('storage'));
             toast({ title: "Ícono Guardado", description: "El ícono de la app se ha actualizado." });
             setPwaIconFile(null);
@@ -344,7 +350,7 @@ export default function SettingsPage() {
     };
 
     const handleSavePwaScreenshots = async () => {
-        if (pwaScreenshotPreviews.length === 0) {
+        if (pwaScreenshotPreviews.length === 0 && pwaScreenshots.length === 0) {
             await saveDocument('settings', { pwaScreenshots: [] }, 'general');
             toast({ title: "Capturas de pantalla eliminadas." });
             return;
@@ -352,8 +358,15 @@ export default function SettingsPage() {
 
         setIsSaving('pwa-screenshots');
         try {
-            // Since we are using Base64, previews are the final data.
-            await saveDocument('settings', { pwaScreenshots: pwaScreenshotPreviews }, 'general');
+            const uploadedUrls: string[] = [];
+            for (const screenshot of pwaScreenshots) {
+                const url = await uploadFileToStorage(screenshot, 'settings');
+                uploadedUrls.push(url);
+            }
+            const existingUrls = pwaScreenshotPreviews.filter(url => url.includes('firebasestorage.googleapis.com'));
+            const allUrls = [...existingUrls, ...uploadedUrls];
+            await saveDocument('settings', { pwaScreenshots: allUrls }, 'general');
+            setPwaScreenshotPreviews(allUrls);
             window.dispatchEvent(new Event('storage'));
             toast({ title: "Capturas guardadas", description: "Las capturas de pantalla de la PWA han sido actualizadas." });
             setPwaScreenshots([]);
@@ -372,17 +385,19 @@ export default function SettingsPage() {
         }
         setIsSaving('about-us');
         try {
-            const dataUrl = await fileToDataUrl(aboutUsMediaFile);
-            const newAboutUsMedia = { url: dataUrl, type: aboutUsMediaFile.type.startsWith('video') ? 'video' : 'image' };
+            const mediaUrl = await uploadFileToStorage(aboutUsMediaFile, 'settings', 'about-us');
+            const mediaType = aboutUsMediaFile.type.startsWith('video') ? 'video' : 'image';
+            const newAboutUsMedia = { url: mediaUrl, type: mediaType };
 
             await saveDocument('settings', { aboutUsMedia: newAboutUsMedia }, 'general');
+            setAboutUsMediaPreview({ url: mediaUrl, type: mediaType as 'image' | 'video' });
             window.dispatchEvent(new Event('storage'));
             
             toast({ title: "Multimedia guardada", description: "La sección 'Sobre Nosotros' ha sido actualizada." });
             setAboutUsMediaFile(null);
         } catch (error) {
             console.error("Error saving about us media:", error);
-            toast({ title: "Error", description: "No se pudo guardar el archivo.", variant: "destructive" });
+            toast({ title: "Error", description: "No se pudo subir el archivo. Verifica tu conexión.", variant: "destructive" });
         } finally {
             setIsSaving(null);
         }

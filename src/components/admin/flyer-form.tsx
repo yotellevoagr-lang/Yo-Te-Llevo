@@ -19,6 +19,7 @@ import { Checkbox } from "../ui/checkbox"
 import Image from "next/image"
 import { Loader2 } from "lucide-react"
 import { getDisplayUrl } from "@/lib/utils"
+import { uploadFileToStorage } from "@/lib/storage-service"
 
 interface FlyerFormProps {
   isOpen: boolean
@@ -96,7 +97,7 @@ export function FlyerForm({ isOpen, onOpenChange, onSave, flyer, tours }: FlyerF
         let mediaUrl = flyer?.url || '';
 
         if (file) {
-            mediaUrl = await fileToDataUrl(file);
+            mediaUrl = await uploadFileToStorage(file, 'flyers');
         }
         
         const finalData = { 
@@ -108,8 +109,8 @@ export function FlyerForm({ isOpen, onOpenChange, onSave, flyer, tours }: FlyerF
         onSave(finalData);
         
     } catch (error) {
-        console.error("Error converting file:", error);
-        toast({ title: "Error al procesar archivo", description: "No se pudo procesar el archivo.", variant: "destructive"});
+        console.error("Error uploading file:", error);
+        toast({ title: "Error al subir archivo", description: "No se pudo subir el archivo. Verifica tu conexión.", variant: "destructive"});
     } finally {
         setIsUploading(false);
     }

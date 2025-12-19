@@ -36,6 +36,7 @@ import { getDocumentById } from "@/lib/firestore-services"
 import { cn } from "@/lib/utils"
 import Image from "next/image"
 import { getDisplayUrl } from "@/lib/utils"
+import { uploadFileToStorage, uploadMultipleFilesToStorage } from "@/lib/storage-service"
 
 interface TripFormProps {
   isOpen: boolean
@@ -362,20 +363,18 @@ export function TripForm({ isOpen, onOpenChange, onSave, tour, boardingPoints }:
     try {
         let finalBackgroundImageUrl = formData.backgroundImage; 
         if (backgroundImageFile && backgroundImagePreview?.startsWith('blob:')) {
-            finalBackgroundImageUrl = await fileToDataUrl(backgroundImageFile);
+            finalBackgroundImageUrl = await uploadFileToStorage(backgroundImageFile, 'trips');
         } else if (backgroundImagePreview !== formData.backgroundImage) {
             finalBackgroundImageUrl = backgroundImagePreview;
         }
         
-        const uploadedGalleryItems: GalleryItem[] = [];
-        for (const galleryFile of newGalleryFiles) {
-            const dataUrl = await fileToDataUrl(galleryFile.file);
-            uploadedGalleryItems.push({
-                id: `G-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-                url: dataUrl,
-                type: galleryFile.type,
-            });
-        }
+        const filesToUpload = newGalleryFiles.map(gf => ({
+            file: gf.file,
+            id: `G-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+            type: gf.type
+        }));
+        
+        const uploadedGalleryItems = await uploadMultipleFilesToStorage(filesToUpload, 'gallery');
         
         const combinedGallery = [...(formData.gallery || []), ...uploadedGalleryItems];
         
@@ -409,7 +408,7 @@ export function TripForm({ isOpen, onOpenChange, onSave, tour, boardingPoints }:
         
     } catch (error) {
       console.error("Error preparing to save tour:", error);
-      toast({ title: "Error", description: "Ocurrió un problema al procesar los archivos.", variant: "destructive" });
+      toast({ title: "Error", description: "Ocurrió un problema al subir los archivos.", variant: "destructive" });
       setIsLoading(false);
     }
   };
