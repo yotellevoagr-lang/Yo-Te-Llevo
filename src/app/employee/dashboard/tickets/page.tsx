@@ -41,27 +41,41 @@ export default function TicketsAdminPage() {
   const [selectedTripId, setSelectedTripId] = useState<string>("all");
   const ticketRefs = useRef<Record<string, HTMLDivElement | null>>({});
   
+  const [isLoading, setIsLoading] = useState(true);
+
   const fetchData = async () => {
-      const [reservationsData, toursData, sellersData, passengersData, boardingPointsData, pensionsData] = await Promise.all([
-          getAllFromCollection_client<Reservation>('reservations'),
-          getAllFromCollection_client<Tour>('tours'),
-          getAllFromCollection_client<Seller>('sellers'),
-          getAllFromCollection_client<Passenger>('passengers'),
-          getAllFromCollection_client<BoardingPoint>('boarding_points'),
-          getAllFromCollection_client<Pension>('pensions')
-      ]);
-      
-      const processedTours = toursData.map(t => {
-        const date = (t.date as any)?.toDate ? (t.date as any).toDate() : new Date(t.date);
-        return { ...t, date };
-      });
-      
-      setReservations(reservationsData);
-      setTours(processedTours);
-      setSellers(sellersData);
-      setPassengers(passengersData);
-      setBoardingPoints(boardingPointsData);
-      setPensions(pensionsData);
+      try {
+        setIsLoading(true);
+        const [reservationsData, toursData, sellersData, passengersData, boardingPointsData, pensionsData] = await Promise.all([
+            getAllFromCollection_client<Reservation>('reservations'),
+            getAllFromCollection_client<Tour>('tours'),
+            getAllFromCollection_client<Seller>('sellers'),
+            getAllFromCollection_client<Passenger>('passengers'),
+            getAllFromCollection_client<BoardingPoint>('boarding_points'),
+            getAllFromCollection_client<Pension>('pensions')
+        ]);
+        
+        const processedTours = toursData.map(t => {
+          const date = (t.date as any)?.toDate ? (t.date as any).toDate() : new Date(t.date);
+          return { ...t, date };
+        });
+        
+        setReservations(reservationsData);
+        setTours(processedTours);
+        setSellers(sellersData);
+        setPassengers(passengersData);
+        setBoardingPoints(boardingPointsData);
+        setPensions(pensionsData);
+      } catch (error) {
+        console.error('Error cargando datos:', error);
+        toast({
+          title: "Error",
+          description: "No se pudieron cargar los datos",
+          variant: "destructive"
+        });
+      } finally {
+        setIsLoading(false);
+      }
   };
 
   useEffect(() => {
@@ -69,30 +83,25 @@ export default function TicketsAdminPage() {
   }, []);
 
   // Effect to regenerate tickets whenever underlying data changes
-  // Generate only ONE ticket per reservation (for the main passenger)
+  // Generate ONE ticket per reservation (for the main passenger) - SIN FILTROS
   useEffect(() => {
-    const confirmedReservations = reservations.filter((r: Reservation) => r.status === 'Confirmado');
-    
-    const generatedTickets: Ticket[] = confirmedReservations.map((res: Reservation): Ticket | null => {
-        if (!res.passengerIds || res.passengerIds.length === 0) return null;
-
+    // Mostrar todas las reservas, sin importar el estado
+    const generatedTickets: Ticket[] = reservations.map((res: Reservation): Ticket | null => {
         const tour = tours.find(t => t.id === res.tripId);
-        if (!tour) return null;
-
-        // Get the main passenger (first in the list)
-        const mainPassengerId = res.passengerIds[0];
-        const mainPassenger = passengers.find(p => p.id === mainPassengerId);
-        if (!mainPassenger) return null;
         
-        const qrData = { tId: res.id, pId: mainPassenger.id };
+        // Get the main passenger (first in the list) or use placeholder
+        const mainPassengerId = res.passengerIds?.[0];
+        const mainPassenger = mainPassengerId ? passengers.find(p => p.id === mainPassengerId) : null;
+        
+        const qrData = { tId: res.id, pId: mainPassenger?.id || 'sin-pasajero' };
 
         return {
             id: res.id,
-            passengerId: mainPassenger.id,
+            passengerId: mainPassenger?.id || 'sin-pasajero',
             reservationId: res.id,
             tripId: res.tripId,
-            passengerName: mainPassenger.fullName,
-            passengerDni: mainPassenger.dni || "N/A",
+            passengerName: mainPassenger?.fullName || 'Sin pasajero asignado',
+            passengerDni: mainPassenger?.dni || "N/A",
             qrCodeUrl: `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(JSON.stringify(qrData))}`,
             reservation: res,
             boardingPointId: res.boardingPointId,
@@ -103,13 +112,10 @@ export default function TicketsAdminPage() {
 
 
   const ticketsByTrip = useMemo(() => {
-    const activeToursIds = new Set(tours.filter(t => t.date && new Date(t.date) >= new Date()).map(t => t.id));
-
-    const activeTickets = allTickets.filter(ticket => activeToursIds.has(ticket.tripId));
-
+    // Sin filtro de fechas - mostrar todos los tickets
     const filtered = selectedTripId === "all" 
-      ? activeTickets 
-      : activeTickets.filter(ticket => ticket.tripId === selectedTripId);
+      ? allTickets 
+      : allTickets.filter(ticket => ticket.tripId === selectedTripId);
 
     return filtered.reduce((acc, ticket) => {
       const { tripId } = ticket;
@@ -119,11 +125,12 @@ export default function TicketsAdminPage() {
       acc[tripId].push(ticket);
       return acc;
     }, {} as Record<string, Ticket[]>);
-  }, [allTickets, selectedTripId, tours]);
+  }, [allTickets, selectedTripId]);
   
   const toursWithTickets = useMemo(() => {
+      // Sin filtro de fechas - mostrar todos los viajes con tickets
       const tripIdsWithTickets = new Set(allTickets.map(t => t.tripId));
-      return tours.filter(t => tripIdsWithTickets.has(t.id) && t.date && new Date(t.date) >= new Date());
+      return tours.filter(t => tripIdsWithTickets.has(t.id));
   }, [allTickets, tours]);
 
   const handleDownload = async (ticket: Ticket) => {
@@ -197,12 +204,19 @@ export default function TicketsAdminPage() {
         </CardContent>
        </Card>
 
-      {Object.keys(ticketsByTrip).length === 0 ? (
+      {isLoading ? (
+        <Card>
+            <CardContent className="p-12 text-center flex flex-col items-center gap-4">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+                <p className="text-muted-foreground">Cargando tickets...</p>
+            </CardContent>
+        </Card>
+      ) : Object.keys(ticketsByTrip).length === 0 ? (
         <Card>
             <CardContent className="p-12 text-center flex flex-col items-center gap-4">
                 <TicketCheck className="w-16 h-16 text-muted-foreground/50"/>
                 <p className="text-muted-foreground">
-                    No hay tickets para el viaje seleccionado o no hay reservas confirmadas.
+                    No hay tickets disponibles.
                 </p>
             </CardContent>
         </Card>
@@ -221,8 +235,7 @@ export default function TicketsAdminPage() {
                         <AccordionContent className="p-0">
                              <Accordion type="multiple" className="w-full">
                                 {tripTickets.map((ticket) => {
-                                    const passenger = passengers.find(p => p.id === ticket.passengerId);
-                                    if (!passenger) return null;
+                                    const passenger = passengers.find(p => p.id === ticket.passengerId) || null;
                                     const uniqueTicketId = `${ticket.id}-${ticket.passengerId}`;
                                     return (
                                         <AccordionItem value={uniqueTicketId} key={uniqueTicketId} className="border-t">

@@ -17,9 +17,9 @@ import { generateDisplayID } from "@/lib/utils"
 
 interface TravelTicketProps {
   ticket: TicketType;
-  passenger: Passenger;
+  passenger: Passenger | null;
   allPassengers: Passenger[];
-  tour: Tour;
+  tour?: Tour;
   seller?: Seller;
   boardingPoint?: BoardingPoint;
   pension?: Pension;
@@ -88,7 +88,7 @@ function QRCodeDisplay({ url, onQrLoad }: { url: string; onQrLoad: () => void; }
 export const TravelTicket = React.forwardRef<HTMLDivElement, TravelTicketProps>(({ ticket, passenger, allPassengers, tour, seller, boardingPoint, pension }, ref) => {
   const reservation = ticket.reservation;
   
-  const reservationPassengers = reservation.passengerIds.map(id => allPassengers.find(p => p.id === id)).filter(Boolean) as Passenger[];
+  const reservationPassengers = (reservation.passengerIds || []).map(id => allPassengers.find(p => p.id === id)).filter(Boolean) as Passenger[];
 
   const assignedLocations = [
     ...(reservation.assignedSeats || []).map(s => s.seatId),
@@ -96,6 +96,7 @@ export const TravelTicket = React.forwardRef<HTMLDivElement, TravelTicketProps>(
   ].join(', ') || "Asignada por coordinador";
 
   const getDurationText = () => {
+    if (!tour) return "N/A";
     const days = tour.days;
     const nights = tour.nights;
     if (days && nights) return `${days} días / ${nights} noches`;
@@ -106,8 +107,12 @@ export const TravelTicket = React.forwardRef<HTMLDivElement, TravelTicketProps>(
   const durationText = getDurationText();
 
   // Generate dynamic IDs for display
-  const displayReservationID = generateDisplayID('R', reservation, tour, passenger);
-  const displayTicketID = generateDisplayID('T', reservation, tour, passenger);
+  const displayReservationID = generateDisplayID('R', reservation, tour, passenger || undefined);
+  const displayTicketID = generateDisplayID('T', reservation, tour, passenger || undefined);
+  
+  // Placeholder values when data is missing
+  const passengerName = passenger?.fullName || ticket.passengerName || "Sin pasajero";
+  const passengerDni = passenger?.dni || ticket.passengerDni || "N/A";
     
   return (
     <div ref={ref} className={cn(
@@ -130,32 +135,32 @@ export const TravelTicket = React.forwardRef<HTMLDivElement, TravelTicketProps>(
                  <InfoSection title="Pasajeros" icon={Users}>
                     {/* Main passenger (titular) */}
                     <InfoRow 
-                        key={passenger.id} 
+                        key={passenger?.id || 'no-passenger'} 
                         label="Titular" 
-                        value={`${passenger.fullName} (DNI: ${passenger.dni})`} 
+                        value={`${passengerName} (DNI: ${passengerDni})`} 
                     />
                     {/* Other passengers (integrantes) - only show name and DNI */}
-                    {reservationPassengers.filter(p => p.id !== passenger.id).length > 0 && (
+                    {reservationPassengers.filter(p => p.id !== passenger?.id).length > 0 && (
                         <>
                             <div className="border-t my-2 pt-2">
                                 <span className="text-xs font-semibold text-muted-foreground uppercase">Integrantes:</span>
                             </div>
-                            {reservationPassengers.filter(p => p.id !== passenger.id).slice(0, 9).map((p) => (
+                            {reservationPassengers.filter(p => p.id !== passenger?.id).slice(0, 9).map((p) => (
                                 <InfoRow key={p.id} label={p.fullName} value={`DNI: ${p.dni}`} />
                             ))}
-                            {reservationPassengers.filter(p => p.id !== passenger.id).length > 9 && (
-                                <InfoRow label="..." value={`+ ${reservationPassengers.filter(p => p.id !== passenger.id).length - 9} integrantes más`} />
+                            {reservationPassengers.filter(p => p.id !== passenger?.id).length > 9 && (
+                                <InfoRow label="..." value={`+ ${reservationPassengers.filter(p => p.id !== passenger?.id).length - 9} integrantes más`} />
                             )}
                         </>
                     )}
                  </InfoSection>
                  <div className="grid grid-cols-2 gap-3">
                     <InfoSection title="Origen y Destino" icon={MapPin}>
-                        <InfoRow label="Origen" value={tour.origin} />
-                        <InfoRow label="Destino" value={tour.destination} />
+                        <InfoRow label="Origen" value={tour?.origin || "N/A"} />
+                        <InfoRow label="Destino" value={tour?.destination || "N/A"} />
                     </InfoSection>
                     <InfoSection title="Fecha de Salida" icon={CalendarDays}>
-                        <InfoRow label="Fecha" value={format(new Date(tour.date), "dd/MM/yyyy", { locale: es })} />
+                        <InfoRow label="Fecha" value={tour?.date ? format(new Date(tour.date), "dd/MM/yyyy", { locale: es }) : "N/A"} />
                     </InfoSection>
                  </div>
                   <InfoSection title="Alojamiento y Comidas" icon={BedDouble}>
@@ -163,21 +168,21 @@ export const TravelTicket = React.forwardRef<HTMLDivElement, TravelTicketProps>(
                     <InfoRow label="Régimen de Comidas" value={pension?.name || 'Sin pensión'} />
                  </InfoSection>
                  <InfoSection title="Datos del Transporte" icon={Bus}>
-                    <InfoRow label="Empresa" value={tour.bus} />
+                    <InfoRow label="Empresa" value={tour?.bus || "N/A"} />
                     <InfoRow label="Embarque" value={boardingPoint?.name} />
-                    <InfoRow label="Plataforma" value={tour.platform} />
+                    <InfoRow label="Plataforma" value={tour?.platform || "N/A"} />
                  </InfoSection>
                   <div className="grid grid-cols-2 gap-3">
                     <InfoSection title="Horario" icon={Clock}>
-                        <InfoRow label="Presentación" value={tour.presentationTime} />
-                        <InfoRow label="Salida" value={tour.departureTime} />
+                        <InfoRow label="Presentación" value={tour?.presentationTime || "N/A"} />
+                        <InfoRow label="Salida" value={tour?.departureTime || "N/A"} />
                     </InfoSection>
                      <InfoSection title="Butacas" icon={Armchair}>
                         <InfoRow label="Ubicación" value={assignedLocations} />
                     </InfoSection>
                   </div>
                    <InfoSection title="Condiciones" icon={FileText} contentClassName="text-xs text-center text-muted-foreground">
-                        <p>{tour.cancellationPolicy || "Consulte la política de cancelación."}</p>
+                        <p>{tour?.cancellationPolicy || "Consulte la política de cancelación."}</p>
                     </InfoSection>
             </div>
 
@@ -187,14 +192,14 @@ export const TravelTicket = React.forwardRef<HTMLDivElement, TravelTicketProps>(
                     <InfoRow label="Nombre" value="YO TE LLEVO" />
                  </InfoSection>
                  <InfoSection title="Coordinador/a" icon={UserSquare}>
-                    <InfoRow label="Nombre" value={tour.coordinator} />
-                    <InfoRow label="Teléfono" value={tour.coordinatorPhone} />
+                    <InfoRow label="Nombre" value={tour?.coordinator || "N/A"} />
+                    <InfoRow label="Teléfono" value={tour?.coordinatorPhone || "N/A"} />
                  </InfoSection>
                   <InfoSection title="Vendedor/a" icon={UserCircle}>
                     <InfoRow label="Nombre" value={seller?.name} />
                  </InfoSection>
                   <InfoSection title="Observaciones" icon={Info} contentClassName="text-center font-medium">
-                     <p>{tour.observations || "Obligatorio llevar D.N.I."}</p>
+                     <p>{tour?.observations || "Obligatorio llevar D.N.I."}</p>
                  </InfoSection>
                  <div className="flex-grow flex items-center justify-center">
                     <div className="flex items-center justify-center bg-gray-200 rounded-md p-2">
