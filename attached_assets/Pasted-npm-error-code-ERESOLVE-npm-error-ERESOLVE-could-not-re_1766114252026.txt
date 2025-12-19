@@ -1,0 +1,133 @@
+npm error code ERESOLVE
+npm error ERESOLVE could not resolve
+npm error
+npm error While resolving: next-themes@0.3.0
+npm error Found: react@19.2.3
+npm error node_modules/react
+npm error   react@"^19.2.1" from the root project
+npm error   peer react@">=16.8.0" from @dnd-kit/accessibility@3.1.1
+npm error   node_modules/@dnd-kit/accessibility
+npm error     @dnd-kit/accessibility@"^3.1.1" from @dnd-kit/core@6.3.1
+npm error     node_modules/@dnd-kit/core
+npm error       @dnd-kit/core@"^6.1.0" from the root project
+npm error       1 more (@dnd-kit/sortable)
+npm error   81 more (@dnd-kit/core, @dnd-kit/sortable, @dnd-kit/utilities, ...)
+npm error
+npm error Could not resolve dependency:
+npm error peer react@"^16.8 || ^17 || ^18" from next-themes@0.3.0
+npm error node_modules/next-themes
+npm error   next-themes@"^0.3.0" from the root project
+npm error
+npm error Conflicting peer dependency: react@18.3.1
+npm error node_modules/react
+npm error   peer react@"^16.8 || ^17 || ^18" from next-themes@0.3.0
+npm error   node_modules/next-themes
+npm error     next-themes@"^0.3.0" from the root project
+npm error
+npm error Fix the upstream dependency conflict, or retry
+npm error this command with --force or --legacy-peer-deps
+npm error to accept an incorrect (and potentially broken) dependency resolution.
+npm error
+npm error
+npm error For a full report see:
+npm error /www-data-home/.npm/_logs/2025-12-19T03_15_04_369Z-eresolve-report.txt
+npm error A complete log of this run can be found in: /www-data-home/.npm/_logs/2025-12-19T03_15_04_369Z-debug-0.log
+Done "npm ci --quiet --no-fund --no-audit (NODE_ENV=development)" (5.336615289s)
+--------------------------------------------------------------------------------
+failed to build: (error ID: 7fa33aaa):
+npm warn ERESOLVE overriding peer dependency
+npm warn While resolving: @genkit-ai/firebase@1.26.0
+npm warn Found: firebase@10.14.1
+npm warn node_modules/firebase
+npm warn   firebase@"^10.14.1" from the root project
+npm warn
+npm warn Could not resolve dependency:
+npm warn peerOptional firebase@">=11.5.0" from @genkit-ai/firebase@1.26.0
+npm warn node_modules/@genkit-ai/firebase
+npm warn   optional @genkit-ai/firebase@"^1.16.1" from @genkit-ai/core@1.26.0
+npm warn   node_modules/@genkit-ai/core
+npm warn
+npm warn Conflicting peer dependency: firebase@12.7.0
+npm warn node_modules/firebase
+npm warn   peerOptional firebase@">=11.5.0" from @genkit-ai/firebase@1.26.0
+npm warn   node_modules/@genkit-ai/firebase
+npm warn     optional @genkit-ai/firebase@"^1.16.1" from @genkit-ai/core@1.26.0
+npm warn     node_modules/@genkit-ai/core
+npm warn ERESOLVE overriding peer dependency
+npm warn While resolving: @react-leaflet/core@2.1.0
+npm warn Found: react@19.2.3
+npm warn node_modules/react
+npm warn   react@"^19.2.1" from the root project
+npm warn   82 more (@dnd-kit/accessibility, @dnd-kit/core, ...)
+npm warn
+npm warn Could not resolve dependency:
+npm warn peer react@"^18.0.0" from @react-leaflet/core@2.1.0
+npm warn node_modules/@react-leaflet/core
+npm warn   @react-leaflet/core@"^2.1.0" from react-leaflet@4.2.1
+npm warn   node_modules/react-leaflet
+npm warn
+npm warn Conflicting peer dependency: react@18.3.1
+npm warn node_modules/react
+npm warn   peer react@"^18.0.0" from @react-leaflet/core@2.1.0
+npm warn   node_modules/@react-leaflet/core
+npm warn     @react-leaflet/core@"^2.1.0" from react-leaflet@4.2.1
+npm warn     node_modules/react-leaflet
+npm warn ERESOLVE overriding peer dependency
+npm warn While resolving: @react-leaflet/core@2.1.0
+npm warn Found: react-dom@19.2.3
+npm warn node_modules/react-dom
+npm warn   react-dom@"^19.2.1" from the root project
+npm warn   42 more (@dnd-kit/core, @floating-ui/react-dom, ...)
+npm warn
+npm warn Could not resolve dependency:
+npm warn peer react-dom@"^18.0.0" from @react-leaflet/core@2.1.0
+npm warn node_modules/@react-leaflet/core
+npm warn   @react-leaflet/core@"^2.1.0" from react-leaflet@4.2.1
+npm warn   node_modules/react-leaflet
+npm warn
+npm warn Conflicting peer dependency: react-dom@18.3.1
+npm warn node_modules/react-dom
+npm warn   peer react-dom@"^18.0.0" from @react-leaflet/core@2.1.0
+npm warn   node_modules/@react-leaflet/core
+npm warn     @react-leaflet/core@"^2.1.0" from react-leaflet@4.2.1
+npm warn     node_modules/react-leaflet
+npm error code ERESOLVE
+npm error ERESOLVE could not resolve
+npm error
+npm error While resolving: next-themes@0.3.0
+npm error Found: react@19.2.3
+npm error node_modules/react
+npm error   react@"^19.2.1" from the root project
+npm error   peer react@">=16.8.0" from @dnd-kit/accessibility@3.1.1
+npm error   node_modules/@dnd-kit/accessibility
+npm error     @dnd-kit/accessibility@"^3.1.1" from @dnd-kit/core@6.3.1
+npm error     node_modules/@dnd-kit/core
+npm error       @dnd-kit/core@"^6.1.0" from the root project
+npm error       1 more (@dnd-kit/sortable)
+npm error   81 more (@dnd-kit/core, @dnd-kit/sortable, @dnd-kit/utilities, ...)
+npm error
+npm error Could not resolve dependency:
+npm error peer react@"^16.8 || ^17 || ^18" from next-themes@0.3.0
+npm error node_modules/next-themes
+npm error   next-themes@"^0.3.0" from the root project
+npm error
+npm error Conflicting peer dependency: react@18.3.1
+npm error node_modules/react
+npm error   peer react@"^16.8 || ^17 || ^18" from next-themes@0.3.0
+npm error   node_modules/next-themes
+npm error     next-themes@"^0.3.0" from the root project
+npm error
+npm error Fix the upstream dependency conflict, or retry
+npm error this command with --force or --legacy-peer-deps
+npm error to accept an incorrect (and potentially broken) dependency resolution.
+npm error
+npm error
+npm error For a full report see:
+npm error /www-data-home/.npm/_logs/2025-12-19T03_15_04_369Z-eresolve-report.txt
+npm error A complete log of this run can be found in: /www-data-home/.npm/_logs/2025-12-19T03_15_04_369Z-debug-0.log
+ERROR: failed to build: exit status 1
+ERROR: failed to build: executing lifecycle: failed with status code: 51
+Finished Step #2 - "pack"
+ERROR
+ERROR: build step 2 "gcr.io/k8s-skaffold/pack" failed: step exited with non-zero status: 1
+
