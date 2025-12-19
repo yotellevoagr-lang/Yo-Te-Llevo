@@ -70,13 +70,18 @@ export default function FlyersPage() {
 
     const fetchData = async () => {
         setIsLoading(true);
-        const [flyersData, toursData] = await Promise.all([
-            getAllFromCollection_client<Flyer>('flyers'),
-            getAllFromCollection_client<Tour>('tours'),
-        ]);
-        setFlyers(flyersData);
-        setTours(toursData);
-        setIsLoading(false);
+        try {
+            const [flyersData, toursData] = await Promise.all([
+                getAllFromCollection_client<Flyer>('flyers'),
+                getAllFromCollection_client<Tour>('tours'),
+            ]);
+            setFlyers(flyersData);
+            setTours(toursData);
+        } catch (error) {
+            console.error('Error al cargar flyers:', error);
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     useEffect(() => {

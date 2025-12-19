@@ -1,8 +1,8 @@
 
 // Import the functions you need from the SDKs you need
-import { initializeApp, getApps } from "firebase/app";
+import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { getFirestore, enableMultiTabIndexedDbPersistence } from "firebase/firestore";
+import { initializeFirestore, getFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import { getMessaging } from "firebase/messaging";
 
@@ -21,24 +21,29 @@ let app;
 if (!getApps().length) {
   app = initializeApp(firebaseConfig);
 } else {
-  app = getApps()[0];
+  app = getApp();
 }
 
 const auth = getAuth(app);
-const db = getFirestore(app);
-const storage = getStorage(app);
-const messaging = typeof window !== 'undefined' ? getMessaging(app) : null;
 
-// Enable offline persistence for Firestore
+// Initialize Firestore with the new persistence API
+let db;
 if (typeof window !== 'undefined') {
-    enableMultiTabIndexedDbPersistence(db).catch((err) => {
-        if (err.code == 'failed-precondition') {
-            console.warn("Multiple tabs open, persistence can only be enabled in one tab at a time.");
-        } else if (err.code == 'unimplemented') {
-            console.warn("The current browser does not support all of the features required to enable persistence.");
-        }
-    });
+    try {
+        db = initializeFirestore(app, {
+            localCache: persistentLocalCache({
+                tabManager: persistentMultipleTabManager()
+            })
+        });
+    } catch (error) {
+        // Firestore already initialized, get existing instance
+        db = getFirestore(app);
+    }
+} else {
+    db = getFirestore(app);
 }
 
+const storage = getStorage(app);
+const messaging = typeof window !== 'undefined' ? getMessaging(app) : null;
 
 export { app, auth, db, storage, messaging };
