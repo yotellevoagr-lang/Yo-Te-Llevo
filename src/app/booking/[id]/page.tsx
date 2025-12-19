@@ -336,7 +336,11 @@ export default function BookingPage() {
   }, [tour, reservations, layoutConfig]);
 
   const addPassenger = useCallback(() => {
-     if (availableSeats <= 0 || (bookingPassengers.length > 0 && bookingPassengers.length >= availableSeats)) {
+    if (availableSeats <= 0) {
+        toast({ title: "No hay más lugares", description: "No hay asientos disponibles para este viaje.", variant: "destructive" });
+        return;
+    }
+    if (bookingPassengers.length >= availableSeats) {
         toast({ title: "No hay más lugares", description: "Has alcanzado el número máximo de asientos disponibles para este viaje.", variant: "destructive" });
         return;
     }

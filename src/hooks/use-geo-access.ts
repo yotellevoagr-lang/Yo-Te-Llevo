@@ -30,6 +30,7 @@ export const useGeoAccess = () => {
   const [status, setStatus] = useState<GeoAccessStatus>("loading");
   const [mainWhatsappNumber, setMainWhatsappNumber] = useState<string | undefined>();
   const [geoSettings, setGeoSettings] = useState<GeoSettings | null>(null);
+  const [manualLocation, setManualLocation] = useState<{ province: string; city: string } | null>(null);
   const { user, loading: authLoading } = useAuth();
 
   const fetchSettings = useCallback(async () => {
@@ -52,9 +53,11 @@ export const useGeoAccess = () => {
       return;
     }
     
-    if (user?.province && user?.city) {
-      const isAllowed = allowedCities.includes(user.city.toLowerCase());
-      setStatus(isAllowed ? "allowed" : "denied"); // Use 'denied' to show the specific message
+    const userAsPassenger = user as Passenger | undefined;
+    if (userAsPassenger?.province && userAsPassenger?.city) {
+      const isAllowed = allowedCities.includes(userAsPassenger.city.toLowerCase());
+      setManualLocation({ province: userAsPassenger.province, city: userAsPassenger.city });
+      setStatus(isAllowed ? "allowed" : "denied");
       return;
     }
     
@@ -115,6 +118,7 @@ export const useGeoAccess = () => {
 
   const checkManualLocation = useCallback(async (province: string, city: string) => {
     setStatus("checking");
+    setManualLocation({ province, city });
     const isAllowed = allowedCities.includes(city.toLowerCase());
     
     if (user?.id) {
@@ -130,5 +134,5 @@ export const useGeoAccess = () => {
     }, 500);
   }, [user]);
 
-  return { status, mainWhatsappNumber, checkBrowserPermission, checkManualLocation };
+  return { status, mainWhatsappNumber, manualLocation, checkBrowserPermission, checkManualLocation };
 };

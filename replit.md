@@ -41,6 +41,10 @@ The project uses Firebase configuration stored in `.env`:
 - `FIREBASE_SERVICE_ACCOUNT_KEY` - For server-side Firebase Admin
 
 ## Recent Changes
+- 2025-12-19: Correcciones en página de booking
+  - Hook useGeoAccess ahora retorna manualLocation correctamente
+  - Corregido error de tipos: user?.province/city solo se accede si es Passenger
+  - Mejorada lógica de addPassenger para verificar asientos disponibles
 - 2025-12-19: Mejoras en página de Flyers para clientes
   - Etiquetas renombradas: "Otros Flyers" → "Viajes", "Promociones Generales" → "PROMO"
   - Flyers con viaje + promoción aparecen primero en su sección con badge "PROMO"
