@@ -16,9 +16,6 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
   images: {
     dangerouslyAllowSVG: true,
     unoptimized: true,
@@ -33,7 +30,15 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  allowedDevOrigins: ['*.replit.dev', '*.repl.co', 'localhost', '127.0.0.1'],
+  allowedDevOrigins: [
+    'worf.replit.dev',
+    'kirk.replit.dev',
+    'picard.replit.dev', 
+    'spock.replit.dev',
+    'repl.co',
+    'replit.dev',
+    process.env.REPLIT_DEV_DOMAIN || ''
+  ].filter(Boolean),
 };
 
 export default withPWA(nextConfig);

@@ -336,7 +336,7 @@ export default function BookingPage() {
   }, [tour, reservations, layoutConfig]);
 
   const addPassenger = useCallback(() => {
-     if (bookingPassengers.length > 0 && bookingPassengers.length >= availableSeats) {
+     if (availableSeats <= 0 || (bookingPassengers.length > 0 && bookingPassengers.length >= availableSeats)) {
         toast({ title: "No hay más lugares", description: "Has alcanzado el número máximo de asientos disponibles para este viaje.", variant: "destructive" });
         return;
     }
@@ -431,9 +431,19 @@ export default function BookingPage() {
 
   
   const addFamilyMemberToBooking = (passenger: Passenger) => {
-    if(bookingPassengers.length >= availableSeats) {
+    if (bookingPassengers.some(bp => bp.id === passenger.id)) {
+        return;
+    }
+    
+    if(availableSeats <= 0 || bookingPassengers.length >= availableSeats) {
         toast({ title: "No hay más lugares", variant: "destructive" });
         return;
+    }
+    
+    const dobFromDb = passenger.dob as any;
+    let dobDate: Date | null = null;
+    if (dobFromDb) {
+        dobDate = dobFromDb.toDate ? dobFromDb.toDate() : new Date(dobFromDb);
     }
     
     setBookingPassengers(prev => [...prev, {
@@ -442,7 +452,7 @@ export default function BookingPage() {
         fullName: passenger.fullName,
         dni: passenger.dni,
         phone: passenger.phone,
-        dob: passenger.dob ? new Date(passenger.dob) : null,
+        dob: dobDate,
         family: passenger.family,
         nationality: passenger.nationality || 'Argentina',
         tierId: passenger.tierId || 'adult'
@@ -806,7 +816,7 @@ export default function BookingPage() {
                                             return (
                                                 <div key={member.id} className="flex items-center justify-between p-2 rounded-md hover:bg-muted/50">
                                                     <div className="flex items-center gap-2">
-                                                        <Checkbox id={`member-${member.id}`} checked={isSelected} onCheckedChange={(checked) => checked ? addFamilyMemberToBooking(member) : removePassenger(member.id)} />
+                                                        <Checkbox id={`member-${member.id}`} checked={isSelected} onCheckedChange={(checked) => checked === true ? addFamilyMemberToBooking(member) : removePassenger(member.id)} />
                                                         <Label htmlFor={`member-${member.id}`} className="font-normal cursor-pointer">{member.fullName}</Label>
                                                     </div>
                                                     {!isMemberComplete && (

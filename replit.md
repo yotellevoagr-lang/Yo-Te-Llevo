@@ -9,7 +9,9 @@ A Next.js-based travel agency application with Firebase integration for tours/tr
 - Admin panel for managing tours
 
 ## Tech Stack
-- **Framework**: Next.js 15 with Turbopack
+- **Framework**: Next.js 16.1 with Turbopack
+- **Runtime**: Node.js 22
+- **UI Library**: React 19.2
 - **Database**: Firebase Firestore
 - **Auth**: Firebase Authentication
 - **Styling**: Tailwind CSS
