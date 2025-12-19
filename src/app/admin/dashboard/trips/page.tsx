@@ -40,6 +40,7 @@ import { useToast } from "@/hooks/use-toast"
 import { getAllFromCollection_client, getDocumentById, saveTour, deleteDocument, saveDocument } from "@/lib/firestore-services"
 import { Switch } from "@/components/ui/switch"
 import { cn } from "@/lib/utils"
+import { deleteFileFromStorage, deleteMultipleFilesFromStorage, isStorageUrl } from "@/lib/storage-service"
 
 
 type GlobalTextType = 'observations' | 'cancellationPolicy' | null;
@@ -163,6 +164,8 @@ export default function TripsPage() {
 
   const handleDelete = async (tourId: string) => {
     try {
+        const tourToDelete = tours.find(t => t.id === tourId);
+        
         const reservationsToDelete = reservations.filter(r => r.tripId === tourId);
         for (const res of reservationsToDelete) {
             if (res.installments) {
@@ -175,6 +178,24 @@ export default function TripsPage() {
             await deleteDocument('reservations', res.id);
         }
         await deleteDocument('tours', tourId);
+        
+        if (tourToDelete) {
+            const urlsToDelete: string[] = [];
+            if (tourToDelete.backgroundImage && isStorageUrl(tourToDelete.backgroundImage)) {
+                urlsToDelete.push(tourToDelete.backgroundImage);
+            }
+            if (tourToDelete.gallery && tourToDelete.gallery.length > 0) {
+                for (const item of tourToDelete.gallery) {
+                    if (isStorageUrl(item.url)) {
+                        urlsToDelete.push(item.url);
+                    }
+                }
+            }
+            if (urlsToDelete.length > 0) {
+                await deleteMultipleFilesFromStorage(urlsToDelete);
+            }
+        }
+        
         await fetchData();
         window.dispatchEvent(new Event('storage'));
         toast({title: "Viaje Eliminado", description: "El viaje y todas sus reservas y transacciones asociadas han sido eliminados.", variant: "destructive"});

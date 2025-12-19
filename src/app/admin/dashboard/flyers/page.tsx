@@ -22,6 +22,7 @@ import { getAllFromCollection_client, deleteDocument, saveDocument } from "@/lib
 import { FlyerForm } from "@/components/admin/flyer-form"
 import Image from "next/image"
 import { getDisplayUrl } from "@/lib/utils"
+import { deleteFileFromStorage, isStorageUrl } from "@/lib/storage-service"
 
 export default function FlyersPage() {
   const [flyers, setFlyers] = useState<Flyer[]>([])
@@ -80,6 +81,10 @@ export default function FlyersPage() {
 
 
   const handleDelete = async (flyerId: string) => {
+    const flyerToDelete = flyers.find(f => f.id === flyerId);
+    if (flyerToDelete && flyerToDelete.url && isStorageUrl(flyerToDelete.url)) {
+      await deleteFileFromStorage(flyerToDelete.url);
+    }
     await deleteDocument('flyers', flyerId);
     await fetchData();
     window.dispatchEvent(new Event('storage'));

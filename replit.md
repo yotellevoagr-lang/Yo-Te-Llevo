@@ -39,6 +39,15 @@ The project uses Firebase configuration stored in `.env`:
 - `FIREBASE_SERVICE_ACCOUNT_KEY` - For server-side Firebase Admin
 
 ## Recent Changes
+- 2025-12-19: Mejoras en página de Flyers para clientes
+  - Etiquetas renombradas: "Otros Flyers" → "Viajes", "Promociones Generales" → "PROMO"
+  - Flyers con viaje + promoción aparecen primero en su sección con badge "PROMO"
+  - Nombre del flyer solo se muestra si existe (arriba del flyer)
+  - Eliminado event listener 'storage' que causaba recargas infinitas
+- 2025-12-19: Eliminación completa de archivos de Firebase Storage
+  - Al eliminar un viaje completo, se eliminan todos sus archivos (fondo + galería) de Storage
+  - Al eliminar un flyer, se elimina su imagen/video de Storage
+  - La lógica ya existía para configuración y edición de galería
 - 2025-12-19: Mejoras en vista de clientes
   - Videos en flyers se reproducen automáticamente (autoPlay, muted, loop, playsInline)
   - Actualizado syntax de imágenes Next.js a versión 15 (fill en lugar de layout="fill")
