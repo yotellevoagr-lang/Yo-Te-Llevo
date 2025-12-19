@@ -8,23 +8,31 @@ export async function uploadFileToStorage(
   folder: StorageFolder,
   customFileName?: string
 ): Promise<string> {
-  const timestamp = Date.now();
-  const randomId = Math.random().toString(36).substring(2, 9);
-  const extension = file.name.split('.').pop() || 'bin';
-  const fileName = customFileName 
-    ? `${customFileName}.${extension}` 
-    : `${timestamp}_${randomId}.${extension}`;
-  
-  const storageRef = ref(storage, `${folder}/${fileName}`);
-  
-  const metadata = {
-    contentType: file.type,
-  };
-  
-  await uploadBytes(storageRef, file, metadata);
-  const downloadUrl = await getDownloadURL(storageRef);
-  
-  return downloadUrl;
+  try {
+    const timestamp = Date.now();
+    const randomId = Math.random().toString(36).substring(2, 9);
+    const extension = file.name.split('.').pop() || 'bin';
+    const fileName = customFileName 
+      ? `${customFileName}.${extension}` 
+      : `${timestamp}_${randomId}.${extension}`;
+    
+    const storageRef = ref(storage, `${folder}/${fileName}`);
+    
+    const metadata = {
+      contentType: file.type,
+    };
+    
+    console.log('Uploading file to Storage:', folder, fileName, file.size);
+    await uploadBytes(storageRef, file, metadata);
+    console.log('File uploaded, getting download URL...');
+    const downloadUrl = await getDownloadURL(storageRef);
+    console.log('Download URL obtained:', downloadUrl);
+    
+    return downloadUrl;
+  } catch (error: any) {
+    console.error('Error uploading to Firebase Storage:', error.code, error.message);
+    throw error;
+  }
 }
 
 export async function uploadMultipleFilesToStorage(
