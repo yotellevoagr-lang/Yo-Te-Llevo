@@ -111,6 +111,10 @@ export default function FlyersPage() {
             return acc;
         }, {} as Record<string, { tour: Tour; flyers: Flyer[] }>);
     }, [flyers, tours]);
+    
+    const unassignedFlyers = useMemo(() => {
+        return flyers.filter(f => !f.isGeneralPromotion && !f.tourId);
+    }, [flyers]);
 
     return (
         <div className="flex flex-col min-h-screen">
@@ -170,8 +174,19 @@ export default function FlyersPage() {
                             </div>
                         </div>
                     ))}
+                    
+                    {unassignedFlyers.length > 0 && (
+                        <div>
+                             <h2 className="text-2xl font-bold tracking-tighter sm:text-4xl font-headline mb-8">Otros Flyers</h2>
+                             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                                {unassignedFlyers.map(flyer => (
+                                    <FlyerCard key={flyer.id} flyer={flyer} onImageClick={handleImageClick}/>
+                                ))}
+                            </div>
+                        </div>
+                    )}
 
-                    {promotionalFlyers.length === 0 && Object.keys(flyersByTrip).length === 0 && (
+                    {promotionalFlyers.length === 0 && Object.keys(flyersByTrip).length === 0 && unassignedFlyers.length === 0 && (
                          <Card>
                             <CardContent className="p-12 text-center flex flex-col items-center gap-4">
                                 <ImageIcon className="w-16 h-16 text-muted-foreground/50"/>
