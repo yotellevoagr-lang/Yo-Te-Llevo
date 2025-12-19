@@ -70,7 +70,7 @@ export async function deleteMultipleFilesFromStorage(urls: string[]): Promise<vo
 }
 
 export function isStorageUrl(url: string): boolean {
-  return url.includes('firebasestorage.googleapis.com');
+  return url.includes('firebasestorage.googleapis.com') || url.includes('firebasestorage.app');
 }
 
 export function isDataUrl(url: string): boolean {
