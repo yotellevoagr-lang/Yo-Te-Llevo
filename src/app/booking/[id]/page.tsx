@@ -717,8 +717,8 @@ export default function BookingPage() {
                               {allMedia.map((item, index) => (
                                   <CarouselItem key={item.id}>
                                       <div className="relative w-full aspect-video bg-muted">
-                                          {item.type === 'image' && ( <Image src={getDisplayUrl(item.url)} alt={`${tour.destination} - ${index + 1}`} layout="fill" objectFit="cover" priority={index === 0} /> )}
-                                          {item.type === 'video' && ( <video src={getDisplayUrl(item.url)} className="w-full h-full object-cover" controls autoPlay={false} muted loop /> )}
+                                          {item.type === 'image' && ( <Image src={getDisplayUrl(item.url)} alt={`${tour.destination} - ${index + 1}`} fill className="object-cover" priority={index === 0} /> )}
+                                          {item.type === 'video' && ( <video src={getDisplayUrl(item.url)} className="w-full h-full object-cover" autoPlay muted loop playsInline /> )}
                                       </div>
                                   </CarouselItem>
                               ))}

@@ -55,8 +55,8 @@ export function FeaturedTripPopup({ tours }: FeaturedTripPopupProps) {
           <Image
             src={getDisplayUrl(selectedTour.backgroundImage || "https://placehold.co/600x400.png")}
             alt={selectedTour.destination}
-            layout="fill"
-            objectFit="cover"
+            fill
+            className="object-cover"
             data-ai-hint="travel landscape"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />

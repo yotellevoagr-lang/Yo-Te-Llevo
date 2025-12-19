@@ -33,7 +33,7 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  allowedDevOrigins: ['*'],
+  allowedDevOrigins: ['*.replit.dev', '*.repl.co', 'localhost', '127.0.0.1'],
 };
 
 export default withPWA(nextConfig);

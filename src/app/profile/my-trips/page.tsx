@@ -22,7 +22,7 @@ const TripHistoryCard = ({ reservation, tour }: { reservation: Reservation, tour
         <Card className="overflow-hidden">
             <CardContent className="p-0">
                 <div className="relative w-full h-40">
-                    <Image src={getDisplayUrl(imageUrl)} alt={tour.destination} layout="fill" objectFit="cover" data-ai-hint="travel landscape" />
+                    <Image src={getDisplayUrl(imageUrl)} alt={tour.destination} fill className="object-cover" data-ai-hint="travel landscape" />
                 </div>
                 <div className="p-4">
                     <h3 className="font-semibold text-lg">{tour.destination}</h3>

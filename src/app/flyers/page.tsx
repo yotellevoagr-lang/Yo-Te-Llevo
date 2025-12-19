@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { ArrowRight, Maximize, Loader2, Image as ImageIcon } from "lucide-react"
 import { getAllFromCollection_client } from "@/lib/firestore-services";
+import { getDisplayUrl } from "@/lib/utils";
 import type { Flyer, Tour } from "@/lib/types";
 
 const FlyerCard = ({ flyer, tour, onImageClick }: { flyer: Flyer, tour?: Tour, onImageClick: (flyer: Flyer) => void }) => {
@@ -20,14 +21,21 @@ const FlyerCard = ({ flyer, tour, onImageClick }: { flyer: Flyer, tour?: Tour, o
             <CardContent className="p-0">
                 <div className="relative overflow-hidden aspect-[9/16] cursor-pointer" onClick={() => onImageClick(flyer)}>
                      {flyer.type === 'video' ? (
-                        <video src={flyer.url} className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                        <video 
+                            src={getDisplayUrl(flyer.url)} 
+                            autoPlay 
+                            muted 
+                            loop 
+                            playsInline
+                            className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" 
+                        />
                     ) : (
                         <Image
-                            src={flyer.url}
+                            src={getDisplayUrl(flyer.url)}
                             alt={flyer.name}
-                            layout="fill"
-                            objectFit="cover"
-                            className="transition-transform duration-500 group-hover:scale-110"
+                            fill
+                            sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                            className="object-cover transition-transform duration-500 group-hover:scale-110"
                         />
                     )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent flex flex-col justify-end p-6">
@@ -115,9 +123,9 @@ export default function FlyersPage() {
                     </DialogHeader>
                     <div className="flex justify-center items-center h-full">
                         {viewingMedia?.type === 'video' ? (
-                            <video src={viewingMedia.url} controls autoPlay className="max-w-full max-h-[85vh] rounded-lg" />
+                            <video src={getDisplayUrl(viewingMedia.url)} controls autoPlay className="max-w-full max-h-[85vh] rounded-lg" />
                         ) : (
-                            <Image src={viewingMedia?.url || ''} alt="Vista previa del flyer" width={1000} height={1000} className="max-w-full max-h-[85vh] object-contain rounded-lg"/>
+                            <Image src={getDisplayUrl(viewingMedia?.url)} alt="Vista previa del flyer" width={1000} height={1000} className="max-w-full max-h-[85vh] object-contain rounded-lg"/>
                         )}
                     </div>
                 </DialogContent>

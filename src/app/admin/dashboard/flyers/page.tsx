@@ -141,7 +141,7 @@ export default function FlyersPage() {
                         {flyer.type === 'video' ? (
                             <video src={getDisplayUrl(flyer.url)} className="absolute inset-0 w-full h-full object-cover"/>
                         ) : (
-                           <Image src={getDisplayUrl(flyer.url)} alt={flyer.name} layout="fill" objectFit="cover" />
+                           <Image src={getDisplayUrl(flyer.url)} alt={flyer.name} fill className="object-cover" />
                         )}
                         <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                              <Button variant="secondary" onClick={() => handleView(flyer)}>

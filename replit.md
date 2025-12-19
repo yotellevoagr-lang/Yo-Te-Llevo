@@ -39,6 +39,10 @@ The project uses Firebase configuration stored in `.env`:
 - `FIREBASE_SERVICE_ACCOUNT_KEY` - For server-side Firebase Admin
 
 ## Recent Changes
+- 2025-12-19: Mejoras en vista de clientes
+  - Videos en flyers se reproducen automáticamente (autoPlay, muted, loop, playsInline)
+  - Actualizado syntax de imágenes Next.js a versión 15 (fill en lugar de layout="fill")
+  - Videos en galería de booking también se reproducen automáticamente
 - 2025-12-19: Mejoras en gestión de archivos de Firebase Storage
   - Al eliminar imágenes/videos de la galería, se eliminan de Firebase Storage al guardar
   - Botones "Guardar" y "Cancelar" se bloquean mientras se guarda para evitar duplicados

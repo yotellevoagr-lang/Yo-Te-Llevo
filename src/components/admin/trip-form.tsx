@@ -529,7 +529,7 @@ export function TripForm({ isOpen, onOpenChange, onSave, tour, boardingPoints }:
                                         return (
                                           <div key={item.id} className="relative group aspect-square">
                                               {item.type === 'image' ? (
-                                                  <Image src={url} alt="Galería" layout="fill" objectFit="cover" className={cn("rounded-md transition-all", isMain && "ring-2 ring-offset-2 ring-primary")} />
+                                                  <Image src={url} alt="Galería" fill className={cn("object-cover rounded-md transition-all", isMain && "ring-2 ring-offset-2 ring-primary")} />
                                               ) : (
                                                   <video src={url} className="w-full h-full object-cover rounded-md"/>
                                               )}
