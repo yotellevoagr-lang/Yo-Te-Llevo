@@ -69,34 +69,35 @@ export default function TicketsAdminPage() {
   }, []);
 
   // Effect to regenerate tickets whenever underlying data changes
+  // Generate only ONE ticket per reservation (for the main passenger)
   useEffect(() => {
     const confirmedReservations = reservations.filter((r: Reservation) => r.status === 'Confirmado');
     
-    const generatedTickets = confirmedReservations.flatMap((res: Reservation): Ticket[] => {
-        if (!res.passengerIds || res.passengerIds.length === 0) return [];
+    const generatedTickets: Ticket[] = confirmedReservations.map((res: Reservation): Ticket | null => {
+        if (!res.passengerIds || res.passengerIds.length === 0) return null;
 
         const tour = tours.find(t => t.id === res.tripId);
-        if (!tour) return [];
+        if (!tour) return null;
 
-        return res.passengerIds.map(passengerId => {
-            const passenger = passengers.find(p => p.id === passengerId);
-            if (!passenger) return null;
-            
-            const qrData = { tId: res.id, pId: passenger.id }; // Simplified QR data
+        // Get the main passenger (first in the list)
+        const mainPassengerId = res.passengerIds[0];
+        const mainPassenger = passengers.find(p => p.id === mainPassengerId);
+        if (!mainPassenger) return null;
+        
+        const qrData = { tId: res.id, pId: mainPassenger.id };
 
-            return {
-                id: res.id, // The ticket ID will be generated dynamically on render
-                passengerId: passenger.id,
-                reservationId: res.id,
-                tripId: res.tripId,
-                passengerName: passenger.fullName,
-                passengerDni: passenger.dni || "N/A",
-                qrCodeUrl: `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(JSON.stringify(qrData))}`,
-                reservation: res,
-                boardingPointId: res.boardingPointId,
-            };
-        }).filter((t): t is Ticket => t !== null);
-    });
+        return {
+            id: res.id,
+            passengerId: mainPassenger.id,
+            reservationId: res.id,
+            tripId: res.tripId,
+            passengerName: mainPassenger.fullName,
+            passengerDni: mainPassenger.dni || "N/A",
+            qrCodeUrl: `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(JSON.stringify(qrData))}`,
+            reservation: res,
+            boardingPointId: res.boardingPointId,
+        };
+    }).filter((t): t is Ticket => t !== null);
     setAllTickets(generatedTickets);
   }, [reservations, tours, passengers]);
 
@@ -239,7 +240,7 @@ export default function TicketsAdminPage() {
                                                     <div
                                                         data-ticket
                                                         className="w-[794px]"
-                                                        ref={el => ticketRefs.current[uniqueTicketId] = el}
+                                                        ref={el => { ticketRefs.current[uniqueTicketId] = el; }}
                                                     >
                                                         <TravelTicket 
                                                             ticket={ticket}

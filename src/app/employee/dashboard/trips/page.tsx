@@ -137,22 +137,18 @@ export default function TripsPage() {
     setIsFormOpen(true)
   }
 
-  const handleSave = async (tourData: Tour, imageAsDataUrl: string | null) => {
+  const handleSave = async (tourData: Tour) => {
     const tourToSave: Partial<Tour> = { ...tourData };
+    
     if (!tourToSave.id) {
         const globalSettings = await getDocumentById<GeneralSettings>('settings', 'general');
         tourToSave.observations = globalSettings?.observations || "";
         tourToSave.cancellationPolicy = globalSettings?.cancellationPolicy || "";
     }
     
-    if (imageAsDataUrl) {
-      tourToSave.backgroundImage = imageAsDataUrl;
-    }
-    
     await saveTour(tourToSave, tourToSave.id);
     await fetchData();
 
-    // Notify other tabs that data has changed
     window.dispatchEvent(new Event('storage'));
 
     setIsFormOpen(false);

@@ -128,16 +128,24 @@ export const TravelTicket = React.forwardRef<HTMLDivElement, TravelTicketProps>(
             {/* Columna Izquierda */}
             <div className="col-span-8 space-y-3">
                  <InfoSection title="Pasajeros" icon={Users}>
-                    {reservationPassengers.length <= 10 ? (
-                        reservationPassengers.map((p, index) => (
-                            <InfoRow key={p.id} label={`Pasajero ${index + 1}`} value={`${p.fullName} (DNI: ${p.dni})`} />
-                        ))
-                    ) : (
+                    {/* Main passenger (titular) */}
+                    <InfoRow 
+                        key={passenger.id} 
+                        label="Titular" 
+                        value={`${passenger.fullName} (DNI: ${passenger.dni})`} 
+                    />
+                    {/* Other passengers (integrantes) - only show name and DNI */}
+                    {reservationPassengers.filter(p => p.id !== passenger.id).length > 0 && (
                         <>
-                            {reservationPassengers.slice(0, 3).map((p, index) => (
-                                <InfoRow key={p.id} label={`Pasajero ${index + 1}`} value={`${p.fullName} (DNI: ${p.dni})`} />
+                            <div className="border-t my-2 pt-2">
+                                <span className="text-xs font-semibold text-muted-foreground uppercase">Integrantes:</span>
+                            </div>
+                            {reservationPassengers.filter(p => p.id !== passenger.id).slice(0, 9).map((p) => (
+                                <InfoRow key={p.id} label={p.fullName} value={`DNI: ${p.dni}`} />
                             ))}
-                            <InfoRow label="..." value={`+ ${reservationPassengers.length - 3} pasajeros restantes`} />
+                            {reservationPassengers.filter(p => p.id !== passenger.id).length > 9 && (
+                                <InfoRow label="..." value={`+ ${reservationPassengers.filter(p => p.id !== passenger.id).length - 9} integrantes más`} />
+                            )}
                         </>
                     )}
                  </InfoSection>
