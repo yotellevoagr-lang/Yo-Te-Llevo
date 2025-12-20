@@ -264,7 +264,9 @@ const formatTimeWithUnit = (timeString?: string): string | null => {
 const CollapsibleDescription = ({ text }: { text: string }) => {
     const [isExpanded, setIsExpanded] = useState(false);
 
-    const splitIndex = text.indexOf("🗓 Salida:");
+    const calendarPattern = /[🗓📅📆🗒📋]\s*[Ss]alida/;
+    const match = text.match(calendarPattern);
+    const splitIndex = match ? match.index! : -1;
     const hasSplitPoint = splitIndex !== -1;
 
     const summaryText = hasSplitPoint ? text.substring(0, splitIndex) : text;
