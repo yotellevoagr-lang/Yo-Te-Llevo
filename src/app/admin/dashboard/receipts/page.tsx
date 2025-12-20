@@ -1,7 +1,6 @@
-
 "use client"
 
-import { useState, useMemo, useEffect, useRef } from "react"
+import { useState, useMemo, useEffect, useRef, useCallback } from "react"
 import { DndContext, useDraggable, DragEndEvent } from '@dnd-kit/core';
 import { toPng } from 'html-to-image';
 import jsPDF from 'jspdf';
@@ -63,6 +62,7 @@ type TemplateField = {
   customText?: string;
   customDate?: string;
   width?: number;
+  height?: number;
 };
 
 type ReceiptTemplate = {
@@ -122,25 +122,112 @@ const emptyTemplate: ReceiptTemplate = {
   zoom: 1,
 };
 
-function DraggableField({ id, children, style, isSelected }: { id: string, children: React.ReactNode, style: React.CSSProperties, isSelected: boolean }) {
+type ResizeHandle = 'right' | 'bottom' | 'bottom-right';
+
+interface ResizableDraggableFieldProps {
+  id: string;
+  children: React.ReactNode;
+  style: React.CSSProperties;
+  isSelected: boolean;
+  isResizable: boolean;
+  width?: number;
+  height?: number;
+  zoom: number;
+  onResize: (id: string, width: number, height: number) => void;
+  onClick: () => void;
+}
+
+function ResizableDraggableField({ 
+  id, 
+  children, 
+  style, 
+  isSelected, 
+  isResizable,
+  width = 200,
+  height = 40,
+  zoom,
+  onResize,
+  onClick 
+}: ResizableDraggableFieldProps) {
     const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id });
+    const [isResizing, setIsResizing] = useState(false);
+    const [resizeHandle, setResizeHandle] = useState<ResizeHandle | null>(null);
+    const startPosRef = useRef({ x: 0, y: 0, width: 0, height: 0 });
     
     const finalStyle: React.CSSProperties = {
         ...style,
-        transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
-        cursor: isDragging ? 'grabbing' : 'grab',
-        zIndex: isDragging ? 1000 : 1,
+        transform: transform && !isResizing ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
+        cursor: isDragging ? 'grabbing' : (isResizing ? 'nwse-resize' : 'grab'),
+        zIndex: isDragging || isResizing ? 1000 : 1,
+        width: isResizable ? `${width}px` : 'auto',
+        height: isResizable ? `${height}px` : 'auto',
     };
+
+    const handleResizeStart = (e: React.PointerEvent, handle: ResizeHandle) => {
+        e.stopPropagation();
+        e.preventDefault();
+        setIsResizing(true);
+        setResizeHandle(handle);
+        startPosRef.current = { x: e.clientX, y: e.clientY, width, height };
+        (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    };
+
+    const handleResizeMove = useCallback((e: React.PointerEvent) => {
+        if (!isResizing || !resizeHandle) return;
+        
+        const deltaX = (e.clientX - startPosRef.current.x) / zoom;
+        const deltaY = (e.clientY - startPosRef.current.y) / zoom;
+        
+        let newWidth = startPosRef.current.width;
+        let newHeight = startPosRef.current.height;
+        
+        if (resizeHandle === 'right' || resizeHandle === 'bottom-right') {
+            newWidth = Math.max(50, Math.min(1000, startPosRef.current.width + deltaX));
+        }
+        if (resizeHandle === 'bottom' || resizeHandle === 'bottom-right') {
+            newHeight = Math.max(20, Math.min(500, startPosRef.current.height + deltaY));
+        }
+        
+        onResize(id, newWidth, newHeight);
+    }, [isResizing, resizeHandle, zoom, id, onResize]);
+
+    const handleResizeEnd = useCallback(() => {
+        setIsResizing(false);
+        setResizeHandle(null);
+    }, []);
 
     return (
         <div 
             ref={setNodeRef} 
             style={finalStyle} 
-            {...listeners} 
-            {...attributes} 
+            {...(isResizing ? {} : listeners)}
+            {...(isResizing ? {} : attributes)} 
             className={`absolute p-1 border border-dashed ${isSelected ? 'border-primary bg-primary/10' : 'border-transparent hover:border-gray-400'}`}
+            onClick={(e) => { e.stopPropagation(); onClick(); }}
+            onPointerMove={handleResizeMove}
+            onPointerUp={handleResizeEnd}
+            onPointerCancel={handleResizeEnd}
         >
             {children}
+            {isResizable && isSelected && (
+                <>
+                    <div 
+                        className="absolute top-0 right-0 w-2 h-full cursor-ew-resize bg-primary/30 hover:bg-primary/50"
+                        style={{ transform: 'translateX(50%)' }}
+                        onPointerDown={(e) => handleResizeStart(e, 'right')}
+                    />
+                    <div 
+                        className="absolute bottom-0 left-0 w-full h-2 cursor-ns-resize bg-primary/30 hover:bg-primary/50"
+                        style={{ transform: 'translateY(50%)' }}
+                        onPointerDown={(e) => handleResizeStart(e, 'bottom')}
+                    />
+                    <div 
+                        className="absolute bottom-0 right-0 w-3 h-3 cursor-nwse-resize bg-primary/50 hover:bg-primary rounded-sm"
+                        style={{ transform: 'translate(50%, 50%)' }}
+                        onPointerDown={(e) => handleResizeStart(e, 'bottom-right')}
+                    />
+                </>
+            )}
         </div>
     );
 }
@@ -297,6 +384,7 @@ export default function ReceiptsPage() {
       isItalic: false,
       page: 0,
       width: type === 'editableText' ? 200 : undefined,
+      height: type === 'editableText' ? 40 : undefined,
     };
     if (type === 'customDate') {
         newField.customDate = new Date().toISOString();
@@ -329,6 +417,13 @@ export default function ReceiptsPage() {
         updateField(field.id, { x: newX, y: newY });
     }
   };
+
+  const handleFieldResize = useCallback((id: string, width: number, height: number) => {
+    setCurrentTemplate(prev => ({
+      ...prev,
+      fields: prev.fields.map(f => (f.id === id ? { ...f, width, height } : f))
+    }));
+  }, [setCurrentTemplate]);
   
   const saveTemplate = async () => {
     setIsSavingTemplate(true);
@@ -577,15 +672,32 @@ export default function ReceiptsPage() {
                                         </div>
                                     )}
                                     {activeFieldData.type === 'editableText' && (
-                                        <div className="space-y-2">
-                                            <Label>Ancho del campo (px)</Label>
-                                            <Input 
-                                                type="number" 
-                                                value={activeFieldData.width || 200} 
-                                                onChange={e => updateField(activeFieldData.id, { width: parseInt(e.target.value) || 200 })}
-                                                min={50}
-                                                max={1000}
-                                            />
+                                        <div className="space-y-2 p-3 bg-muted/50 rounded-md">
+                                            <p className="text-xs text-muted-foreground mb-2">
+                                                Selecciona el campo en el canvas y arrastra las esquinas o bordes para redimensionar.
+                                            </p>
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <div className="space-y-1">
+                                                    <Label className="text-xs">Ancho (px)</Label>
+                                                    <Input 
+                                                        type="number" 
+                                                        value={activeFieldData.width || 200} 
+                                                        onChange={e => updateField(activeFieldData.id, { width: parseInt(e.target.value) || 200 })}
+                                                        min={50}
+                                                        max={1000}
+                                                    />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <Label className="text-xs">Alto (px)</Label>
+                                                    <Input 
+                                                        type="number" 
+                                                        value={activeFieldData.height || 40} 
+                                                        onChange={e => updateField(activeFieldData.id, { height: parseInt(e.target.value) || 40 })}
+                                                        min={20}
+                                                        max={500}
+                                                    />
+                                                </div>
+                                            </div>
                                         </div>
                                     )}
                                     <div className="grid grid-cols-2 gap-2">
@@ -631,9 +743,19 @@ export default function ReceiptsPage() {
                                       { imageUrl && <img src={getDisplayUrl(imageUrl)} alt={`Fondo Página ${pageIndex + 1}`} className="absolute inset-0 w-full h-full object-cover" /> }
                                       
                                       {currentTemplate.fields.filter(f => f.page === pageIndex).map(field => (
-                                           <DraggableField key={field.id} id={field.id} style={{ top: field.y, left: field.x }} isSelected={activeEditorField === field.id}>
+                                           <ResizableDraggableField 
+                                               key={field.id} 
+                                               id={field.id} 
+                                               style={{ top: field.y, left: field.x }} 
+                                               isSelected={activeEditorField === field.id}
+                                               isResizable={field.type === 'editableText'}
+                                               width={field.width}
+                                               height={field.height}
+                                               zoom={zoom}
+                                               onResize={handleFieldResize}
+                                               onClick={() => setActiveEditorField(field.id)}
+                                           >
                                               <div 
-                                                onClick={() => setActiveEditorField(field.id)} 
                                                 style={{ 
                                                     fontSize: `${field.size || 12}px`, 
                                                     color: field.color, 
@@ -641,8 +763,9 @@ export default function ReceiptsPage() {
                                                     fontWeight: field.isBold ? 'bold' : 'normal', 
                                                     fontStyle: field.isItalic ? 'italic' : 'normal', 
                                                     whiteSpace: field.type === 'editableText' ? 'normal' : 'nowrap',
-                                                    width: field.type === 'editableText' ? `${field.width || 200}px` : 'auto',
-                                                    minHeight: field.type === 'editableText' ? '1.5em' : 'auto',
+                                                    width: field.type === 'editableText' ? '100%' : 'auto',
+                                                    height: field.type === 'editableText' ? '100%' : 'auto',
+                                                    overflow: 'hidden',
                                                 }}
                                               >
                                                 {field.type === 'customText' 
@@ -653,7 +776,7 @@ export default function ReceiptsPage() {
                                                             ? `[Escribir aquí...]`
                                                             : `[${field.label}]`}
                                               </div>
-                                           </DraggableField>
+                                           </ResizableDraggableField>
                                       ))}
                                  </div>
                               )})}
@@ -697,7 +820,7 @@ export default function ReceiptsPage() {
                     <SelectContent>
                         <ScrollArea className="h-72">
                            <SelectItem value="MANUAL_RECEIPT" className="font-semibold text-primary border-b mb-2">
-                               📝 Recibo Manual (Plantilla 2)
+                               Recibo Manual (Plantilla 2)
                            </SelectItem>
                            {activeTours.map(tour => <SelectItem key={tour.id} value={tour.id}>{tour.destination}</SelectItem>)}
                         </ScrollArea>
@@ -765,12 +888,12 @@ export default function ReceiptsPage() {
                                                     style={{ 
                                                         ...fieldStyle, 
                                                         width: `${field.width || 200}px`,
+                                                        height: `${field.height || 40}px`,
                                                         background: 'transparent', 
                                                         border: '1px dashed rgba(0,0,0,0.3)', 
                                                         outline: 'none', 
                                                         overflow: 'hidden',
                                                         resize: 'none',
-                                                        minHeight: '2em',
                                                     }}
                                                     className="absolute p-1 m-0"
                                                 />

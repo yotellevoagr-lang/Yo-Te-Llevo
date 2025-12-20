@@ -1,15 +1,13 @@
-
 "use client";
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Instagram, Facebook } from 'lucide-react';
+import { Instagram, Facebook, ChevronUp, ChevronDown, MessageCircle } from 'lucide-react';
 import Chatbot from '@/components/chatbot';
 import { InstallPwaButton } from '@/components/install-pwa-button';
 import { getDocumentById } from '@/lib/firestore-services';
 import type { GeneralSettings } from '@/lib/types';
 
-// Custom WhatsApp Icon Component
 const WhatsAppIcon = () => (
     <svg
       role="img"
@@ -27,9 +25,19 @@ const WhatsAppIcon = () => (
 export function FixedActionButtons() {
   const [settings, setSettings] = useState<GeneralSettings | null>(null);
   const [isClient, setIsClient] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
+    
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
     const fetchSettings = async () => {
       const fetchedSettings = await getDocumentById<GeneralSettings>('settings', 'general');
       if (fetchedSettings) {
@@ -38,6 +46,8 @@ export function FixedActionButtons() {
       }
     }
     fetchSettings();
+    
+    return () => window.removeEventListener('resize', checkMobile);
   }, []);
   
   const instagramUrl = settings?.contact?.instagram;
@@ -47,6 +57,7 @@ export function FixedActionButtons() {
     ? `https://wa.me/${whatsappNumber.replace(/\D/g, '')}?text=${encodeURIComponent("Hola! Quisiera hacer una consulta.")}`
     : null;
 
+  const hasAnyButtons = instagramUrl || facebookUrl || whatsappLink;
 
   if (!isClient) {
       return null;
@@ -54,29 +65,50 @@ export function FixedActionButtons() {
 
   return (
     <div className="fixed bottom-6 right-6 z-50 flex flex-col items-center gap-3">
-        {instagramUrl && (
-             <Button asChild size="icon" variant="outline" className="rounded-full w-12 h-12 bg-background/80 backdrop-blur-sm hover:bg-gradient-to-br from-pink-500 to-yellow-500 hover:text-white transition-all duration-300">
-                <a href={instagramUrl} target="_blank" rel="noopener noreferrer" aria-label="Instagram">
-                    <Instagram className="w-6 h-6" />
-                </a>
+        {isMobile && hasAnyButtons && (
+            <Button 
+                size="icon" 
+                variant="secondary" 
+                className="rounded-full w-10 h-10 shadow-lg mb-1"
+                onClick={() => setIsExpanded(!isExpanded)}
+                aria-expanded={isExpanded}
+                aria-label={isExpanded ? "Ocultar botones" : "Mostrar botones"}
+            >
+                {isExpanded ? <ChevronDown className="w-5 h-5" /> : <ChevronUp className="w-5 h-5" />}
             </Button>
         )}
-        {facebookUrl && (
-             <Button asChild size="icon" variant="outline" className="rounded-full w-12 h-12 bg-background/80 backdrop-blur-sm hover:bg-gradient-to-br from-blue-600 to-blue-400 hover:text-white transition-all duration-300">
-                <a href={facebookUrl} target="_blank" rel="noopener noreferrer" aria-label="Facebook">
-                    <Facebook className="w-6 h-6" />
-                </a>
-            </Button>
-        )}
-        {whatsappLink && (
-            <Button asChild size="icon" variant="outline" className="rounded-full w-12 h-12 bg-background/80 backdrop-blur-sm hover:bg-gradient-to-br from-green-600 to-green-400 hover:text-white transition-all duration-300">
-                <a href={whatsappLink} target="_blank" rel="noopener noreferrer" aria-label="WhatsApp">
-                    <WhatsAppIcon />
-                </a>
-            </Button>
-        )}
-        <Chatbot />
-        <InstallPwaButton />
+        
+        <div 
+            className={`flex flex-col items-center gap-3 transition-all duration-300 ease-in-out ${
+                isMobile && !isExpanded 
+                    ? 'opacity-0 pointer-events-none max-h-0 overflow-hidden' 
+                    : 'opacity-100 max-h-[500px]'
+            }`}
+        >
+            {instagramUrl && (
+                 <Button asChild size="icon" variant="outline" className="rounded-full w-12 h-12 bg-background/80 backdrop-blur-sm hover:bg-gradient-to-br from-pink-500 to-yellow-500 hover:text-white transition-all duration-300">
+                    <a href={instagramUrl} target="_blank" rel="noopener noreferrer" aria-label="Instagram">
+                        <Instagram className="w-6 h-6" />
+                    </a>
+                </Button>
+            )}
+            {facebookUrl && (
+                 <Button asChild size="icon" variant="outline" className="rounded-full w-12 h-12 bg-background/80 backdrop-blur-sm hover:bg-gradient-to-br from-blue-600 to-blue-400 hover:text-white transition-all duration-300">
+                    <a href={facebookUrl} target="_blank" rel="noopener noreferrer" aria-label="Facebook">
+                        <Facebook className="w-6 h-6" />
+                    </a>
+                </Button>
+            )}
+            {whatsappLink && (
+                <Button asChild size="icon" variant="outline" className="rounded-full w-12 h-12 bg-background/80 backdrop-blur-sm hover:bg-gradient-to-br from-green-600 to-green-400 hover:text-white transition-all duration-300">
+                    <a href={whatsappLink} target="_blank" rel="noopener noreferrer" aria-label="WhatsApp">
+                        <WhatsAppIcon />
+                    </a>
+                </Button>
+            )}
+            <Chatbot />
+            <InstallPwaButton />
+        </div>
     </div>
   );
 }
