@@ -880,7 +880,7 @@ export default function ReceiptsPage() {
 
                                         if (field.type === 'editableText') {
                                             return (
-                                                <Textarea
+                                                <textarea
                                                     key={field.id}
                                                     value={editableTexts[field.id] || ''}
                                                     onChange={(e) => handleEditableTextChange(field.id, e.target.value)}
@@ -894,8 +894,11 @@ export default function ReceiptsPage() {
                                                         outline: 'none', 
                                                         overflow: 'hidden',
                                                         resize: 'none',
+                                                        padding: '4px',
+                                                        margin: 0,
+                                                        boxSizing: 'border-box',
                                                     }}
-                                                    className="absolute p-1 m-0"
+                                                    className="absolute"
                                                 />
                                             );
                                         } else {
