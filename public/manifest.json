@@ -7,7 +7,11 @@
   "orientation": "any",
   "background_color": "#faf5f0",
   "theme_color": "#e85a71",
-  "categories": ["travel", "tourism", "lifestyle"],
+  "categories": [
+    "travel",
+    "tourism",
+    "lifestyle"
+  ],
   "lang": "es",
   "dir": "ltr",
   "scope": "/",
@@ -76,22 +80,47 @@
   ],
   "screenshots": [
     {
-      "src": "/screenshots/desktop-wide.png",
-      "sizes": "1920x1080",
-      "type": "image/png",
-      "form_factor": "wide",
-      "label": "Vista principal de YO TE LLEVO en escritorio"
-    },
-    {
-      "src": "/screenshots/mobile-narrow.png",
-      "sizes": "390x844",
+      "src": "/screenshots/screenshot-1-narrow.png",
+      "sizes": "720x1544",
       "type": "image/png",
       "form_factor": "narrow",
-      "label": "Vista principal de YO TE LLEVO en móvil"
+      "label": "Captura 1 - Móvil"
+    },
+    {
+      "src": "/screenshots/screenshot-2-narrow.png",
+      "sizes": "720x1538",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Captura 2 - Móvil"
+    },
+    {
+      "src": "/screenshots/screenshot-3-narrow.png",
+      "sizes": "720x1547",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Captura 3 - Móvil"
+    },
+    {
+      "src": "/screenshots/screenshot-4-narrow.png",
+      "sizes": "720x1537",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Captura 4 - Móvil"
+    },
+    {
+      "src": "/screenshots/screenshot-5-narrow.png",
+      "sizes": "720x1543",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Captura 5 - Móvil"
     }
   ],
   "prefer_related_applications": false,
-  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "display_override": [
+    "window-controls-overlay",
+    "standalone",
+    "minimal-ui"
+  ],
   "edge_side_panel": {
     "preferred_width": 400
   },
