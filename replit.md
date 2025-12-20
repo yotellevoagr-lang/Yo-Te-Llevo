@@ -41,6 +41,12 @@ The project uses Firebase configuration stored in `.env`:
 - `FIREBASE_SERVICE_ACCOUNT_KEY` - For server-side Firebase Admin
 
 ## Recent Changes
+- 2025-12-20: Sistema de iconos y screenshots PWA desde configuración
+  - API /api/pwa/icons: Sube un ícono grande (>=512x512) y genera automáticamente todos los tamaños (72, 96, 128, 144, 152, 192, 384, 512) + maskable + SVG
+  - API /api/pwa/screenshots: Sube múltiples screenshots que reemplazan los existentes y actualizan manifest.json
+  - Los archivos se guardan directamente en public/icons y public/screenshots
+  - Procesamiento con Sharp para redimensionar imágenes
+  - UI en configuración del admin para cargar iconos y capturas
 - 2025-12-20: Mejoras en sistema de recibos
   - Sistema de dos plantillas con tabs: Plantilla 1 (con datos de reserva) y Plantilla 2 (manual)
   - Plantilla 2 solo tiene campos "Texto Editable" para recibos completamente manuales

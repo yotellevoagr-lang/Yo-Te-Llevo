@@ -222,11 +222,19 @@ export default function SettingsPage() {
                 setGeneralSettings(generalSettingsData);
                 if (generalSettingsData.contact) setContactSettings(generalSettingsData.contact);
                 setLogoPreview(generalSettingsData.logoUrl || null);
-                setPwaIconPreview(generalSettingsData.pwaIconUrl || null);
                 setAboutUsMediaPreview(generalSettingsData.aboutUsMedia || null);
-                const existingScreenshots = generalSettingsData.pwaScreenshots || [];
-                setExistingPwaScreenshotUrls(existingScreenshots);
                 setTravelTags(generalSettingsData.availableTags || []);
+            }
+            
+            setPwaIconPreview('/icons/icon-512x512.png?' + Date.now());
+            
+            try {
+                const screenshotsResponse = await fetch('/api/pwa/screenshots');
+                const screenshotsData = await screenshotsResponse.json();
+                const screenshotUrls = screenshotsData.screenshots?.map((s: { src: string }) => s.src) || [];
+                setExistingPwaScreenshotUrls(screenshotUrls);
+            } catch (e) {
+                console.warn('No se pudieron cargar las capturas existentes');
             }
             if (domainSettingsData) setDomainSettings(domainSettingsData);
             if (geoSettingsData) setGeoSettings(geoSettingsData);
@@ -271,7 +279,9 @@ export default function SettingsPage() {
         const files = e.target.files;
         if (files) {
             const fileList = Array.from(files);
-            setPwaScreenshots(prev => [...prev, ...fileList]);
+            setPwaScreenshots(fileList);
+            setExistingPwaScreenshotUrls([]);
+            setNewPwaScreenshotPreviews([]);
             
             fileList.forEach(file => {
                 const reader = new FileReader();
@@ -291,10 +301,6 @@ export default function SettingsPage() {
         const existingCount = existingPwaScreenshotUrls.length;
         
         if (index < existingCount) {
-            const urlToRemove = existingPwaScreenshotUrls[index];
-            if (urlToRemove && isStorageUrl(urlToRemove)) {
-                setRemovedStorageUrls(prev => [...prev, urlToRemove]);
-            }
             setExistingPwaScreenshotUrls(prev => prev.filter((_, i) => i !== index));
         } else {
             const newIndex = index - existingCount;
@@ -365,86 +371,64 @@ export default function SettingsPage() {
             return;
         }
         setIsSaving('pwa-icon');
-        let uploadedIconUrl: string | null = null;
         try {
-            const currentSettings = await getDocumentById<GeneralSettings>('settings', 'general');
-            const previousPwaIconUrl = currentSettings?.pwaIconUrl;
+            const formData = new FormData();
+            formData.append('icon', pwaIconFile);
             
-            uploadedIconUrl = await uploadFileToStorage(pwaIconFile, 'settings', 'pwa-icon');
-            await saveDocument('settings', { pwaIconUrl: uploadedIconUrl }, 'general');
+            const response = await fetch('/api/pwa/icons', {
+                method: 'POST',
+                body: formData,
+            });
             
-            if (previousPwaIconUrl && isStorageUrl(previousPwaIconUrl)) {
-                const deleted = await deleteFileFromStorage(previousPwaIconUrl);
-                if (!deleted) {
-                    console.warn('No se pudo eliminar el ícono anterior del Storage');
-                }
+            const result = await response.json();
+            
+            if (!response.ok) {
+                throw new Error(result.error || 'Error al procesar el ícono');
             }
-            setPwaIconPreview(uploadedIconUrl);
-            window.dispatchEvent(new Event('storage'));
-            toast({ title: "Ícono Guardado", description: "El ícono de la app se ha actualizado." });
+            
+            setPwaIconPreview('/icons/icon-512x512.png?' + Date.now());
+            toast({ title: "Íconos Generados", description: `Se generaron ${result.files?.length || 0} archivos de ícono en diferentes tamaños.` });
             setPwaIconFile(null);
         } catch (error) {
             console.error("Error saving PWA icon:", error);
-            if (uploadedIconUrl) {
-                await deleteFileFromStorage(uploadedIconUrl);
-            }
-            toast({ title: "Error", description: "No se pudo guardar el ícono.", variant: "destructive" });
+            toast({ title: "Error", description: error instanceof Error ? error.message : "No se pudo guardar el ícono.", variant: "destructive" });
         } finally {
             setIsSaving(null);
         }
     };
 
     const handleSavePwaScreenshots = async () => {
-        if (existingPwaScreenshotUrls.length === 0 && pwaScreenshots.length === 0) {
-            setIsSaving('pwa-screenshots');
-            try {
-                for (const url of removedStorageUrls) {
-                    const deleted = await deleteFileFromStorage(url);
-                    if (!deleted) {
-                        toast({ title: "Error", description: "No se pudo eliminar un archivo. Intenta de nuevo.", variant: "destructive" });
-                        setIsSaving(null);
-                        return;
-                    }
-                }
-                await saveDocument('settings', { pwaScreenshots: [] }, 'general');
-                setRemovedStorageUrls([]);
-                toast({ title: "Capturas de pantalla eliminadas." });
-            } catch (error) {
-                console.error("Error deleting PWA screenshots:", error);
-                toast({ title: "Error", description: "No se pudieron eliminar las capturas.", variant: "destructive" });
-            } finally {
-                setIsSaving(null);
-            }
+        if (pwaScreenshots.length === 0 && allPwaScreenshotPreviews.length > 0) {
+            toast({ title: "Sin cambios", description: "Selecciona nuevas capturas para reemplazar las existentes." });
             return;
         }
 
         setIsSaving('pwa-screenshots');
         try {
-            for (const url of removedStorageUrls) {
-                const deleted = await deleteFileFromStorage(url);
-                if (!deleted) {
-                    toast({ title: "Error", description: "No se pudo eliminar un archivo. Intenta de nuevo.", variant: "destructive" });
-                    setIsSaving(null);
-                    return;
-                }
-            }
-            setRemovedStorageUrls([]);
-            
-            const uploadedUrls: string[] = [];
+            const formData = new FormData();
             for (const screenshot of pwaScreenshots) {
-                const url = await uploadFileToStorage(screenshot, 'settings');
-                uploadedUrls.push(url);
+                formData.append('screenshots', screenshot);
             }
-            const allUrls = [...existingPwaScreenshotUrls, ...uploadedUrls];
-            await saveDocument('settings', { pwaScreenshots: allUrls }, 'general');
-            setExistingPwaScreenshotUrls(allUrls);
+            
+            const response = await fetch('/api/pwa/screenshots', {
+                method: 'POST',
+                body: formData,
+            });
+            
+            const result = await response.json();
+            
+            if (!response.ok) {
+                throw new Error(result.error || 'Error al procesar las capturas');
+            }
+            
+            const newUrls = result.screenshots?.map((s: { src: string }) => s.src) || [];
+            setExistingPwaScreenshotUrls(newUrls);
             setNewPwaScreenshotPreviews([]);
             setPwaScreenshots([]);
-            window.dispatchEvent(new Event('storage'));
-            toast({ title: "Capturas guardadas", description: "Las capturas de pantalla de la PWA han sido actualizadas." });
+            toast({ title: "Capturas guardadas", description: `Se guardaron ${result.screenshots?.length || 0} capturas de pantalla y se actualizó el manifest.` });
         } catch (error) {
             console.error("Error saving PWA screenshots:", error);
-            toast({ title: "Error", description: "No se pudieron guardar las capturas.", variant: "destructive" });
+            toast({ title: "Error", description: error instanceof Error ? error.message : "No se pudieron guardar las capturas.", variant: "destructive" });
         } finally {
             setIsSaving(null);
         }
