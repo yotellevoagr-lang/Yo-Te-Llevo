@@ -1,7 +1,6 @@
-
 "use client"
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import type { GeoSettings, GeneralSettings, Passenger } from "@/lib/types";
 import { getDocumentById, savePassenger } from "@/lib/firestore-services";
 import { useAuth } from "@/components/auth/auth-provider";
@@ -32,80 +31,76 @@ export const useGeoAccess = () => {
   const [geoSettings, setGeoSettings] = useState<GeoSettings | null>(null);
   const [manualLocation, setManualLocation] = useState<{ province: string; city: string } | null>(null);
   const { user, loading: authLoading } = useAuth();
-
-  const fetchSettings = useCallback(async () => {
-    const [general, geo] = await Promise.all([
-      getDocumentById<GeneralSettings>('settings', 'general'),
-      getDocumentById<GeoSettings>('settings', 'geo')
-    ]);
-    if (general) setMainWhatsappNumber(general.mainWhatsappNumber);
-    if (geo) setGeoSettings(geo);
-    return geo;
-  }, []);
-
-  const checkAccess = useCallback(async () => {
-    if (authLoading) return;
-    setStatus("loading");
-
-    const settings = geoSettings || await fetchSettings();
-    if (!settings) {
-      setStatus("allowed"); // If no settings, allow access.
-      return;
-    }
-    
-    const userAsPassenger = user as Passenger | undefined;
-    if (userAsPassenger?.province && userAsPassenger?.city) {
-      const isAllowed = allowedCities.includes(userAsPassenger.city.toLowerCase());
-      setManualLocation({ province: userAsPassenger.province, city: userAsPassenger.city });
-      setStatus(isAllowed ? "allowed" : "denied");
-      return;
-    }
-    
-    if ('permissions' in navigator) {
-        const permissionStatus = await navigator.permissions.query({ name: 'geolocation' });
-        if (permissionStatus.state === 'granted') {
-            checkBrowserPermission();
-            return;
-        }
-    }
-
-    setStatus("prompting");
-
-  }, [geoSettings, fetchSettings, user, authLoading]);
+  const hasCheckedRef = useRef(false);
 
   useEffect(() => {
-    checkAccess();
+    if (authLoading) return;
+    if (hasCheckedRef.current) return;
     
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        checkAccess();
+    const checkAccess = async () => {
+      hasCheckedRef.current = true;
+      
+      try {
+        const [general, geo] = await Promise.all([
+          getDocumentById<GeneralSettings>('settings', 'general'),
+          getDocumentById<GeoSettings>('settings', 'geo')
+        ]);
+        
+        if (general) setMainWhatsappNumber(general.mainWhatsappNumber);
+        if (geo) setGeoSettings(geo);
+        
+        if (!geo) {
+          setStatus("allowed");
+          return;
+        }
+        
+        const userAsPassenger = user as Passenger | undefined;
+        if (userAsPassenger?.province && userAsPassenger?.city) {
+          const isAllowed = allowedCities.includes(userAsPassenger.city.toLowerCase());
+          setManualLocation({ province: userAsPassenger.province, city: userAsPassenger.city });
+          setStatus(isAllowed ? "allowed" : "denied");
+          return;
+        }
+        
+        setStatus("prompting");
+      } catch (error) {
+        console.error("Error checking geo access:", error);
+        setStatus("allowed");
+      }
+    };
+    
+    checkAccess();
+  }, [authLoading, user]);
+
+  const checkBrowserPermission = useCallback(async () => {
+    let settings = geoSettings;
+    if (!settings) {
+      try {
+        settings = await getDocumentById<GeoSettings>('settings', 'geo');
+        if (settings) setGeoSettings(settings);
+      } catch {
+        setStatus("allowed");
+        return;
       }
     }
     
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    }
-
-  }, [checkAccess]);
-
-  const checkBrowserPermission = useCallback(async () => {
-    const settings = geoSettings || await fetchSettings();
     if (!settings) {
       setStatus("allowed");
       return;
     }
+    
     setStatus("checking");
-    if ("geolocation" in navigator) {
+    
+    if (typeof navigator !== 'undefined' && "geolocation" in navigator) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const distance = getDistanceInKm(
             position.coords.latitude,
             position.coords.longitude,
-            settings.latitude,
-            settings.longitude
+            settings!.latitude,
+            settings!.longitude
           );
-          setStatus(distance <= settings.radiusKm ? "allowed" : "denied");
+          setStatus(distance <= settings!.radiusKm ? "allowed" : "denied");
         },
         () => {
           setStatus("prompting"); 
@@ -114,7 +109,7 @@ export const useGeoAccess = () => {
     } else {
       setStatus("prompting"); 
     }
-  }, [geoSettings, fetchSettings]);
+  }, [geoSettings]);
 
   const checkManualLocation = useCallback(async (province: string, city: string) => {
     setStatus("checking");

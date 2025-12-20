@@ -1,8 +1,7 @@
-
 // Import the functions you need from the SDKs you need
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { initializeFirestore, getFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
+import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import { getMessaging } from "firebase/messaging";
 
@@ -15,7 +14,6 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
 };
 
-
 // Initialize Firebase
 let app;
 if (!getApps().length) {
@@ -25,24 +23,7 @@ if (!getApps().length) {
 }
 
 const auth = getAuth(app);
-
-// Initialize Firestore with the new persistence API
-let db;
-if (typeof window !== 'undefined') {
-    try {
-        db = initializeFirestore(app, {
-            localCache: persistentLocalCache({
-                tabManager: persistentMultipleTabManager()
-            })
-        });
-    } catch (error) {
-        // Firestore already initialized, get existing instance
-        db = getFirestore(app);
-    }
-} else {
-    db = getFirestore(app);
-}
-
+const db = getFirestore(app);
 const storage = getStorage(app);
 const messaging = typeof window !== 'undefined' ? getMessaging(app) : null;
 

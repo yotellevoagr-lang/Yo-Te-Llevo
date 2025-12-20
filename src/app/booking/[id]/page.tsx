@@ -312,11 +312,11 @@ export default function BookingPage() {
   const [bookingPassengers, setBookingPassengers] = useState<BookingPassenger[]>([])
   const [insuredGuestIds, setInsuredGuestIds] = useState<string[]>([]);
   
-  const [isClient, setIsClient] = useState(false)
   const [loggedInSellerId, setLoggedInSellerId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingMember, setEditingMember] = useState<BookingPassenger | null>(null);
+  const [initialPassengerAdded, setInitialPassengerAdded] = useState(false);
   
   const [activeMedia, setActiveMedia] = useState<ActiveMedia | null>(null);
 
@@ -352,47 +352,63 @@ export default function BookingPage() {
   }, [bookingPassengers.length, availableSeats, toast]);
   
   useEffect(() => {
-    setIsClient(true);
     const sellerIdFromStorage = localStorage.getItem("ytl_employee_id");
     if (sellerIdFromStorage) setLoggedInSellerId(sellerIdFromStorage);
     
     if (id) {
+      let isMounted = true;
+      
       const fetchData = async () => {
-          setIsLoading(true);
-          const tourDataRaw = await getTourById(id as string);
-          
-          const [passengersData, reservationsData, sellersData, layoutsData] = await Promise.all([
-              getAllFromCollection_client<Passenger>('passengers'),
-              getAllFromCollection_client<Reservation>('reservations'),
-              getAllFromCollection_client<Seller>('sellers'),
-              getDocumentById<any>('settings', 'layouts'),
-          ]);
-          
-          setAllPassengers(passengersData);
-          setReservations(reservationsData);
-          setSellers(sellersData);
-          setLayoutConfig(layoutsData);
-          
-          if (tourDataRaw) {
-            const date = (tourDataRaw.date as any)?.toDate ? (tourDataRaw.date as any).toDate() : new Date(tourDataRaw.date);
-            const tourData = { ...tourDataRaw, date };
-            if (new Date(tourData.date) >= new Date()) {
-              setTour(tourData);
-              if (tourData.backgroundImage) {
-                  setActiveMedia({ url: tourData.backgroundImage, type: 'image' });
-              } else if (tourData.gallery && tourData.gallery.length > 0) {
-                  setActiveMedia({ url: tourData.gallery[0].url, type: tourData.gallery[0].type });
+          try {
+              const tourDataRaw = await getTourById(id as string);
+              
+              const [passengersData, reservationsData, sellersData, layoutsData] = await Promise.all([
+                  getAllFromCollection_client<Passenger>('passengers'),
+                  getAllFromCollection_client<Reservation>('reservations'),
+                  getAllFromCollection_client<Seller>('sellers'),
+                  getDocumentById<any>('settings', 'layouts'),
+              ]);
+              
+              if (!isMounted) return;
+              
+              setAllPassengers(passengersData);
+              setReservations(reservationsData);
+              setSellers(sellersData);
+              setLayoutConfig(layoutsData);
+              
+              if (tourDataRaw) {
+                const date = (tourDataRaw.date as any)?.toDate ? (tourDataRaw.date as any).toDate() : new Date(tourDataRaw.date);
+                const tourData = { ...tourDataRaw, date };
+                if (new Date(tourData.date) >= new Date()) {
+                  setTour(tourData);
+                  if (tourData.backgroundImage) {
+                      setActiveMedia({ url: tourData.backgroundImage, type: 'image' });
+                  } else if (tourData.gallery && tourData.gallery.length > 0) {
+                      setActiveMedia({ url: tourData.gallery[0].url, type: tourData.gallery[0].type });
+                  }
+                }
               }
-            }
+          } catch (error) {
+              console.error("Error loading booking data:", error);
+          } finally {
+              if (isMounted) {
+                  setIsLoading(false);
+              }
           }
-          setIsLoading(false);
       };
+      
       fetchData();
+      
+      return () => {
+          isMounted = false;
+      };
+    } else {
+      setIsLoading(false);
     }
   }, [id]);
 
   useEffect(() => {
-      if (isLoading) return;
+      if (isLoading || initialPassengerAdded) return;
 
       if (loggedInUser) {
           const passengerToBook = allPassengers.find(p => p.id === loggedInUser.id);
@@ -413,11 +429,18 @@ export default function BookingPage() {
                   nationality: passengerToBook.nationality || "Argentina", 
                   tierId: passengerToBook.tierId || 'adult'
               }]);
+              setInitialPassengerAdded(true);
           }
-      } else if (bookingPassengers.length === 0) {
-          addPassenger();
+      } else if (!authLoading) {
+          // Only add guest passenger after auth check is complete and no user is logged in
+          const newGuestId = `P-GUEST-${Date.now()}`;
+          setBookingPassengers([{
+              id: newGuestId, isNew: true, fullName: "", dni: "",
+              dob: null, phone: "", family: "", nationality: "Argentina", tierId: 'adult'
+          }]);
+          setInitialPassengerAdded(true);
       }
-  }, [isLoading, loggedInUser, allPassengers, addPassenger]);
+  }, [isLoading, loggedInUser, allPassengers, authLoading, initialPassengerAdded]);
   
   const existingReservationForUser = useMemo(() => {
     if (!loggedInUser || !tour || reservations.length === 0) return null;
@@ -681,7 +704,7 @@ export default function BookingPage() {
   }, [tour]);
 
 
-  if (!isClient || isLoading || authLoading) {
+  if (isLoading) {
     return <div className="flex items-center justify-center min-h-screen"><Loader2 className="w-12 h-12 animate-spin text-primary"/></div>;
   }
   

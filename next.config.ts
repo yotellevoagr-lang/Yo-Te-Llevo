@@ -1,18 +1,16 @@
-
 import type {NextConfig} from 'next';
 const withPWA = require('next-pwa')({
   dest: 'public',
   register: true,
   skipWaiting: true,
   fallbacks: {
-    document: '/offline', // Fallback for document pages
+    document: '/offline',
   },
   disable: process.env.NODE_ENV === 'development',
 });
 
 
 const nextConfig: NextConfig = {
-  /* config options here */
   typescript: {
     ignoreBuildErrors: true,
   },
@@ -31,14 +29,16 @@ const nextConfig: NextConfig = {
     ],
   },
   allowedDevOrigins: [
+    '4037448f-bf7c-4193-a086-7712433a96e0-00-cpu7smc8rxb4.worf.replit.dev',
     'worf.replit.dev',
     'kirk.replit.dev',
     'picard.replit.dev', 
     'spock.replit.dev',
     'repl.co',
     'replit.dev',
-    process.env.REPLIT_DEV_DOMAIN || ''
-  ].filter(Boolean),
+    'localhost',
+    '127.0.0.1',
+  ],
 };
 
 export default withPWA(nextConfig);
