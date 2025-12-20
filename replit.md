@@ -41,6 +41,13 @@ The project uses Firebase configuration stored in `.env`:
 - `FIREBASE_SERVICE_ACCOUNT_KEY` - For server-side Firebase Admin
 
 ## Recent Changes
+- 2025-12-20: Mejoras en sistema de recibos
+  - Sistema de dos plantillas con tabs: Plantilla 1 (con datos de reserva) y Plantilla 2 (manual)
+  - Plantilla 2 solo tiene campos "Texto Editable" para recibos completamente manuales
+  - Opción "Recibo Manual" arriba de la lista de viajes para usar Plantilla 2
+  - Control de ancho configurable para campos de texto editable (50-1000px)
+  - Corregido drag & drop usando translate3d para seguimiento preciso del mouse
+  - Guardado de ambas plantillas en un solo documento de Firestore
 - 2025-12-20: Mejoras en PWA para soporte en PC
   - Manifest.json completo con todos los campos requeridos
   - Iconos generados en múltiples tamaños (72x72 a 512x512)
