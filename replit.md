@@ -41,6 +41,12 @@ The project uses Firebase configuration stored in `.env`:
 - `FIREBASE_SERVICE_ACCOUNT_KEY` - For server-side Firebase Admin
 
 ## Recent Changes
+- 2025-12-20: Mejoras en PWA para soporte en PC
+  - Manifest.json completo con todos los campos requeridos
+  - Iconos generados en múltiples tamaños (72x72 a 512x512)
+  - Iconos maskable para Android
+  - Screenshots para instalación en desktop y móvil
+  - display_override con window-controls-overlay para mejor experiencia en desktop
 - 2025-12-19: Correcciones en página de booking
   - Hook useGeoAccess ahora retorna manualLocation correctamente
   - Corregido error de tipos: user?.province/city solo se accede si es Passenger
