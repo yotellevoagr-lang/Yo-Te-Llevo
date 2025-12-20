@@ -35,6 +35,125 @@ export async function GET() {
   }
 
   const pwaIconUrl = generalSettings?.pwaIconUrl || '/icons/icon-512x512.png';
+  const pwaScreenshots = generalSettings?.pwaScreenshots || [];
+  
+  const defaultIcons = [
+    {
+      src: "/icons/icon-72x72.png",
+      sizes: "72x72",
+      type: "image/png",
+      purpose: "any"
+    },
+    {
+      src: "/icons/icon-96x96.png",
+      sizes: "96x96",
+      type: "image/png",
+      purpose: "any"
+    },
+    {
+      src: "/icons/icon-128x128.png",
+      sizes: "128x128",
+      type: "image/png",
+      purpose: "any"
+    },
+    {
+      src: "/icons/icon-144x144.png",
+      sizes: "144x144",
+      type: "image/png",
+      purpose: "any"
+    },
+    {
+      src: "/icons/icon-152x152.png",
+      sizes: "152x152",
+      type: "image/png",
+      purpose: "any"
+    },
+    {
+      src: "/icons/icon-192x192.png",
+      sizes: "192x192",
+      type: "image/png",
+      purpose: "any"
+    },
+    {
+      src: "/icons/icon-384x384.png",
+      sizes: "384x384",
+      type: "image/png",
+      purpose: "any"
+    },
+    {
+      src: "/icons/icon-maskable-192x192.png",
+      sizes: "192x192",
+      type: "image/png",
+      purpose: "maskable"
+    },
+    {
+      src: "/icons/icon-maskable-512x512.png",
+      sizes: "512x512",
+      type: "image/png",
+      purpose: "maskable"
+    }
+  ];
+
+  const customIcon = pwaIconUrl !== '/icons/icon-512x512.png' ? [
+    {
+      src: pwaIconUrl,
+      sizes: "192x192",
+      type: "image/png",
+      purpose: "any"
+    },
+    {
+      src: pwaIconUrl,
+      sizes: "512x512",
+      type: "image/png",
+      purpose: "any"
+    },
+    {
+      src: pwaIconUrl,
+      sizes: "192x192",
+      type: "image/png",
+      purpose: "maskable"
+    },
+    {
+      src: pwaIconUrl,
+      sizes: "512x512",
+      type: "image/png",
+      purpose: "maskable"
+    }
+  ] : [
+    {
+      src: "/icons/icon-512x512.png",
+      sizes: "512x512",
+      type: "image/png",
+      purpose: "any"
+    }
+  ];
+
+  const defaultScreenshots = [
+    {
+      src: "/screenshots/desktop-wide.png",
+      sizes: "1920x1080",
+      type: "image/png",
+      form_factor: "wide" as const,
+      label: "Vista principal de YO TE LLEVO en escritorio"
+    },
+    {
+      src: "/screenshots/mobile-narrow.png",
+      sizes: "390x844",
+      type: "image/png",
+      form_factor: "narrow" as const,
+      label: "Vista principal de YO TE LLEVO en móvil"
+    }
+  ];
+
+  const screenshotsArray = pwaScreenshots.length > 0 
+    ? pwaScreenshots.map((url, index) => ({
+        src: url,
+        sizes: index === 0 ? "1920x1080" : "390x844",
+        type: "image/png",
+        form_factor: (index === 0 ? "wide" : "narrow") as "wide" | "narrow",
+        label: index === 0 ? "Vista de escritorio" : "Vista móvil"
+      }))
+    : defaultScreenshots;
   
   const manifest = {
     name: "YO TE LLEVO - Agencia de Viajes",
@@ -52,92 +171,8 @@ export async function GET() {
     lang: "es",
     dir: "ltr",
     prefer_related_applications: false,
-    icons: [
-      {
-        src: "/icons/icon-72x72.png",
-        sizes: "72x72",
-        type: "image/png",
-        purpose: "any"
-      },
-      {
-        src: "/icons/icon-96x96.png",
-        sizes: "96x96",
-        type: "image/png",
-        purpose: "any"
-      },
-      {
-        src: "/icons/icon-128x128.png",
-        sizes: "128x128",
-        type: "image/png",
-        purpose: "any"
-      },
-      {
-        src: "/icons/icon-144x144.png",
-        sizes: "144x144",
-        type: "image/png",
-        purpose: "any"
-      },
-      {
-        src: "/icons/icon-152x152.png",
-        sizes: "152x152",
-        type: "image/png",
-        purpose: "any"
-      },
-      {
-        src: "/icons/icon-192x192.png",
-        sizes: "192x192",
-        type: "image/png",
-        purpose: "any"
-      },
-      {
-        src: "/icons/icon-384x384.png",
-        sizes: "384x384",
-        type: "image/png",
-        purpose: "any"
-      },
-      {
-        src: pwaIconUrl,
-        sizes: "512x512",
-        type: "image/png",
-        purpose: "any"
-      },
-      {
-        src: "/icons/icon-maskable-192x192.png",
-        sizes: "192x192",
-        type: "image/png",
-        purpose: "maskable"
-      },
-      {
-        src: "/icons/icon-maskable-512x512.png",
-        sizes: "512x512",
-        type: "image/png",
-        purpose: "maskable"
-      }
-    ],
-    screenshots: [
-      ...(generalSettings?.pwaScreenshots?.map((url, index) => ({
-        src: url,
-        sizes: index === 0 ? "1920x1080" : "390x844",
-        type: "image/png",
-        form_factor: index === 0 ? "wide" : "narrow",
-        label: index === 0 ? "Vista de escritorio" : "Vista móvil"
-      })) || [
-        {
-          src: "/screenshots/desktop-wide.png",
-          sizes: "1920x1080",
-          type: "image/png",
-          form_factor: "wide",
-          label: "Vista principal de YO TE LLEVO en escritorio"
-        },
-        {
-          src: "/screenshots/mobile-narrow.png",
-          sizes: "390x844",
-          type: "image/png",
-          form_factor: "narrow",
-          label: "Vista principal de YO TE LLEVO en móvil"
-        }
-      ])
-    ],
+    icons: [...defaultIcons, ...customIcon],
+    screenshots: screenshotsArray,
     launch_handler: {
       client_mode: "navigate-existing"
     }
@@ -146,7 +181,9 @@ export async function GET() {
   return NextResponse.json(manifest, {
     headers: {
       'Content-Type': 'application/manifest+json',
-      'Cache-Control': 'public, max-age=3600',
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0',
     },
   });
 }
