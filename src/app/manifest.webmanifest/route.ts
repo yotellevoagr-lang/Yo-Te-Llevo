@@ -1,35 +1,58 @@
 import { NextResponse } from 'next/server';
-import admin from 'firebase-admin';
 import type { GeneralSettings } from '@/lib/types';
 import 'dotenv/config';
 
-function initializeAdminApp() {
-    if (admin.apps.length > 0) {
-        return admin.app();
+async function fetchSettingsFromFirestore(): Promise<GeneralSettings | null> {
+  const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+  
+  if (!projectId) {
+    console.error('Firebase project ID not configured');
+    return null;
+  }
+
+  try {
+    const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/settings/general`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      next: { revalidate: 60 }
+    });
+
+    if (!response.ok) {
+      console.error('Failed to fetch settings:', response.status, response.statusText);
+      return null;
     }
-    const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
-    if (!serviceAccountKey) {
-        return null;
+
+    const data = await response.json();
+    
+    if (!data.fields) {
+      return null;
     }
-    try {
-        return admin.initializeApp({
-            credential: admin.credential.cert(JSON.parse(serviceAccountKey)),
-        });
-    } catch {
-        return null;
-    }
+
+    const settings: GeneralSettings = {
+      mainWhatsappNumber: data.fields.mainWhatsappNumber?.stringValue || '',
+      calendarDownloadFolder: data.fields.calendarDownloadFolder?.stringValue || '',
+      reportDownloadFolder: data.fields.reportDownloadFolder?.stringValue || '',
+      availableTags: data.fields.availableTags?.arrayValue?.values?.map((v: any) => v.stringValue) || [],
+      pwaIconUrl: data.fields.pwaIconUrl?.stringValue,
+      pwaScreenshots: data.fields.pwaScreenshots?.arrayValue?.values?.map((v: any) => v.stringValue) || [],
+      logoUrl: data.fields.logoUrl?.stringValue,
+    };
+
+    return settings;
+  } catch (error) {
+    console.error('Error fetching settings from Firestore REST API:', error);
+    return null;
+  }
 }
 
 export async function GET() {
   let generalSettings: GeneralSettings | null = null;
   
   try {
-    const app = initializeAdminApp();
-    if (app) {
-      const adminDB = admin.firestore();
-      const settingsDoc = await adminDB.collection('settings').doc('general').get();
-      generalSettings = settingsDoc.exists ? (settingsDoc.data() as GeneralSettings) : null;
-    }
+    generalSettings = await fetchSettingsFromFirestore();
   } catch (error) {
     console.error('Error fetching settings for manifest:', error);
   }
@@ -94,7 +117,9 @@ export async function GET() {
     }
   ];
 
-  const customIcon = pwaIconUrl !== '/icons/icon-512x512.png' ? [
+  const hasCustomIcon = pwaIconUrl && pwaIconUrl !== '/icons/icon-512x512.png';
+  
+  const customIcons = hasCustomIcon ? [
     {
       src: pwaIconUrl,
       sizes: "192x192",
@@ -171,7 +196,7 @@ export async function GET() {
     lang: "es",
     dir: "ltr",
     prefer_related_applications: false,
-    icons: [...defaultIcons, ...customIcon],
+    icons: [...defaultIcons, ...customIcons],
     screenshots: screenshotsArray,
     launch_handler: {
       client_mode: "navigate-existing"
