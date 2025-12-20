@@ -103,6 +103,10 @@ const availableFieldsTemplate1: { type: FieldType, label: string }[] = [
 
 const availableFieldsTemplate2: { type: FieldType, label: string }[] = [
     { type: 'editableText', label: 'Texto Editable (por recibo)' },
+    { type: 'date', label: 'Fecha Completa' },
+    { type: 'day', label: 'Día' },
+    { type: 'month', label: 'Mes (número)' },
+    { type: 'year', label: 'Año' },
 ];
 
 const fonts = [
@@ -907,6 +911,12 @@ export default function ReceiptsPage() {
                                                 textContent = field.customText;
                                             } else if (field.type === 'customDate') {
                                                 textContent = field.customDate ? new Date(field.customDate).toLocaleDateString('es-AR') : '';
+                                            } else if (field.type === 'date' || field.type === 'day' || field.type === 'month' || field.type === 'year') {
+                                                const now = new Date();
+                                                if (field.type === 'date') textContent = now.toLocaleDateString('es-AR');
+                                                else if (field.type === 'day') textContent = now.getDate().toString();
+                                                else if (field.type === 'month') textContent = (now.getMonth() + 1).toString();
+                                                else if (field.type === 'year') textContent = now.getFullYear().toString();
                                             } else if (generatedReceiptData) {
                                                 textContent = generatedReceiptData[field.type as keyof typeof generatedReceiptData];
                                             }
