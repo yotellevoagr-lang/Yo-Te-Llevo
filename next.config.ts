@@ -11,6 +11,8 @@ const withPWA = require('next-pwa')({
 
 
 const nextConfig: NextConfig = {
+  // Required for Next.js 16 with webpack plugins (like next-pwa)
+  turbopack: {},
   typescript: {
     ignoreBuildErrors: true,
   },

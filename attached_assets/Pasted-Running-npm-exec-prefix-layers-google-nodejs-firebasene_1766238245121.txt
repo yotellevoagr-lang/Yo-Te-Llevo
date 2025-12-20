@@ -1,0 +1,64 @@
+Running "npm exec --prefix /layers/google.nodejs.firebasenextjs/npm_modules apphosting-adapter-nextjs-build"
+Overriding Next Config to add configs optmized for Firebase App Hosting
+Successfully created next.config.ts with Firebase App Hosting overrides
+> nextn@0.1.0 build
+> next build
+▲ Next.js 16.1.0 (Turbopack)
+- Environments: .env
+  Creating an optimized production build ...
+⨯ ERROR: This build is using Turbopack, with a `webpack` config and no `turbopack` config.
+   This may be a mistake.
+   As of Next.js 16 Turbopack is enabled by default and
+   custom webpack configurations may need to be migrated to Turbopack.
+   NOTE: your `webpack` config may have been added by a configuration plugin.
+   To configure Turbopack, see https://nextjs.org/docs/app/api-reference/next-config-js/turbopack
+   TIP: Many applications work fine under Turbopack with no configuration,
+   if that is the case for you, you can silence this error by passing the
+   `--turbopack` or `--webpack` flag explicitly or simply setting an 
+   empty turbopack config in your Next config file (e.g. `turbopack: {}`).
+> Build error occurred
+Error: Call retries were exceeded
+    at ignore-listed frames {
+  type: 'WorkerError'
+}
+Restoring original next config in project root
+/layers/google.nodejs.firebasenextjs/npm_modules/node_modules/@apphosting/common/dist/index.js:64
+                reject(new Error(`Build process exited with error code ${code}.`));
+                       ^
+Error: Build process exited with error code 1.
+    at ChildProcess.<anonymous> (/layers/google.nodejs.firebasenextjs/npm_modules/node_modules/@apphosting/common/dist/index.js:64:24)
+    at ChildProcess.emit (node:events:519:28)
+    at ChildProcess._handle.onexit (node:internal/child_process:293:12)
+Node.js v22.21.0
+Done "npm exec --prefix /layers/google.nodejs.firebasenextjs/npm_m..." (6.316811463s)
+--------------------------------------------------------------------------------
+failed to build: (error ID: 03fcb774):
+{"reason":"Failed Framework Build","code":"fah/failed-framework-build","userFacingMessage":"Your application failed to run the framework build command 'npm exec --prefix /layers/google.nodejs.firebasenextjs/npm_modules apphosting-adapter-nextjs-build' successfully. Please check the raw log to address the error and confirm that your application builds locally before redeploying.","rawLog":"(error ID: d0a693a9):
+⨯ ERROR: This build is using Turbopack, with a `webpack` config and no `turbopack` config.
+   This may be a mistake.
+   As of Next.js 16 Turbopack is enabled by default and
+   custom webpack configurations may need to be migrated to Turbopack.
+   NOTE: your `webpack` config may have been added by a configuration plugin.
+   To configure Turbopack, see https://nextjs.org/docs/app/api-reference/next-config-js/turbopack
+   TIP: Many applications work fine under Turbopack with no configuration,
+   if that is the case for you, you can silence this error by passing the
+   `--turbopack` or `--webpack` flag explicitly or simply setting an 
+   empty turbopack config in your Next config file (e.g. `turbopack: {}`).
+> Build error occurred
+Error: Call retries were exceeded
+    at ignore-listed frames {
+  type: 'WorkerError'
+}
+/layers/google.nodejs.firebasenextjs/npm_modules/node_modules/@apphosting/common/dist/index.js:64
+                reject(new Error(`Build process exited with error code ${code}.`));
+                       ^
+Error: Build process exited with error code 1.
+    at ChildProcess.<anonymous> (/layers/google.nodejs.firebasenextjs/npm_modules/node_modules/@apphosting/common/dist/index.js:64:24)
+    at ChildProcess.emit (node:events:519:28)
+    at ChildProcess._handle.onexit (node:internal/child_process:293:12)
+Node.js v22.21.0"}
+ERROR: failed to build: exit status 1
+ERROR: failed to build: executing lifecycle: failed with status code: 51
+Finished Step #2 - "pack"
+ERROR
+ERROR: build step 2 "gcr.io/k8s-skaffold/pack" failed: step exited with non-zero status: 1
