@@ -17,12 +17,29 @@ interface BeforeInstallPromptEvent extends Event {
 export function InstallPwaButton() {
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isClient, setIsClient] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [isStandalone, setIsStandalone] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
+    
+    const checkIfMobile = () => {
+      const userAgent = navigator.userAgent || navigator.vendor;
+      const mobileRegex = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i;
+      return mobileRegex.test(userAgent) || window.innerWidth <= 768;
+    };
+    
+    const checkIfStandalone = () => {
+      return window.matchMedia('(display-mode: standalone)').matches ||
+             (window.navigator as any).standalone === true ||
+             document.referrer.includes('android-app://');
+    };
+    
+    setIsMobile(checkIfMobile());
+    setIsStandalone(checkIfStandalone());
+    
     const handleBeforeInstallPrompt = (event: Event) => {
       event.preventDefault();
-      // Store the event so it can be triggered later.
       setInstallPrompt(event as BeforeInstallPromptEvent);
     };
 
@@ -44,11 +61,10 @@ export function InstallPwaButton() {
     } else {
       console.log('User dismissed the A2HS prompt');
     }
-    // We can only use the prompt once, so clear it.
     setInstallPrompt(null);
   };
 
-  if (!isClient || !installPrompt) {
+  if (!isClient || !installPrompt || !isMobile || isStandalone) {
     return null;
   }
 
