@@ -45,9 +45,15 @@ The project uses Firebase configuration stored in `.env`:
   - Sistema de dos plantillas con tabs: Plantilla 1 (con datos de reserva) y Plantilla 2 (manual)
   - Plantilla 2 solo tiene campos "Texto Editable" para recibos completamente manuales
   - Opción "Recibo Manual" arriba de la lista de viajes para usar Plantilla 2
-  - Control de ancho configurable para campos de texto editable (50-1000px)
+  - Redimensionamiento visual: arrastra los handles (bordes/esquinas) del campo para ajustar ancho y alto
+  - Control numérico de ancho (50-1000px) y alto (20-500px) en el panel lateral
   - Corregido drag & drop usando translate3d para seguimiento preciso del mouse
   - Guardado de ambas plantillas en un solo documento de Firestore
+- 2025-12-20: Botones flotantes colapsables en móvil
+  - Botón toggle para plegar/desplegar los botones de redes sociales y PWA en pantallas pequeñas
+  - Solo visible en dispositivos móviles (ancho < 768px)
+  - Animación suave de transición al expandir/colapsar
+  - Accesibilidad con aria-expanded
 - 2025-12-20: Mejoras en PWA para soporte en PC
   - Manifest.json completo con todos los campos requeridos
   - Iconos generados en múltiples tamaños (72x72 a 512x512)
