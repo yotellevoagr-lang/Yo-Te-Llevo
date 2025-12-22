@@ -87,5 +87,43 @@ service cloud.firestore {
     match /ex_employees/{employeeId} {
       allow read, write: if isSignedInAsRole('admin');
     }
+
+    // --- COMUNIDAD ---
+    match /communityPosts/{postId} {
+      allow read: if true;
+      allow create: if isSignedInAsRole('admin') || isSignedInAsRole('employee');
+      allow update, delete: if isSignedInAsRole('admin') || isSignedInAsRole('employee');
+      
+      // Subcolección de comentarios
+      match /comments/{commentId} {
+        allow read: if true;
+        allow create: if isSignedIn();
+        allow update, delete: if isSignedInAsRole('admin') || isSignedInAsRole('employee');
+      }
+      
+      // Subcolección de reacciones
+      match /reactions/{reactionId} {
+        allow read: if true;
+        allow write: if isSignedIn();
+      }
+    }
+
+    // --- BENEFICIOS/CUPONES ---
+    match /benefits/{benefitId} {
+      allow read: if true;
+      allow write: if isSignedInAsRole('admin');
+    }
+    
+    match /benefitRedemptions/{redemptionId} {
+      allow read: if isSignedInAsRole('admin') || isSignedInAsRole('employee');
+      allow create: if isSignedIn();
+      allow update, delete: if isSignedInAsRole('admin');
+    }
+
+    // Subcolección de beneficios en pasajeros
+    match /passengers/{passengerId}/benefits/{benefitId} {
+      allow read: if isOwner(passengerId) || isSignedInAsRole('admin') || isSignedInAsRole('employee');
+      allow write: if isSignedIn();
+    }
   }
 }
