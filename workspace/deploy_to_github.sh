@@ -66,6 +66,12 @@ echo "Paso 2.7: Aplicando cambios locales guardados..."
 git stash pop
 echo ""
 
+# PASO CLAVE: Eliminar .env del seguimiento de Git
+echo "Paso 2.8: Eliminando el archivo .env del historial de Git..."
+git rm --cached .env > /dev/null 2>&1
+echo "El archivo .env ya no está siendo rastreado por Git."
+echo ""
+
 # 3. Añade todos los archivos modificados y nuevos al área de preparación.
 echo "Paso 3: Añadiendo todos los cambios al área de preparación (git add .)..."
 git add .
