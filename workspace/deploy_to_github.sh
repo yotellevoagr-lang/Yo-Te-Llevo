@@ -1,86 +1,64 @@
 #!/bin/bash
 
-# --- Script para Subir Cambios a GitHub ---
-# Este script añade todos los cambios actuales, crea un commit
-# y lo sube a la rama especificada en GitHub.
+# --- Script para Subir Cambios a GitHub (Versión Robusta) ---
+# Sube los cambios locales, forzando la actualización en la rama remota.
 
 # --- CONFIGURACIÓN ---
-# Carga las variables desde el archivo .env.local
 ENV_FILE="src/.env.local"
-if [ -f "$ENV_FILE" ]; then
-  export $(cat "$ENV_FILE" | sed 's/#.*//g' | xargs)
-  echo "✅ Credenciales cargadas desde $ENV_FILE"
-else
-  echo "⚠️  Advertencia: No se encontró el archivo $ENV_FILE. El script podría fallar si las credenciales no están configuradas de otra manera."
-fi
-
-# Verifica si las credenciales están cargadas
-if [ -z "$GITHUB_USER" ] || [ -z "$GITHUB_TOKEN" ]; then
-  echo "❌ Error: Las variables GITHUB_USER y GITHUB_TOKEN no están definidas en tu archivo $ENV_FILE."
-  echo "Asegúrate de que el archivo exista y contenga tus credenciales."
+if [ ! -f "$ENV_FILE" ]; then
+  echo "❌ Error: No se encontró el archivo de secretos en '$ENV_FILE'."
   exit 1
 fi
 
-# Reemplaza esto con la URL de tu repositorio de GitHub.
-GITHUB_URL="https://${GITHUB_USER}:${GITHUB_TOKEN}@github.com/yotellevoagr-lang/Yo-Te-Llevo.git"
+# Carga las variables de entorno desde el archivo
+export $(grep -v '^#' "$ENV_FILE" | xargs)
+
+# Verifica que las credenciales se hayan cargado
+if [ -z "$GITHUB_USER" ] || [ -z "$GITHUB_TOKEN" ]; then
+  echo "❌ Error: GITHUB_USER o GITHUB_TOKEN no están definidas en '$ENV_FILE'."
+  exit 1
+fi
+
 BRANCH_NAME="principal2"
+REMOTE_NAME="origin-deploy"
+REMOTE_URL="https://github.com/yotellevoagr-lang/Yo-Te-Llevo.git"
 
-echo "--- Iniciando el proceso de despliegue a GitHub en la rama '$BRANCH_NAME' ---"
+echo "--- Iniciando despliegue a GitHub en la rama '$BRANCH_NAME' ---"
 echo ""
 
-# 1. Asegurarse de que el repositorio Git esté inicializado y conectado.
-if [ ! -d ".git" ]; then
-  echo "Paso 1: No se encontró repositorio Git. Inicializando uno nuevo..."
-  git init
-  git branch -M $BRANCH_NAME
-else
-  echo "Paso 1: Repositorio Git encontrado."
-  git checkout -B $BRANCH_NAME
-fi
+# 1. Configurar un remoto temporal con las credenciales
+echo "Paso 1: Configurando remoto temporal para el despliegue..."
+# Elimina el remoto si ya existe para evitar errores
+git remote remove $REMOTE_NAME 2>/dev/null
+git remote add $REMOTE_NAME "https://${GITHUB_USER}:${GITHUB_TOKEN}@github.com/yotellevoagr-lang/Yo-Te-Llevo.git"
+echo "✅ Remoto temporal '$REMOTE_NAME' configurado."
 echo ""
 
-# 2. Conecta tu repositorio local con el de GitHub.
-echo "Paso 2: Verificando la conexión con el repositorio remoto..."
-if git remote | grep -q "origin"; then
-    git remote set-url origin $GITHUB_URL
-    echo "El remoto 'origin' ya existía, URL actualizada si fue necesario."
-else
-    git remote add origin $GITHUB_URL
-    echo "¡Conectado al repositorio remoto en GitHub!"
-fi
-echo ""
-
-# 3. Añade todos los archivos modificados y nuevos al área de preparación.
-echo "Paso 3: Añadiendo todos los cambios al área de preparación (git add .)..."
+# 2. Preparar los cambios para subir
+echo "Paso 2: Añadiendo todos los cambios..."
 git add .
-echo "¡Archivos añadidos!"
 echo ""
 
-# 4. Pide un mensaje para el commit y crea el commit.
-echo "Paso 4: Creando un nuevo commit..."
-echo "Por favor, introduce un mensaje para este commit (o presiona Enter para usar uno por defecto):"
-read COMMIT_MESSAGE
-
-# Si el mensaje está vacío, usamos uno por defecto.
-if [ -z "$COMMIT_MESSAGE" ]; then
-    COMMIT_MESSAGE="Actualización de archivos y funcionalidades"
-fi
-
-# Usamos --allow-empty para asegurarnos de que el commit se cree siempre.
-git commit --allow-empty -m "$COMMIT_MESSAGE"
-if [ $? -ne 0 ]; then
-  echo "No se encontraron cambios nuevos para commitear. Verificando historial..."
+# 3. Crear un commit (si hay cambios)
+echo "Paso 3: Creando commit..."
+# Comprueba si hay algo para commitear. Si no, solo lo informa.
+if git diff-index --quiet HEAD --; then
+    echo "ℹ️ No hay nuevos cambios para commitear."
+else
+    git commit -m "Despliegue automático de cambios"
+    echo "✅ Commit creado."
 fi
 echo ""
 
-# 5. Sube todos los commits a GitHub, forzando la subida para sobrescribir el historial remoto.
-echo "Paso 5: Subiendo los cambios a la rama '$BRANCH_NAME' en GitHub (con --force)..."
-git push -u origin $BRANCH_NAME --force
-if [ $? -ne 0 ]; then
-    echo "❌ Error al subir los cambios a GitHub. Revisa los mensajes de error anteriores."
-    exit 1
+# 4. Subir los cambios forzando la actualización
+echo "Paso 4: Subiendo cambios a GitHub..."
+if git push --force $REMOTE_NAME "HEAD:$BRANCH_NAME"; then
+  echo "🎉 --- ¡PROCESO COMPLETADO! --- 🎉"
+  echo "Tus cambios han sido subidos a GitHub en la rama '$BRANCH_NAME'."
+else
+  echo "❌ Error al subir los cambios a GitHub. Revisa los mensajes de error."
 fi
-echo ""
 
-echo "🎉 --- ¡PROCESO COMPLETADO! --- 🎉"
-echo "Tus cambios han sido subidos a GitHub. Revisa tu repositorio para confirmarlo."
+# 5. Limpiar el remoto temporal por seguridad
+git remote remove $REMOTE_NAME
+echo "✅ Remoto temporal limpiado."
