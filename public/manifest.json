@@ -127,6 +127,47 @@
       "label": "Captura 5 - Móvil"
     }
   ],
+  "shortcuts": [
+    {
+      "name": "Ver Viajes",
+      "short_name": "Viajes",
+      "description": "Explora todos los viajes disponibles",
+      "url": "/tours",
+      "icons": [
+        {
+          "src": "/icons/icon-96x96.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Ver Flyers",
+      "short_name": "Flyers",
+      "description": "Mira las promociones y ofertas",
+      "url": "/flyers",
+      "icons": [
+        {
+          "src": "/icons/icon-96x96.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Iniciar Sesión",
+      "short_name": "Login",
+      "description": "Accede a tu cuenta",
+      "url": "/login",
+      "icons": [
+        {
+          "src": "/icons/icon-96x96.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    }
+  ],
   "prefer_related_applications": false,
   "display_override": [
     "window-controls-overlay",

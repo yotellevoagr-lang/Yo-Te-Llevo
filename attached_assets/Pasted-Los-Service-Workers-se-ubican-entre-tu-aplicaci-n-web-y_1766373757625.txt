@@ -1,0 +1,23 @@
+Los Service Workers se ubican entre tu aplicación web y la red. Su objetivo es crear experiencias sin conexión eficaces, interceptar solicitudes de red y tomar las medidas adecuadas según la disponibilidad de la red. También permiten el acceso a notificaciones push y API de sincronización en segundo plano.
+
+El miembro related_applications especifica una matriz de objetos que son aplicaciones relacionadas con la aplicación web. Esto puede incluir aplicaciones nativas que el usuario puede instalar o usar junto con la aplicación web.
+
+Al menos una captura de pantalla en su manifiesto debe tener un factor de forma amplio, para mostrar su aplicación en dispositivos de escritorio.
+
+El miembro iarc_rating_id es una cadena que representa el código de certificación de la Coalición Internacional de Clasificación por Edades (IARC) de la aplicación web. Su objetivo es determinar para qué edades es adecuada la aplicación web.
+
+Las extensiones de alcance permiten que tu PWA defina dominios URL adicionales que se consideran dentro del alcance de tu aplicación. Por ejemplo, para una PWA alojada en example.com, puedes añadir auth.example.com y en.example.com a tus extensiones de alcance. Sin extensiones de alcance, cualquier navegación fuera del dominio de tu PWA podría mostrar una barra de direcciones dentro de la PWA.
+
+El miembro de accesos directos define una matriz de accesos directos o enlaces a tareas o páginas clave dentro de una aplicación web. Los accesos directos se mostrarán como jumplists en Windows y en la pantalla de inicio en Android.
+
+El miembro file_handlers especifica una matriz de objetos que representan los tipos de archivos que una PWA instalada puede abrir.
+
+El miembro protocol_handlers especifica una matriz de objetos que son protocolos que esta aplicación web puede registrar y gestionar. Los controladores de protocolo registran la aplicación en las preferencias de aplicación de un sistema operativo; el registro asocia una aplicación específica con el esquema de protocolo dado. Por ejemplo, al usar el controlador de protocolo mailto:// en una página web, se abren las aplicaciones de correo electrónico registradas.
+
+share_target permite que su aplicación reciba contenido compartido desde otras aplicaciones.
+
+Los widgets son tarjetas adaptables con texto, imágenes y acciones relacionadas con tu aplicación. En Windows, aparecen en el escritorio cuando el usuario hace clic en su icono en la barra de tareas o pulsa Win+W.
+
+El modo de visualización con pestañas permite que su PWA actúe como una interfaz de múltiples documentos, lo que permite abrir múltiples pestañas dentro de su PWA.
+
+El miembro note_taking identifica una aplicación web como una aplicación para tomar notas y define información relacionada, por ejemplo, una URL que apunta a la función para tomar notas. Esto permite que los sistemas operativos integren la función de toma de notas de la aplicación, por ejemplo, incluyendo la opción "Nueva nota" en el menú contextual o ofreciendo la aplicación como una opción para tomar notas en otras aplicaciones.
