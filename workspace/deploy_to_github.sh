@@ -7,7 +7,7 @@
 # --- CONFIGURACIÓN ---
 # Carga las variables desde el archivo .env si existe
 if [ -f ".env" ]; then
-  export $(cat .env | grep -v '^#' | xargs)
+  export $(cat .env | sed 's/#.*//g' | xargs)
 fi
 
 # Verifica si las credenciales están cargadas
