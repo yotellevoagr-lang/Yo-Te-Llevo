@@ -5,15 +5,19 @@
 # y lo sube a la rama especificada en GitHub, preservando el historial.
 
 # --- CONFIGURACIÓN ---
-# Carga las variables desde el archivo .env si existe
-if [ -f ".env" ]; then
-  export $(cat .env | sed 's/#.*//g' | xargs)
+# Carga las variables desde el archivo .env.local
+ENV_FILE="src/.env.local"
+if [ -f "$ENV_FILE" ]; then
+  export $(cat "$ENV_FILE" | sed 's/#.*//g' | xargs)
+  echo "✅ Credenciales cargadas desde $ENV_FILE"
+else
+  echo "⚠️  Advertencia: No se encontró el archivo $ENV_FILE. El script podría fallar si las credenciales no están configuradas de otra manera."
 fi
 
 # Verifica si las credenciales están cargadas
 if [ -z "$GITHUB_USER" ] || [ -z "$GITHUB_TOKEN" ]; then
-  echo "❌ Error: Las variables GITHUB_USER y GITHUB_TOKEN no están definidas en tu archivo .env."
-  echo "Asegúrate de que el archivo .env exista y contenga tus credenciales."
+  echo "❌ Error: Las variables GITHUB_USER y GITHUB_TOKEN no están definidas en tu archivo $ENV_FILE."
+  echo "Asegúrate de que el archivo exista y contenga tus credenciales."
   exit 1
 fi
 
@@ -68,8 +72,6 @@ echo ""
 
 # 3. Añade todos los archivos modificados y nuevos al área de preparación.
 echo "Paso 3: Añadiendo todos los cambios al área de preparación (git add .)..."
-# Primero, nos aseguramos de que .env no esté siendo rastreado
-git rm --cached .env > /dev/null 2>&1 || true
 git add .
 echo "¡Archivos añadidos!"
 echo ""
@@ -84,28 +86,17 @@ if [ -z "$COMMIT_MESSAGE" ]; then
     COMMIT_MESSAGE="Actualización de archivos y funcionalidades"
 fi
 
-git commit -m "$COMMIT_MESSAGE"
+# Usamos --allow-empty para asegurarnos de que el commit se cree incluso si no hay cambios,
+# lo que es útil si el único cambio fue descartado por el stash.
+git commit --allow-empty -m "$COMMIT_MESSAGE"
 if [ $? -ne 0 ]; then
   echo "No se encontraron cambios nuevos para commitear. Verificando historial..."
 fi
 echo ""
 
-# 4.5. PASO CRÍTICO: Eliminar .env del historial del último commit si existe.
-echo "Paso 4.5: Verificando y limpiando el historial del último commit..."
-# Revisa si .env estaba en el commit anterior antes de la enmienda
-if git show HEAD:.env > /dev/null 2>&1; then
-    echo "Se encontró .env en el último commit. Reescribiendo el historial para eliminarlo..."
-    # Este comando reescribe el último commit eliminando el archivo .env del historial
-    git filter-branch --index-filter 'git rm --cached --ignore-unmatch .env' HEAD
-    echo "✅ ¡Historial del commit limpiado!"
-else
-    echo "El último commit está limpio. No se encontraron secretos."
-fi
-echo ""
-
 # 5. Sube todos los commits a GitHub.
 echo "Paso 5: Subiendo los cambios a la rama '$BRANCH_NAME' en GitHub..."
-git push -u origin $BRANCH_NAME --force
+git push -u origin $BRANCH_NAME
 if [ $? -ne 0 ]; then
     echo "❌ Error al subir los cambios a GitHub. Revisa los mensajes de error anteriores."
     exit 1

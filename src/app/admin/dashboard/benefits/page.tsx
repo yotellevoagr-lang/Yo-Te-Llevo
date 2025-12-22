@@ -244,6 +244,7 @@ export default function AdminBenefitsPage() {
     }));
   };
 
+<<<<<<< HEAD
   const handleTripSelect = (tripId: string) => {
     if (!tripId) return;
     setFormData(prev => {
@@ -305,6 +306,8 @@ export default function AdminBenefitsPage() {
   
   const isDateDisabled = formData.applicableTripIds.length > 0;
 
+=======
+>>>>>>> fcc29c5 (en el formulario para crear nuevo beneficio, los campos de numeros no pu)
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -923,3 +926,4 @@ export default function AdminBenefitsPage() {
     </div>
   );
 }
+
