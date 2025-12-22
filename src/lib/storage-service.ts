@@ -1,7 +1,7 @@
 import { storage } from './firebase';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 
-export type StorageFolder = 'trips' | 'flyers' | 'settings' | 'gallery';
+export type StorageFolder = 'trips' | 'flyers' | 'settings' | 'gallery' | 'community';
 
 export async function uploadFileToStorage(
   file: File,

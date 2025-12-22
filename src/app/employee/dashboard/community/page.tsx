@@ -21,7 +21,7 @@ import {
   updateCommunityPost, 
   deleteCommunityPost 
 } from '@/lib/community-services';
-import { uploadFile } from '@/lib/storage-service';
+import { uploadFileToStorage } from '@/lib/storage-service';
 import type { CommunityPost } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 
@@ -138,7 +138,7 @@ export default function EmployeeCommunityPage() {
       let uploadedMedia = [...formData.media];
 
       for (const file of mediaFiles) {
-        const url = await uploadFile(file, 'community');
+        const url = await uploadFileToStorage(file, 'community');
         uploadedMedia.push({
           url,
           type: file.type.startsWith('video/') ? 'video' : 'image'
