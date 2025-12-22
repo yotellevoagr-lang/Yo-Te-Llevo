@@ -23,7 +23,7 @@ interface SearchableSelectProps {
     placeholder?: string;
     listHeight?: string;
     disabled?: boolean;
-    className?: string; // Add className prop
+    className?: string;
 }
 
 export function SearchableSelect({ options, value, onChange, placeholder, listHeight = 'h-60', disabled = false, className }: SearchableSelectProps) {
@@ -34,30 +34,35 @@ export function SearchableSelect({ options, value, onChange, placeholder, listHe
     const selectedOption = useMemo(() => options.find(opt => opt.value === value), [options, value]);
 
     useEffect(() => {
-        // Update input display value when selected option changes from outside
         setSearchTerm(selectedOption?.label || "");
     }, [selectedOption]);
 
     useEffect(() => {
-      // Close dropdown when clicking outside
       function handleClickOutside(event: MouseEvent) {
         if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
           setIsOpen(false);
+          // If dropdown closes and no value is selected, reset search term
+          if (!value) {
+            setSearchTerm("");
+          } else {
+            setSearchTerm(selectedOption?.label || "");
+          }
         }
       }
       document.addEventListener("mousedown", handleClickOutside);
       return () => {
         document.removeEventListener("mousedown", handleClickOutside);
       };
-    }, [wrapperRef]);
+    }, [wrapperRef, value, selectedOption]);
 
     const filteredOptions = useMemo(() => {
-        if (!searchTerm && value) return options;
+        if (!searchTerm && value) return options.filter(opt => opt.value !== value);
         if (!searchTerm) return options;
         const lowercasedTerm = searchTerm.toLowerCase();
         return options.filter(opt => 
-            opt.label.toLowerCase().includes(lowercasedTerm) || 
-            (opt.keywords && opt.keywords.some(kw => kw.toLowerCase().includes(lowercasedTerm)))
+            (opt.label.toLowerCase().includes(lowercasedTerm) || 
+            (opt.keywords && opt.keywords.some(kw => kw.toLowerCase().includes(lowercasedTerm)))) &&
+            opt.value !== value // Exclude already selected
         );
     }, [options, searchTerm, value]);
 
@@ -77,9 +82,6 @@ export function SearchableSelect({ options, value, onChange, placeholder, listHe
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const newValue = e.target.value;
         setSearchTerm(newValue);
-        if (value) {
-            onChange(''); // Clear the actual value if user starts typing
-        }
         if (!isOpen) setIsOpen(true);
     };
     
@@ -88,9 +90,9 @@ export function SearchableSelect({ options, value, onChange, placeholder, listHe
             return '';
         }
         if ((currency === 'ARS' && price < 500000) || (currency === 'USD' && price < 400)) {
-            return 'bg-primary/10 hover:bg-primary/20'; // Light pink
+            return 'bg-primary/10 hover:bg-primary/20';
         }
-        return 'bg-primary/30 hover:bg-primary/40'; // Darker pink
+        return 'bg-primary/30 hover:bg-primary/40';
     };
 
 
@@ -127,7 +129,7 @@ export function SearchableSelect({ options, value, onChange, placeholder, listHe
                                     key={option.value}
                                     className={cn(
                                         "px-3 py-2 cursor-pointer text-foreground border-b border-primary/20 last:border-b-0",
-                                        value === option.value && "bg-accent",
+                                        "hover:bg-accent",
                                         getPriceColorClass(option.price, option.currency)
                                     )}
                                     onMouseDown={(e) => { 

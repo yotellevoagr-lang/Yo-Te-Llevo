@@ -16,7 +16,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Plus, Trash2, Edit, Gift, Ticket, Users, CalendarIcon, Copy, Loader2, Eye, Download, Palette } from 'lucide-react';
+import { Plus, Trash2, Edit, Gift, Ticket, Users, CalendarIcon, Copy, Loader2, Eye, Download, Palette, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useAuth } from '@/components/auth/auth-provider';
@@ -32,6 +32,7 @@ import { getAllFromCollection_client } from '@/lib/firestore-services';
 import type { Benefit, BenefitRedemption, Tour, Passenger, DiscountType, EligibleAudience, VisibilityScope } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { SearchableSelect } from '@/components/searchable-select';
 
 type FormData = {
   code: string;
@@ -242,6 +243,29 @@ export default function AdminBenefitsPage() {
         [field]: value === '' ? '' : parseInt(value, 10)
     }));
   };
+
+  const handleTripSelect = (tripId: string) => {
+    if (!tripId) return;
+    setFormData(prev => {
+        if (prev.applicableTripIds.includes(tripId)) return prev;
+        return { ...prev, applicableTripIds: [...prev.applicableTripIds, tripId] };
+    });
+  };
+
+  const handleTripRemove = (tripId: string) => {
+      setFormData(prev => ({
+          ...prev,
+          applicableTripIds: prev.applicableTripIds.filter(id => id !== tripId)
+      }));
+  };
+  
+  const tourOptions = useMemo(() => {
+    return tours.map(t => ({
+      value: t.id,
+      label: `${t.destination} - ${format(new Date(t.date), "dd/MM/yy")}`
+    }))
+  }, [tours]);
+
 
   if (loading) {
     return (
@@ -592,27 +616,28 @@ export default function AdminBenefitsPage() {
               </div>
 
               <div className="space-y-2">
-                <Label>Aplicable a Viajes</Label>
-                <Select
-                  value={formData.applicableTripIds.length === 0 ? 'all' : 'selected'}
-                  onValueChange={(value) => {
-                    if (value === 'all') {
-                      setFormData(prev => ({ ...prev, applicableTripIds: [] }));
-                    }
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Todos los viajes" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos los viajes</SelectItem>
-                    {tours.map((tour) => (
-                      <SelectItem key={tour.id} value={tour.id}>
-                        {tour.destination} - {format(new Date(tour.date), "dd/MM")}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label>Seleccionar Viaje</Label>
+                 <SearchableSelect
+                    options={[{ value: 'all-trips', label: 'Todos los Viajes' }, ...tourOptions]}
+                    value={''}
+                    onChange={handleTripSelect}
+                    placeholder="Buscar viaje para aplicar beneficio..."
+                  />
+                  <p className="text-xs text-muted-foreground">Si no se selecciona ninguno, el beneficio aplica a todos los viajes.</p>
+                  <div className="flex flex-wrap gap-2 pt-2">
+                      {formData.applicableTripIds.map(id => {
+                          const tour = tours.find(t => t.id === id);
+                          if (!tour) return null;
+                          return (
+                              <Badge key={id} variant="secondary" className="gap-1.5">
+                                  {tour.destination}
+                                  <button onClick={() => handleTripRemove(id)}>
+                                      <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
+                                  </button>
+                              </Badge>
+                          );
+                      })}
+                  </div>
               </div>
 
               <div className="space-y-2">
