@@ -2,7 +2,7 @@
 
 # --- Script para Subir Cambios a GitHub ---
 # Este script añade todos los cambios actuales, crea un commit
-# y lo sube a la rama especificada en GitHub, preservando el historial.
+# y lo sube a la rama especificada en GitHub.
 
 # --- CONFIGURACIÓN ---
 # Carga las variables desde el archivo .env.local
@@ -50,26 +50,6 @@ else
 fi
 echo ""
 
-# 2.5 Guardar cambios locales temporalmente
-echo "Paso 2.5: Guardando cambios locales temporalmente..."
-git stash
-echo ""
-
-# 2.6 Sincroniza con la rama remota.
-echo "Paso 2.6: Descargando cambios remotos..."
-git pull origin $BRANCH_NAME --rebase
-if [ $? -ne 0 ]; then
-    echo "⚠️  Error al hacer 'git pull'. Puede haber conflictos que necesites resolver manualmente."
-    git stash pop # Intenta recuperar los cambios guardados
-    exit 1
-fi
-echo ""
-
-# 2.7 Vuelve a aplicar los cambios locales
-echo "Paso 2.7: Aplicando cambios locales guardados..."
-git stash pop
-echo ""
-
 # 3. Añade todos los archivos modificados y nuevos al área de preparación.
 echo "Paso 3: Añadiendo todos los cambios al área de preparación (git add .)..."
 git add .
@@ -86,17 +66,16 @@ if [ -z "$COMMIT_MESSAGE" ]; then
     COMMIT_MESSAGE="Actualización de archivos y funcionalidades"
 fi
 
-# Usamos --allow-empty para asegurarnos de que el commit se cree incluso si no hay cambios,
-# lo que es útil si el único cambio fue descartado por el stash.
+# Usamos --allow-empty para asegurarnos de que el commit se cree siempre.
 git commit --allow-empty -m "$COMMIT_MESSAGE"
 if [ $? -ne 0 ]; then
   echo "No se encontraron cambios nuevos para commitear. Verificando historial..."
 fi
 echo ""
 
-# 5. Sube todos los commits a GitHub.
-echo "Paso 5: Subiendo los cambios a la rama '$BRANCH_NAME' en GitHub..."
-git push -u origin $BRANCH_NAME
+# 5. Sube todos los commits a GitHub, forzando la subida para sobrescribir el historial remoto.
+echo "Paso 5: Subiendo los cambios a la rama '$BRANCH_NAME' en GitHub (con --force)..."
+git push -u origin $BRANCH_NAME --force
 if [ $? -ne 0 ]; then
     echo "❌ Error al subir los cambios a GitHub. Revisa los mensajes de error anteriores."
     exit 1
