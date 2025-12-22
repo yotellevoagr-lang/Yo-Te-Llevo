@@ -68,6 +68,8 @@ echo ""
 
 # 3. Añade todos los archivos modificados y nuevos al área de preparación.
 echo "Paso 3: Añadiendo todos los cambios al área de preparación (git add .)..."
+# Primero, nos aseguramos de que .env no esté siendo rastreado
+git rm --cached .env > /dev/null 2>&1 || true
 git add .
 echo "¡Archivos añadidos!"
 echo ""
@@ -91,10 +93,10 @@ echo ""
 # 4.5. PASO CRÍTICO: Eliminar .env del historial del último commit si existe.
 echo "Paso 4.5: Verificando y limpiando el historial del último commit..."
 # Revisa si .env estaba en el commit anterior antes de la enmienda
-if git show HEAD:./.env > /dev/null 2>&1; then
+if git show HEAD:.env > /dev/null 2>&1; then
     echo "Se encontró .env en el último commit. Reescribiendo el historial para eliminarlo..."
-    git rm --cached .env
-    git commit --amend --no-edit
+    # Este comando reescribe el último commit eliminando el archivo .env del historial
+    git filter-branch --index-filter 'git rm --cached --ignore-unmatch .env' HEAD
     echo "✅ ¡Historial del commit limpiado!"
 else
     echo "El último commit está limpio. No se encontraron secretos."
@@ -103,7 +105,7 @@ echo ""
 
 # 5. Sube todos los commits a GitHub.
 echo "Paso 5: Subiendo los cambios a la rama '$BRANCH_NAME' en GitHub..."
-git push -u origin $BRANCH_NAME
+git push -u origin $BRANCH_NAME --force
 if [ $? -ne 0 ]; then
     echo "❌ Error al subir los cambios a GitHub. Revisa los mensajes de error anteriores."
     exit 1
@@ -112,4 +114,3 @@ echo ""
 
 echo "🎉 --- ¡PROCESO COMPLETADO! --- 🎉"
 echo "Tus cambios han sido subidos a GitHub. Revisa tu repositorio para confirmarlo."
-
