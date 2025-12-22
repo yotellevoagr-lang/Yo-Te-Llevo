@@ -5,6 +5,18 @@
 # y lo sube a la rama especificada en GitHub, preservando el historial.
 
 # --- CONFIGURACIÓN ---
+# Carga las variables desde el archivo .env si existe
+if [ -f ".env" ]; then
+  export $(cat .env | sed 's/#.*//g' | xargs)
+fi
+
+# Verifica si las credenciales están cargadas
+if [ -z "$GITHUB_USER" ] || [ -z "$GITHUB_TOKEN" ]; then
+  echo "❌ Error: Las variables GITHUB_USER y GITHUB_TOKEN no están definidas en tu archivo .env."
+  echo "Asegúrate de que el archivo .env exista y contenga tus credenciales."
+  exit 1
+fi
+
 # Reemplaza esto con la URL de tu repositorio de GitHub.
 GITHUB_URL="https://${GITHUB_USER}:${GITHUB_TOKEN}@github.com/yotellevoagr-lang/Yo-Te-Llevo.git"
 BRANCH_NAME="principal2"
