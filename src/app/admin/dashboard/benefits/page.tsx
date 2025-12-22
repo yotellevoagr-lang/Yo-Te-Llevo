@@ -27,7 +27,7 @@ import {
   generateBenefitCode,
   getRedemptionsByBenefit
 } from '@/lib/benefits-services';
-import { getCollection } from '@/lib/firestore-services';
+import { getAllFromCollection } from '@/lib/firestore-services';
 import type { Benefit, BenefitRedemption, Tour, Passenger, DiscountType, EligibleAudience, VisibilityScope } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -82,11 +82,11 @@ export default function AdminBenefitsPage() {
     try {
       const [benefitsData, toursData, passengersData] = await Promise.all([
         getAllBenefits(),
-        getCollection<Tour>('tours'),
-        getCollection<Passenger>('passengers')
+        getAllFromCollection<Tour>('tours'),
+        getAllFromCollection<Passenger>('passengers')
       ]);
       setBenefits(benefitsData);
-      setTours(toursData.filter(t => new Date(t.date) >= new Date()));
+      setTours(toursData.filter((t: Tour) => new Date(t.date) >= new Date()));
       setPassengers(passengersData);
     } catch (error) {
       console.error('Error loading data:', error);
