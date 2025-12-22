@@ -1,7 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ai } from '@/ai/genkit';
+import { initializeApp, getApps, cert, App } from 'firebase-admin/app';
+import { getFirestore, Firestore } from 'firebase-admin/firestore';
 
 export const runtime = 'nodejs';
+
+let adminApp: App | null = null;
+let db: Firestore | null = null;
+
+function initializeFirebaseAdmin() {
+  if (adminApp) return true;
+  
+  try {
+    const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+    if (!serviceAccountKey) return false;
+    
+    const serviceAccount = JSON.parse(serviceAccountKey);
+    
+    if (getApps().length === 0) {
+      adminApp = initializeApp({
+        credential: cert(serviceAccount),
+      });
+    } else {
+      adminApp = getApps()[0];
+    }
+    
+    db = getFirestore(adminApp);
+    return true;
+  } catch (e) {
+    console.error('Firebase Admin initialization error:', e);
+    return false;
+  }
+}
 
 interface TourData {
   id: string;
@@ -26,7 +56,7 @@ interface ContactData {
   hours?: string;
 }
 
-async function fetchFromFirestore(path: string) {
+async function fetchFromFirestoreREST(path: string) {
   const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
   if (!projectId) return null;
   
@@ -41,12 +71,43 @@ async function fetchFromFirestore(path: string) {
     if (!response.ok) return null;
     return await response.json();
   } catch (error) {
-    console.error('Firestore fetch error:', error);
+    console.error('Firestore REST fetch error:', error);
     return null;
   }
 }
 
-async function getAllTours(): Promise<TourData[]> {
+async function getAllToursAdmin(): Promise<TourData[]> {
+  if (!db) return [];
+  
+  try {
+    const toursSnapshot = await db.collection('tours').where('isPublic', '==', true).get();
+    const now = new Date();
+    
+    return toursSnapshot.docs
+      .map(doc => {
+        const data = doc.data();
+        const date = data.date?.toDate ? data.date.toDate() : new Date(data.date);
+        return {
+          id: doc.id,
+          destination: data.destination,
+          date: date.toISOString(),
+          price: data.price,
+          currency: data.currency || 'ARS',
+          days: data.days,
+          nights: data.nights,
+          backgroundImage: data.backgroundImage,
+          isFeatured: data.isFeatured,
+        };
+      })
+      .filter(tour => new Date(tour.date) >= now)
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  } catch (error) {
+    console.error('Error fetching tours with Admin:', error);
+    return [];
+  }
+}
+
+async function getAllToursREST(): Promise<TourData[]> {
   try {
     const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
     if (!projectId) return [];
@@ -100,14 +161,38 @@ async function getAllTours(): Promise<TourData[]> {
       })
       .sort((a: TourData, b: TourData) => new Date(a.date).getTime() - new Date(b.date).getTime());
   } catch (error) {
-    console.error('Error fetching tours:', error);
+    console.error('Error fetching tours with REST:', error);
     return [];
   }
 }
 
-async function getContactInfo(): Promise<ContactData | null> {
+async function getContactInfoAdmin(): Promise<ContactData | null> {
+  if (!db) return null;
+  
   try {
-    const data = await fetchFromFirestore('settings/general');
+    const settingsDoc = await db.collection('settings').doc('general').get();
+    if (!settingsDoc.exists) return null;
+    
+    const data = settingsDoc.data();
+    return {
+      whatsapp: data?.mainWhatsappNumber,
+      phone: data?.contact?.phone,
+      email: data?.contact?.email,
+      address: data?.contact?.address,
+      addressLink: data?.contact?.addressLink,
+      instagram: data?.contact?.instagram,
+      facebook: data?.contact?.facebook,
+      hours: data?.contact?.hours,
+    };
+  } catch (error) {
+    console.error('Error fetching contact with Admin:', error);
+    return null;
+  }
+}
+
+async function getContactInfoREST(): Promise<ContactData | null> {
+  try {
+    const data = await fetchFromFirestoreREST('settings/general');
     if (!data?.fields) return null;
     
     const fields = data.fields;
@@ -124,9 +209,27 @@ async function getContactInfo(): Promise<ContactData | null> {
       hours: contact.hours?.stringValue,
     };
   } catch (error) {
-    console.error('Error fetching contact:', error);
+    console.error('Error fetching contact with REST:', error);
     return null;
   }
+}
+
+async function getAllTours(): Promise<TourData[]> {
+  const hasAdmin = initializeFirebaseAdmin();
+  if (hasAdmin && db) {
+    const tours = await getAllToursAdmin();
+    if (tours.length > 0) return tours;
+  }
+  return getAllToursREST();
+}
+
+async function getContactInfo(): Promise<ContactData | null> {
+  const hasAdmin = initializeFirebaseAdmin();
+  if (hasAdmin && db) {
+    const contact = await getContactInfoAdmin();
+    if (contact) return contact;
+  }
+  return getContactInfoREST();
 }
 
 const SYSTEM_PROMPT = `Eres el asistente virtual de "YO TE LLEVO", una agencia de viajes argentina. Eres amigable, entusiasta y servicial. Respondes siempre en español.
