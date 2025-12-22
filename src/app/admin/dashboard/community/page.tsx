@@ -411,16 +411,16 @@ export default function AdminCommunityPage() {
             <div className="space-y-2">
               <Label>Beneficio adjunto (opcional)</Label>
               <Select
-                value={formData.benefitId}
+                value={formData.benefitId || 'none'}
                 onValueChange={(value) => 
-                  setFormData(prev => ({ ...prev, benefitId: value }))
+                  setFormData(prev => ({ ...prev, benefitId: value === 'none' ? '' : value }))
                 }
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Seleccionar beneficio" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Ninguno</SelectItem>
+                  <SelectItem value="none">Ninguno</SelectItem>
                   {benefits.map((benefit) => (
                     <SelectItem key={benefit.id} value={benefit.id}>
                       {benefit.title} - {benefit.discountType === 'percentage' 
