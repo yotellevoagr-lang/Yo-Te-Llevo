@@ -260,10 +260,14 @@ export default function AdminBenefitsPage() {
   };
   
   const tourOptions = useMemo(() => {
-    return tours.map(t => ({
-      value: t.id,
-      label: `${t.destination} - ${format(new Date(t.date), "dd/MM/yy")}`
-    }))
+    return tours.map(t => {
+      const date = t.date ? new Date(t.date) : null;
+      const dateString = date && !isNaN(date.getTime()) ? format(date, "dd/MM/yy") : 'Fecha inválida';
+      return {
+        value: t.id,
+        label: `${t.destination} - ${dateString}`
+      };
+    });
   }, [tours]);
 
 
