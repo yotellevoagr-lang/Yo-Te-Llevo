@@ -7,6 +7,9 @@
 
 import {getAuth} from 'firebase-admin/auth';
 import { initializeApp, getApps, cert } from 'firebase-admin/app';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 // Ensure Firebase Admin is initialized
 let firebaseAdminInitialized = false;
