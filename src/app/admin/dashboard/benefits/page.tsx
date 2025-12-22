@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
@@ -27,12 +28,37 @@ import {
   generateBenefitCode,
   getRedemptionsByBenefit
 } from '@/lib/benefits-services';
-import { getAllFromCollection } from '@/lib/firestore-services';
+import { getAllFromCollection_client } from '@/lib/firestore-services';
 import type { Benefit, BenefitRedemption, Tour, Passenger, DiscountType, EligibleAudience, VisibilityScope } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
-const defaultFormData = {
+type FormData = {
+  code: string;
+  title: string;
+  description: string;
+  discountType: DiscountType;
+  discountValue: number | '';
+  maxUsesTotal: number | '';
+  maxUsesPerPassenger: number | '';
+  maxPassengersPerUse: number | '';
+  applicableTripIds: string[];
+  eligibleAudience: EligibleAudience;
+  selectedPassengerIds: string[];
+  visibilityScope: VisibilityScope;
+  publishToCommunity: boolean;
+  validFrom: Date;
+  validUntil: Date;
+  autoApply: boolean;
+  design: {
+    backgroundColor: string;
+    textColor: string;
+    accentColor: string;
+    layoutPreset: 'bold';
+  };
+};
+
+const defaultFormData: FormData = {
   code: '',
   title: '',
   description: '',
@@ -69,7 +95,7 @@ export default function AdminBenefitsPage() {
   const [activeTab, setActiveTab] = useState('active');
   const [selectedBenefitRedemptions, setSelectedBenefitRedemptions] = useState<BenefitRedemption[]>([]);
   const [showRedemptionsDialog, setShowRedemptionsDialog] = useState(false);
-  const [formData, setFormData] = useState(defaultFormData);
+  const [formData, setFormData] = useState<FormData>(defaultFormData);
   const { toast } = useToast();
   const couponRef = useRef<HTMLDivElement>(null);
 
@@ -82,8 +108,8 @@ export default function AdminBenefitsPage() {
     try {
       const [benefitsData, toursData, passengersData] = await Promise.all([
         getAllBenefits(),
-        getAllFromCollection<Tour>('tours'),
-        getAllFromCollection<Passenger>('passengers')
+        getAllFromCollection_client<Tour>('tours'),
+        getAllFromCollection_client<Passenger>('passengers')
       ]);
       setBenefits(benefitsData);
       setTours(toursData.filter((t: Tour) => new Date(t.date) >= new Date()));
@@ -148,6 +174,10 @@ export default function AdminBenefitsPage() {
     try {
       const benefitData = {
         ...formData,
+        discountValue: Number(formData.discountValue) || 0,
+        maxUsesTotal: Number(formData.maxUsesTotal) || 0,
+        maxUsesPerPassenger: Number(formData.maxUsesPerPassenger) || 1,
+        maxPassengersPerUse: Number(formData.maxPassengersPerUse) || 1,
         status: 'active' as const,
         createdBy: user?.id || ''
       };
@@ -205,6 +235,13 @@ export default function AdminBenefitsPage() {
     if (activeTab === 'draft') return b.status === 'draft';
     return true;
   });
+
+  const handleNumberChange = (field: keyof FormData, value: string) => {
+    setFormData(prev => ({
+        ...prev,
+        [field]: value === '' ? '' : parseInt(value, 10)
+    }));
+  };
 
   if (loading) {
     return (
@@ -478,10 +515,7 @@ export default function AdminBenefitsPage() {
                   <Input
                     type="number"
                     value={formData.discountValue}
-                    onChange={(e) => setFormData(prev => ({ 
-                      ...prev, 
-                      discountValue: parseInt(e.target.value) || 0 
-                    }))}
+                    onChange={(e) => handleNumberChange('discountValue', e.target.value)}
                   />
                 </div>
                 <div className="space-y-2">
@@ -489,10 +523,7 @@ export default function AdminBenefitsPage() {
                   <Input
                     type="number"
                     value={formData.maxUsesTotal}
-                    onChange={(e) => setFormData(prev => ({ 
-                      ...prev, 
-                      maxUsesTotal: parseInt(e.target.value) || 0 
-                    }))}
+                    onChange={(e) => handleNumberChange('maxUsesTotal', e.target.value)}
                     placeholder="0 = ilimitado"
                   />
                 </div>
@@ -504,10 +535,7 @@ export default function AdminBenefitsPage() {
                   <Input
                     type="number"
                     value={formData.maxUsesPerPassenger}
-                    onChange={(e) => setFormData(prev => ({ 
-                      ...prev, 
-                      maxUsesPerPassenger: parseInt(e.target.value) || 1 
-                    }))}
+                    onChange={(e) => handleNumberChange('maxUsesPerPassenger', e.target.value)}
                     min={1}
                   />
                 </div>
@@ -516,10 +544,7 @@ export default function AdminBenefitsPage() {
                   <Input
                     type="number"
                     value={formData.maxPassengersPerUse}
-                    onChange={(e) => setFormData(prev => ({ 
-                      ...prev, 
-                      maxPassengersPerUse: parseInt(e.target.value) || 1 
-                    }))}
+                    onChange={(e) => handleNumberChange('maxPassengersPerUse', e.target.value)}
                     min={1}
                   />
                 </div>
@@ -665,8 +690,8 @@ export default function AdminBenefitsPage() {
                   style={{ color: formData.design.accentColor }}
                 >
                   {formData.discountType === 'percentage' 
-                    ? `${formData.discountValue}% OFF`
-                    : `$${formData.discountValue} OFF`
+                    ? `${formData.discountValue || 0}% OFF`
+                    : `$${formData.discountValue || 0} OFF`
                   }
                 </div>
                 <div 
@@ -830,3 +855,4 @@ export default function AdminBenefitsPage() {
     </div>
   );
 }
+
