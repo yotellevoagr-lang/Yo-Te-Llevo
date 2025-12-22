@@ -1,85 +1,128 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ai } from '@/ai/genkit';
-import { initializeApp, getApps, cert } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
 
 export const runtime = 'nodejs';
-
-if (getApps().length === 0) {
-  try {
-    const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
-    if (serviceAccountKey) {
-      initializeApp({
-        credential: cert(JSON.parse(serviceAccountKey)),
-      });
-    }
-  } catch (e) {
-    console.error('Firebase Admin initialization error:', e);
-  }
-}
 
 interface TourData {
   id: string;
   destination: string;
-  date: Date;
+  date: string;
   price: number;
   currency: string;
   days?: number;
   nights?: number;
   backgroundImage?: string;
   isFeatured?: boolean;
-  description?: string;
+}
+
+interface ContactData {
+  whatsapp?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  addressLink?: string;
+  instagram?: string;
+  facebook?: string;
+  hours?: string;
+}
+
+async function fetchFromFirestore(path: string) {
+  const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+  if (!projectId) return null;
+  
+  try {
+    const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/${path}`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+      next: { revalidate: 60 }
+    });
+    
+    if (!response.ok) return null;
+    return await response.json();
+  } catch (error) {
+    console.error('Firestore fetch error:', error);
+    return null;
+  }
 }
 
 async function getAllTours(): Promise<TourData[]> {
   try {
-    const db = getFirestore();
-    const toursSnapshot = await db.collection('tours').where('isPublic', '==', true).get();
+    const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+    if (!projectId) return [];
+    
+    const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/tours`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+      next: { revalidate: 60 }
+    });
+    
+    if (!response.ok) return [];
+    const data = await response.json();
+    
+    if (!data.documents) return [];
+    
     const now = new Date();
     
-    return toursSnapshot.docs
-      .map(doc => {
-        const data = doc.data();
-        const date = data.date?.toDate ? data.date.toDate() : new Date(data.date);
+    return data.documents
+      .map((doc: any) => {
+        const fields = doc.fields;
+        const id = doc.name.split('/').pop();
+        
+        let dateValue: Date;
+        if (fields.date?.timestampValue) {
+          dateValue = new Date(fields.date.timestampValue);
+        } else if (fields.date?.stringValue) {
+          dateValue = new Date(fields.date.stringValue);
+        } else {
+          dateValue = new Date();
+        }
+        
+        const isPublic = fields.isPublic?.booleanValue ?? true;
+        if (!isPublic) return null;
+        
         return {
-          id: doc.id,
-          destination: data.destination,
-          date: date,
-          price: data.price,
-          currency: data.currency || 'ARS',
-          days: data.days,
-          nights: data.nights,
-          backgroundImage: data.backgroundImage,
-          isFeatured: data.isFeatured,
-          description: data.description,
+          id,
+          destination: fields.destination?.stringValue || '',
+          date: dateValue.toISOString(),
+          price: parseInt(fields.price?.integerValue || fields.price?.doubleValue || '0'),
+          currency: fields.currency?.stringValue || 'ARS',
+          days: parseInt(fields.days?.integerValue || '0') || undefined,
+          nights: parseInt(fields.nights?.integerValue || '0') || undefined,
+          backgroundImage: fields.backgroundImage?.stringValue,
+          isFeatured: fields.isFeatured?.booleanValue || false,
         };
       })
-      .filter(tour => tour.date >= now)
-      .sort((a, b) => a.date.getTime() - b.date.getTime());
+      .filter((tour: TourData | null): tour is TourData => {
+        if (!tour) return false;
+        return new Date(tour.date) >= now;
+      })
+      .sort((a: TourData, b: TourData) => new Date(a.date).getTime() - new Date(b.date).getTime());
   } catch (error) {
     console.error('Error fetching tours:', error);
     return [];
   }
 }
 
-async function getContactInfo() {
+async function getContactInfo(): Promise<ContactData | null> {
   try {
-    const db = getFirestore();
-    const settingsDoc = await db.collection('settings').doc('general').get();
-    if (settingsDoc.exists) {
-      const data = settingsDoc.data();
-      return {
-        whatsapp: data?.mainWhatsappNumber,
-        phone: data?.contact?.phone,
-        email: data?.contact?.email,
-        address: data?.contact?.address,
-        addressLink: data?.contact?.addressLink,
-        instagram: data?.contact?.instagram,
-        facebook: data?.contact?.facebook,
-        hours: data?.contact?.hours,
-      };
-    }
-    return null;
+    const data = await fetchFromFirestore('settings/general');
+    if (!data?.fields) return null;
+    
+    const fields = data.fields;
+    const contact = fields.contact?.mapValue?.fields || {};
+    
+    return {
+      whatsapp: fields.mainWhatsappNumber?.stringValue,
+      phone: contact.phone?.stringValue,
+      email: contact.email?.stringValue,
+      address: contact.address?.stringValue,
+      addressLink: contact.addressLink?.stringValue,
+      instagram: contact.instagram?.stringValue,
+      facebook: contact.facebook?.stringValue,
+      hours: contact.hours?.stringValue,
+    };
   } catch (error) {
     console.error('Error fetching contact:', error);
     return null;
@@ -136,7 +179,7 @@ URLs DISPONIBLES:
 - Iniciar sesión: /login
 - Perfil: /profile
 
-Responde SOLO con JSON válido, sin texto adicional.`;
+Responde SOLO con JSON válido, sin texto adicional ni markdown.`;
 
 export async function POST(request: NextRequest) {
   try {
@@ -152,9 +195,10 @@ export async function POST(request: NextRequest) {
     ]);
 
     const toursDataStr = allTours.length > 0 
-      ? allTours.map(t => 
-          `ID: ${t.id}, Destino: ${t.destination}, Fecha: ${t.date.toLocaleDateString('es-AR')}, Precio: ${t.currency === 'USD' ? 'USD ' : ''}$${t.price}, Días: ${t.days || 'N/A'}, Noches: ${t.nights || 'N/A'}, Destacado: ${t.isFeatured ? 'Sí' : 'No'}`
-        ).join('\n')
+      ? allTours.map(t => {
+          const date = new Date(t.date);
+          return `ID: ${t.id}, Destino: ${t.destination}, Fecha: ${date.toLocaleDateString('es-AR')}, Precio: ${t.currency === 'USD' ? 'USD ' : ''}$${t.price}, Días: ${t.days || 'N/A'}, Noches: ${t.nights || 'N/A'}, Destacado: ${t.isFeatured ? 'Sí' : 'No'}`;
+        }).join('\n')
       : 'No hay viajes disponibles actualmente.';
 
     const contactDataStr = contactInfo 
@@ -184,7 +228,8 @@ export async function POST(request: NextRequest) {
     let parsedResponse: any = { message: text, action: 'none' };
 
     try {
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      const cleanedText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      const jsonMatch = cleanedText.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         parsedResponse = JSON.parse(jsonMatch[0]);
       }
@@ -194,12 +239,7 @@ export async function POST(request: NextRequest) {
 
     let tours = null;
     if (parsedResponse.action === 'showTours' && parsedResponse.tourIds?.length > 0) {
-      tours = allTours
-        .filter(t => parsedResponse.tourIds.includes(t.id))
-        .map(t => ({
-          ...t,
-          date: t.date.toISOString()
-        }));
+      tours = allTours.filter(t => parsedResponse.tourIds.includes(t.id));
     }
 
     let links = null;
