@@ -336,17 +336,17 @@ export default function AIChatbot() {
                   )}
 
                   {message.links && message.links.length > 0 && (
-                    <div className="ml-11 flex flex-wrap gap-2">
+                    <div className="ml-11 grid grid-cols-2 gap-2 max-w-[280px]">
                       {message.links.map((link, linkIndex) => (
                         <Button
                           key={linkIndex}
                           variant="outline"
                           size="sm"
-                          className="text-xs gap-2"
+                          className="text-xs gap-1.5 h-9 justify-start px-2 truncate"
                           onClick={() => handleLinkClick(link.url)}
                         >
-                          {getLinkIcon(link.icon)}
-                          {link.text}
+                          <span className="shrink-0">{getLinkIcon(link.icon)}</span>
+                          <span className="truncate">{link.text}</span>
                         </Button>
                       ))}
                     </div>
