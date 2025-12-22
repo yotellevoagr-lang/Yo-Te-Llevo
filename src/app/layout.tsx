@@ -37,7 +37,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: defaultTitle,
     description: defaultDescription,
-    manifest: "/manifest.webmanifest",
+    manifest: "/manifest.json",
     icons: {
       icon: "/favicon.ico", // Always use the static favicon for the browser tab
       apple: pwaIconUrl, // Use the dynamic icon for Apple devices
