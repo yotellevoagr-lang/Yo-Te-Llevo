@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Instagram, Facebook, ChevronUp, ChevronDown, MessageCircle } from 'lucide-react';
-import Chatbot from '@/components/chatbot';
+import AIChatbot from '@/components/ai-chatbot';
 import { InstallPwaButton } from '@/components/install-pwa-button';
 import { getDocumentById } from '@/lib/firestore-services';
 import type { GeneralSettings } from '@/lib/types';
@@ -106,7 +106,7 @@ export function FixedActionButtons() {
                     </a>
                 </Button>
             )}
-            <Chatbot />
+            <AIChatbot />
             <InstallPwaButton />
         </div>
     </div>

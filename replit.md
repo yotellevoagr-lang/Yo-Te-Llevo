@@ -41,6 +41,16 @@ The project uses Firebase configuration stored in `.env`:
 - `FIREBASE_SERVICE_ACCOUNT_KEY` - For server-side Firebase Admin
 
 ## Recent Changes
+- 2025-12-22: Asistente virtual con IA (Gemini)
+  - Nuevo componente AIChatbot reemplaza el chatbot basado en reglas
+  - API /api/chat conecta con Google Gemini 1.5 Flash
+  - Respuestas inteligentes sobre viajes, reservas, pagos y la empresa
+  - Historial de conversación para contexto
+  - Botón de reiniciar conversación
+- 2025-12-22: Mejoras en PWA
+  - Manifest ahora usa archivos locales (mejor rendimiento)
+  - Agregados shortcuts para acceso rápido (Ver Viajes, Ver Flyers, Login)
+  - Corregido problema de velocidad de carga
 - 2025-12-20: Sistema de iconos y screenshots PWA desde configuración
   - API /api/pwa/icons: Sube un ícono grande (>=512x512) y genera automáticamente todos los tamaños (72, 96, 128, 144, 152, 192, 384, 512) + maskable + SVG
   - API /api/pwa/screenshots: Sube múltiples screenshots que reemplazan los existentes y actualizan manifest.json
