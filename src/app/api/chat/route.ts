@@ -18,13 +18,26 @@ if (getApps().length === 0) {
   }
 }
 
-async function getActiveTours() {
+interface TourData {
+  id: string;
+  destination: string;
+  date: Date;
+  price: number;
+  currency: string;
+  days?: number;
+  nights?: number;
+  backgroundImage?: string;
+  isFeatured?: boolean;
+  description?: string;
+}
+
+async function getAllTours(): Promise<TourData[]> {
   try {
     const db = getFirestore();
     const toursSnapshot = await db.collection('tours').where('isPublic', '==', true).get();
     const now = new Date();
     
-    const tours = toursSnapshot.docs
+    return toursSnapshot.docs
       .map(doc => {
         const data = doc.data();
         const date = data.date?.toDate ? data.date.toDate() : new Date(data.date);
@@ -38,61 +51,92 @@ async function getActiveTours() {
           nights: data.nights,
           backgroundImage: data.backgroundImage,
           isFeatured: data.isFeatured,
+          description: data.description,
         };
       })
       .filter(tour => tour.date >= now)
-      .sort((a, b) => a.date.getTime() - b.date.getTime())
-      .slice(0, 5);
-    
-    return tours;
+      .sort((a, b) => a.date.getTime() - b.date.getTime());
   } catch (error) {
     console.error('Error fetching tours:', error);
     return [];
   }
 }
 
-const SYSTEM_PROMPT = `Eres el asistente virtual de "YO TE LLEVO", una agencia de viajes argentina especializada en viajes grupales económicos y llenos de buena onda.
+async function getContactInfo() {
+  try {
+    const db = getFirestore();
+    const settingsDoc = await db.collection('settings').doc('general').get();
+    if (settingsDoc.exists) {
+      const data = settingsDoc.data();
+      return {
+        whatsapp: data?.mainWhatsappNumber,
+        phone: data?.contact?.phone,
+        email: data?.contact?.email,
+        address: data?.contact?.address,
+        addressLink: data?.contact?.addressLink,
+        instagram: data?.contact?.instagram,
+        facebook: data?.contact?.facebook,
+        hours: data?.contact?.hours,
+      };
+    }
+    return null;
+  } catch (error) {
+    console.error('Error fetching contact:', error);
+    return null;
+  }
+}
 
-Tu personalidad:
-- Eres amigable, entusiasta y servicial
-- Usas un tono cercano pero profesional
-- Puedes usar emojis ocasionalmente para ser más expresivo
-- Respondes siempre en español
+const SYSTEM_PROMPT = `Eres el asistente virtual de "YO TE LLEVO", una agencia de viajes argentina. Eres amigable, entusiasta y servicial. Respondes siempre en español.
 
-Información sobre la empresa:
-- Nombre: YO TE LLEVO
-- Especialidad: Viajes grupales económicos
-- Servicios: Tours, excursiones, viajes de aventura
-- Los viajes generalmente incluyen: transporte, alojamiento y coordinación permanente
-- Las comidas y excursiones opcionales suelen ser aparte
+DATOS DE VIAJES DISPONIBLES:
+{{TOURS_DATA}}
 
-Cómo reservar:
-1. El cliente elige el viaje que más le guste en la sección "Tours"
-2. Hace clic en "Reservar" y completa los datos de los pasajeros
-3. Envía la solicitud y un vendedor se comunica por WhatsApp para coordinar el pago
+DATOS DE CONTACTO:
+{{CONTACT_DATA}}
 
-Métodos de pago:
-- Transferencia bancaria
-- Tarjeta de crédito/débito
-- Efectivo
+INSTRUCCIONES IMPORTANTES:
+Debes responder SIEMPRE en formato JSON válido con esta estructura:
+{
+  "message": "Tu respuesta amigable aquí",
+  "action": "none" | "showTours" | "showContact" | "showLinks",
+  "tourIds": ["id1", "id2"],
+  "links": [{"text": "texto", "url": "url", "icon": "whatsapp|instagram|facebook|email|phone|map|web"}]
+}
 
-IMPORTANTE - Detección de intención:
-Si el usuario pregunta por viajes disponibles, destinos, tours, o quiere ver opciones de viajes, DEBES responder EXACTAMENTE con este formato JSON:
-{"showTours": true, "message": "Tu mensaje amigable aquí"}
+REGLAS DE ACCIÓN:
+1. Si preguntan por viajes, tours, destinos, o quieren ver opciones:
+   - action: "showTours"
+   - tourIds: IDs de los viajes relevantes (máximo 5)
+   - Filtra según lo que pidan: más baratos, más caros, por destino, por fecha, destacados, etc.
 
-Ejemplos de frases que indican que quiere ver viajes:
-- "qué viajes tienen"
-- "quiero ver viajes"
-- "a dónde puedo viajar"
-- "destinos disponibles"
-- "qué tours hay"
-- "opciones de viaje"
-- "quiero viajar"
-- "mostrame los viajes"
+2. Si preguntan por contacto, teléfono, WhatsApp, email, redes sociales, dirección:
+   - action: "showContact"
+   - links: array con los enlaces relevantes
 
-Para cualquier otra pregunta, responde normalmente con texto.
+3. Si mencionan algo que requiere un enlace (reservar, ver tours, registrarse):
+   - action: "showLinks"
+   - links: con las URLs correspondientes
 
-Mantén tus respuestas concisas pero útiles (máximo 3-4 oraciones para respuestas simples).`;
+4. Para preguntas generales sin necesidad de mostrar datos:
+   - action: "none"
+   - Solo responde con message
+
+EJEMPLOS DE FILTROS:
+- "viaje más barato" → ordena por precio ascendente, muestra el primero
+- "viajes baratos" → ordena por precio, muestra los 3 más baratos
+- "viajes caros" → ordena por precio descendente
+- "viajes destacados" → filtra isFeatured = true
+- "viajes en enero" → filtra por fecha
+- "viaje a Cataratas" → busca por destino
+
+URLs DISPONIBLES:
+- Ver todos los tours: /tours
+- Reservar viaje específico: /booking/[id]
+- Registrarse: /login?mode=register
+- Iniciar sesión: /login
+- Perfil: /profile
+
+Responde SOLO con JSON válido, sin texto adicional.`;
 
 export async function POST(request: NextRequest) {
   try {
@@ -102,6 +146,25 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Messages array required' }, { status: 400 });
     }
 
+    const [allTours, contactInfo] = await Promise.all([
+      getAllTours(),
+      getContactInfo()
+    ]);
+
+    const toursDataStr = allTours.length > 0 
+      ? allTours.map(t => 
+          `ID: ${t.id}, Destino: ${t.destination}, Fecha: ${t.date.toLocaleDateString('es-AR')}, Precio: ${t.currency === 'USD' ? 'USD ' : ''}$${t.price}, Días: ${t.days || 'N/A'}, Noches: ${t.nights || 'N/A'}, Destacado: ${t.isFeatured ? 'Sí' : 'No'}`
+        ).join('\n')
+      : 'No hay viajes disponibles actualmente.';
+
+    const contactDataStr = contactInfo 
+      ? `WhatsApp: ${contactInfo.whatsapp || 'N/A'}, Teléfono: ${contactInfo.phone || 'N/A'}, Email: ${contactInfo.email || 'N/A'}, Instagram: ${contactInfo.instagram || 'N/A'}, Facebook: ${contactInfo.facebook || 'N/A'}, Dirección: ${contactInfo.address || 'N/A'}, Horario: ${contactInfo.hours || 'N/A'}`
+      : 'Información de contacto no disponible.';
+
+    const systemPrompt = SYSTEM_PROMPT
+      .replace('{{TOURS_DATA}}', toursDataStr)
+      .replace('{{CONTACT_DATA}}', contactDataStr);
+
     const conversationHistory = messages.map((msg: { role: string; content: string }) => ({
       role: msg.role === 'user' ? 'user' as const : 'model' as const,
       content: [{ text: msg.content }]
@@ -109,32 +172,69 @@ export async function POST(request: NextRequest) {
 
     const response = await ai.generate({
       model: 'googleai/gemini-2.0-flash',
-      system: SYSTEM_PROMPT,
+      system: systemPrompt,
       messages: conversationHistory,
       config: {
         temperature: 0.7,
-        maxOutputTokens: 500,
+        maxOutputTokens: 1000,
       }
     });
 
     let text = response.text;
-    let tours = null;
+    let parsedResponse: any = { message: text, action: 'none' };
 
     try {
-      const jsonMatch = text.match(/\{[\s\S]*"showTours"[\s\S]*\}/);
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
-        if (parsed.showTours) {
-          tours = await getActiveTours();
-          text = parsed.message || "¡Aquí tienes los viajes disponibles!";
-        }
+        parsedResponse = JSON.parse(jsonMatch[0]);
       }
     } catch (e) {
+      parsedResponse = { message: text, action: 'none' };
+    }
+
+    let tours = null;
+    if (parsedResponse.action === 'showTours' && parsedResponse.tourIds?.length > 0) {
+      tours = allTours
+        .filter(t => parsedResponse.tourIds.includes(t.id))
+        .map(t => ({
+          ...t,
+          date: t.date.toISOString()
+        }));
+    }
+
+    let links = null;
+    if (parsedResponse.action === 'showContact' && contactInfo) {
+      links = [];
+      if (contactInfo.whatsapp) {
+        links.push({
+          text: 'WhatsApp',
+          url: `https://wa.me/${contactInfo.whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent('Hola! Quisiera hacer una consulta.')}`,
+          icon: 'whatsapp'
+        });
+      }
+      if (contactInfo.phone) {
+        links.push({ text: contactInfo.phone, url: `tel:${contactInfo.phone}`, icon: 'phone' });
+      }
+      if (contactInfo.email) {
+        links.push({ text: contactInfo.email, url: `mailto:${contactInfo.email}`, icon: 'email' });
+      }
+      if (contactInfo.instagram) {
+        links.push({ text: 'Instagram', url: contactInfo.instagram, icon: 'instagram' });
+      }
+      if (contactInfo.facebook) {
+        links.push({ text: 'Facebook', url: contactInfo.facebook, icon: 'facebook' });
+      }
+      if (contactInfo.address && contactInfo.addressLink) {
+        links.push({ text: contactInfo.address, url: contactInfo.addressLink, icon: 'map' });
+      }
+    } else if (parsedResponse.links?.length > 0) {
+      links = parsedResponse.links;
     }
 
     return NextResponse.json({ 
-      message: text,
+      message: parsedResponse.message || text,
       tours: tours,
+      links: links,
       success: true 
     });
 

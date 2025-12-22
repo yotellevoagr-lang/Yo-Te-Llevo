@@ -12,11 +12,18 @@ import {
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Bot, User, Send, RotateCcw, MessageCircle, Calendar, MapPin, Eye, Ticket } from "lucide-react";
+import { Bot, User, Send, RotateCcw, MessageCircle, Calendar, MapPin, Eye, Ticket, Phone, Mail, Instagram, Facebook, Map, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+
+const WhatsAppIcon = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
+    <path d="M17.472 14.382c-.297-.149-.88-.436-1.017-.486-.137-.05-.282-.075-.427.05-.145.122-.458.583-.563.708-.104.122-.208.147-.386.022-.178-.122-1.072-.368-2.04-1.25-.76-.695-1.27-1.558-1.417-1.823-.145-.265-.015-.422.104-.563.102-.125.232-.208.335-.308.102-.1.153-.175.231-.285.078-.11.038-.213-.015-.335-.053-.125-.478-1.153-.655-1.578-.172-.423-.348-.368-.478-.368h-.137c-.137 0-.358.05-.535.25-.178.2-.655.633-.655 1.538 0 .903.67 1.785.764 1.908.096.123 1.303 2.083 3.25 2.873.432.178.765.285 1.026.368.423.137.804.113.972.05.19-.075.583-.242.667-.478.083-.23.083-.448.058-.478-.025-.03-.149-.075-.323-.15z"/>
+    <path d="M12.002 2.002c-5.522 0-9.998 4.476-9.998 9.998 0 1.758.455 3.42 1.258 4.896L2 22l5.244-1.378c1.42.758 3.036 1.18 4.756 1.18 5.522 0 9.998-4.476 9.998-9.998s-4.476-9.998-9.998-9.998zm0 18.156c-1.603 0-3.14-.38-4.502-1.078l-.322-.192-3.35 1.042 1.058-3.264-.213-.342c-.75-1.205-1.153-2.61-1.153-4.088 0-4.524 3.67-8.198 8.198-8.198 4.524 0 8.198 3.674 8.198 8.198s-3.674 8.198-8.198 8.198z"/>
+  </svg>
+);
 
 interface TourData {
   id: string;
@@ -30,11 +37,30 @@ interface TourData {
   isFeatured?: boolean;
 }
 
+interface LinkData {
+  text: string;
+  url: string;
+  icon?: string;
+}
+
 interface Message {
   role: "user" | "assistant";
   content: string;
   tours?: TourData[];
+  links?: LinkData[];
 }
+
+const getLinkIcon = (icon?: string) => {
+  switch (icon) {
+    case 'whatsapp': return <WhatsAppIcon className="h-4 w-4" />;
+    case 'phone': return <Phone className="h-4 w-4" />;
+    case 'email': return <Mail className="h-4 w-4" />;
+    case 'instagram': return <Instagram className="h-4 w-4" />;
+    case 'facebook': return <Facebook className="h-4 w-4" />;
+    case 'map': return <Map className="h-4 w-4" />;
+    default: return <ExternalLink className="h-4 w-4" />;
+  }
+};
 
 export default function AIChatbot() {
   const [isOpen, setIsOpen] = useState(false);
@@ -63,7 +89,7 @@ export default function AIChatbot() {
     if (isOpen && messages.length === 0) {
       setMessages([{
         role: "assistant",
-        content: "¡Hola! 👋 Soy el asistente virtual de YO TE LLEVO. ¿En qué puedo ayudarte hoy?\n\nPuedo mostrarte los viajes disponibles, explicarte cómo reservar, informarte sobre métodos de pago y más."
+        content: "¡Hola! 👋 Soy el asistente virtual de YO TE LLEVO.\n\n¿Qué te gustaría saber? Puedo ayudarte a encontrar el viaje perfecto, mostrarte los más baratos, los destacados, darte info de contacto y más."
       }]);
     }
   }, [isOpen, messages.length]);
@@ -96,7 +122,8 @@ export default function AIChatbot() {
         setMessages(prev => [...prev, { 
           role: "assistant", 
           content: data.message,
-          tours: data.tours || undefined
+          tours: data.tours || undefined,
+          links: data.links || undefined
         }]);
       } else {
         setMessages(prev => [...prev, { 
@@ -125,7 +152,7 @@ export default function AIChatbot() {
   const resetChat = () => {
     setMessages([{
       role: "assistant",
-      content: "¡Hola! 👋 Soy el asistente virtual de YO TE LLEVO. ¿En qué puedo ayudarte hoy?\n\nPuedo mostrarte los viajes disponibles, explicarte cómo reservar, informarte sobre métodos de pago y más."
+      content: "¡Hola! 👋 Soy el asistente virtual de YO TE LLEVO.\n\n¿Qué te gustaría saber? Puedo ayudarte a encontrar el viaje perfecto, mostrarte los más baratos, los destacados, darte info de contacto y más."
     }]);
   };
 
@@ -134,16 +161,28 @@ export default function AIChatbot() {
     setIsOpen(false);
   };
 
-  const handleQuickAction = (action: string) => {
-    setInput(action);
-    setTimeout(() => {
-      const form = document.querySelector('[data-chat-form]');
-      if (form) {
-        const event = new Event('submit', { bubbles: true });
-        form.dispatchEvent(event);
-      }
-    }, 100);
+  const handleLinkClick = (url: string) => {
+    if (url.startsWith('/')) {
+      router.push(url);
+      setIsOpen(false);
+    } else {
+      window.open(url, '_blank');
+    }
   };
+
+  const handleQuickAction = (text: string) => {
+    setInput(text);
+    setTimeout(() => sendMessage(), 50);
+  };
+
+  useEffect(() => {
+    if (input && isLoading === false) {
+      const timer = setTimeout(() => {
+        if (input) sendMessage();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, []);
 
   const formatTourDate = (dateStr: string) => {
     try {
@@ -185,7 +224,7 @@ export default function AIChatbot() {
                 <div>
                   <SheetTitle className="text-primary-foreground">Asistente IA</SheetTitle>
                   <SheetDescription className="text-primary-foreground/70 text-xs">
-                    YO TE LLEVO
+                    Powered by Gemini
                   </SheetDescription>
                 </div>
               </div>
@@ -295,6 +334,23 @@ export default function AIChatbot() {
                       ))}
                     </div>
                   )}
+
+                  {message.links && message.links.length > 0 && (
+                    <div className="ml-11 flex flex-wrap gap-2">
+                      {message.links.map((link, linkIndex) => (
+                        <Button
+                          key={linkIndex}
+                          variant="outline"
+                          size="sm"
+                          className="text-xs gap-2"
+                          onClick={() => handleLinkClick(link.url)}
+                        >
+                          {getLinkIcon(link.icon)}
+                          {link.text}
+                        </Button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
 
@@ -317,13 +373,13 @@ export default function AIChatbot() {
 
               {messages.length === 1 && (
                 <div className="space-y-2 pt-2">
-                  <p className="text-xs text-muted-foreground text-center">Acciones rápidas:</p>
+                  <p className="text-xs text-muted-foreground text-center">Preguntame lo que quieras:</p>
                   <div className="flex flex-wrap gap-2 justify-center">
                     <Button
                       variant="outline"
                       size="sm"
                       className="text-xs"
-                      onClick={() => handleQuickAction("Mostrame los viajes disponibles")}
+                      onClick={() => { setInput("Mostrame los viajes disponibles"); setTimeout(sendMessage, 100); }}
                     >
                       ✈️ Ver viajes
                     </Button>
@@ -331,17 +387,25 @@ export default function AIChatbot() {
                       variant="outline"
                       size="sm"
                       className="text-xs"
-                      onClick={() => handleQuickAction("¿Cómo puedo reservar?")}
+                      onClick={() => { setInput("¿Cuál es el viaje más barato?"); setTimeout(sendMessage, 100); }}
                     >
-                      📝 Cómo reservar
+                      💰 Más barato
                     </Button>
                     <Button
                       variant="outline"
                       size="sm"
                       className="text-xs"
-                      onClick={() => handleQuickAction("¿Cuáles son los métodos de pago?")}
+                      onClick={() => { setInput("Datos de contacto"); setTimeout(sendMessage, 100); }}
                     >
-                      💳 Métodos de pago
+                      📞 Contacto
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-xs"
+                      onClick={() => { setInput("¿Cómo puedo reservar?"); setTimeout(sendMessage, 100); }}
+                    >
+                      📝 Cómo reservar
                     </Button>
                   </div>
                 </div>
@@ -351,7 +415,6 @@ export default function AIChatbot() {
 
           <div className="p-4 border-t bg-background">
             <form 
-              data-chat-form
               onSubmit={(e) => { e.preventDefault(); sendMessage(); }}
               className="flex gap-2"
             >
