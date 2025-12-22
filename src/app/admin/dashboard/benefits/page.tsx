@@ -247,29 +247,63 @@ export default function AdminBenefitsPage() {
   const handleTripSelect = (tripId: string) => {
     if (!tripId) return;
     setFormData(prev => {
-        if (prev.applicableTripIds.includes(tripId)) return prev;
-        return { ...prev, applicableTripIds: [...prev.applicableTripIds, tripId] };
+        const newApplicableTripIds = prev.applicableTripIds.includes(tripId)
+            ? prev.applicableTripIds
+            : [...prev.applicableTripIds, tripId];
+        
+        const selectedTours = tours.filter(t => newApplicableTripIds.includes(t.id));
+        let newValidUntil = prev.validUntil;
+
+        if (selectedTours.length > 0) {
+            newValidUntil = selectedTours.reduce((latest, current) => {
+                const currentDate = new Date(current.date);
+                return currentDate > latest ? currentDate : latest;
+            }, new Date(0));
+        }
+
+        return { ...prev, applicableTripIds: newApplicableTripIds, validUntil: newValidUntil };
     });
   };
 
   const handleTripRemove = (tripId: string) => {
-      setFormData(prev => ({
-          ...prev,
-          applicableTripIds: prev.applicableTripIds.filter(id => id !== tripId)
-      }));
+      setFormData(prev => {
+          const newApplicableTripIds = prev.applicableTripIds.filter(id => id !== tripId);
+          const selectedTours = tours.filter(t => newApplicableTripIds.includes(t.id));
+          let newValidUntil = prev.validUntil;
+
+          if (selectedTours.length > 0) {
+              newValidUntil = selectedTours.reduce((latest, current) => {
+                  const currentDate = new Date(current.date);
+                  return currentDate > latest ? currentDate : latest;
+              }, new Date(0));
+          } else {
+              // If no trips are selected, reset to default or keep user-defined date
+              newValidUntil = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+          }
+          
+          return { ...prev, applicableTripIds: newApplicableTripIds, validUntil: newValidUntil };
+      });
   };
   
   const tourOptions = useMemo(() => {
     return tours.map(t => {
-      const date = t.date ? new Date(t.date) : null;
-      const dateString = date && !isNaN(date.getTime()) ? format(date, "dd/MM/yy") : 'Fecha inválida';
+      let dateString = 'Fecha inválida';
+      try {
+        const date = new Date(t.date);
+        if (!isNaN(date.getTime())) {
+          dateString = format(date, "dd/MM/yy");
+        }
+      } catch (e) {
+        // keep default dateString
+      }
       return {
         value: t.id,
         label: `${t.destination} - ${dateString}`
       };
     });
   }, [tours]);
-
+  
+  const isDateDisabled = formData.applicableTripIds.length > 0;
 
   if (loading) {
     return (
@@ -578,12 +612,12 @@ export default function AdminBenefitsPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className={cn("grid grid-cols-2 gap-4", isDateDisabled && "opacity-50")}>
                 <div className="space-y-2">
                   <Label>Válido Desde</Label>
                   <Popover>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" className="w-full justify-start text-left font-normal">
+                      <Button variant="outline" className="w-full justify-start text-left font-normal" disabled={isDateDisabled}>
                         <CalendarIcon className="mr-2 h-4 w-4" />
                         {format(formData.validFrom, "dd/MM/yyyy")}
                       </Button>
@@ -594,6 +628,7 @@ export default function AdminBenefitsPage() {
                         selected={formData.validFrom}
                         onSelect={(date) => date && setFormData(prev => ({ ...prev, validFrom: date }))}
                         locale={es}
+                        disabled={isDateDisabled}
                       />
                     </PopoverContent>
                   </Popover>
@@ -602,7 +637,7 @@ export default function AdminBenefitsPage() {
                   <Label>Válido Hasta</Label>
                   <Popover>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" className="w-full justify-start text-left font-normal">
+                      <Button variant="outline" className="w-full justify-start text-left font-normal" disabled={isDateDisabled}>
                         <CalendarIcon className="mr-2 h-4 w-4" />
                         {format(formData.validUntil, "dd/MM/yyyy")}
                       </Button>
@@ -613,19 +648,23 @@ export default function AdminBenefitsPage() {
                         selected={formData.validUntil}
                         onSelect={(date) => date && setFormData(prev => ({ ...prev, validUntil: date }))}
                         locale={es}
+                        disabled={isDateDisabled}
                       />
                     </PopoverContent>
                   </Popover>
                 </div>
               </div>
+              {isDateDisabled && (
+                <p className="text-xs text-muted-foreground -mt-2">La fecha de vencimiento se ajusta automáticamente al último viaje seleccionado.</p>
+              )}
 
               <div className="space-y-2">
                 <Label>Seleccionar Viaje</Label>
                  <SearchableSelect
-                    options={[{ value: 'all-trips', label: 'Todos los Viajes' }, ...tourOptions]}
+                    options={tourOptions}
                     value={''}
                     onChange={handleTripSelect}
-                    placeholder="Buscar viaje para aplicar beneficio..."
+                    placeholder="Buscar y agregar viaje..."
                   />
                   <p className="text-xs text-muted-foreground">Si no se selecciona ninguno, el beneficio aplica a todos los viajes.</p>
                   <div className="flex flex-wrap gap-2 pt-2">
