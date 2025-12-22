@@ -1,0 +1,51 @@
+Action Items
+
+2
+
+4
+
+3
+
+8
+The icons in your web manifest must be fetchable and must have an image content-type.
+
+Error: Fetching image https://firebasestorage.googleapis.com/v0/b/yo-te-llevo-1021c.firebasestorage.app/o/settings%2Fpwa-icon.png?alt=media&token=670aade2-00c2-4c7e-a8c9-1e0b010d37f8 failed with status code 404 Not Found.
+
+The declared types of icons in your web manifest must match their actual file types.
+
+Error: Fetching image https://firebasestorage.googleapis.com/v0/b/yo-te-llevo-1021c.firebasestorage.app/o/settings%2Fpwa-icon.png?alt=media&token=670aade2-00c2-4c7e-a8c9-1e0b010d37f8 failed with status code 404 Not Found.
+
+Service Workers sit between your web app and the network. They are intended to enable the creation of effective offline experiences, intercept network requests, and take appropriate action based on whether the network is available. They also allow access to push notifications and background sync APIs.
+
+A square, 512x512 or larger PNG image with purpose set to any is recommended for packaging your PWA for app stores.
+
+The declared sizes of icons in your web manifest must match their actual dimensions.
+
+Error: Fetching image https://firebasestorage.googleapis.com/v0/b/yo-te-llevo-1021c.firebasestorage.app/o/settings%2Fpwa-icon.png?alt=media&token=670aade2-00c2-4c7e-a8c9-1e0b010d37f8 failed with 404 Not Found.
+
+The declared sizes of screenshots in your web manifest must match their actual dimensions.
+
+Error: Your web manifest declares https://firebasestorage.googleapis.com/v0/b/yo-te-llevo-1021c.firebasestorage.app/o/settings%2F1766253584128_q8dsgj1.png?alt=media&token=9d9264d2-8c83-4956-aeed-8da93fa02b5d to be 1920x1080, but its actual size is 720x1537.
+
+The related_applications member specifies an array of objects that are related applications to the web app. This can include native applications that the user can install or use in conjunction with the web app.
+
+The iarc_rating_id member is a string that represents the International Age Rating Coalition (IARC) certification code of the web application. It is intended to be used to determine which ages the web application is appropriate for.
+
+Scope extensions allow your PWA to define additional URL domains that are considered in-scope for your app. For example, for a PWA hosted on example.com, you may add auth.example.com and en.example.com to your scope extensions. Without scope extensions, any navigation outside of your PWA's domain may show a browser address bar inside your PWA.
+
+The shortcuts member defines an array of shortcuts or links to key tasks or pages within a web app. Shortcuts will show as jumplists on Windows and on the home screen on Android.
+
+The file_handlers member specifies an array of objects representing the types of files an installed PWA can open.
+
+The protocol_handlers member specifies an array of objects that are protocols which this web app can register and handle. Protocol handlers register the application in an OS's application preferences; the registration associates a specific application with the given protocol scheme. For example, when using the protocol handler mailto:// on a web page, registered email applications open.
+
+share_target enables your app to receive content shared from other apps.
+
+Widgets are adaptive cards with text, images, an actions related to your app. On Windows, widgets appear over the desktop when the user clicks the widget taskbar icon or presses Win+W.
+
+The edge_side_panel member specifies if your app supports the side panel in Microsoft Edge.
+
+The tabbed display mode allows your PWA to act as a multi-document interface, allowing for multiple tabs to be opened inside your PWA.
+
+The note_taking member identifies a web app as a note-taking app and defines related information, for example a URL pointing to functionality for taking a new note. This enables operating systems to integrate the app's note taking functionality, for example including a "New note" option in the app's context menu, or providing the app as an option for taking a note in other apps.
+
