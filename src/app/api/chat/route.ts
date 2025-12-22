@@ -1,7 +1,55 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ai } from '@/ai/genkit';
+import { initializeApp, getApps, cert } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
 
 export const runtime = 'nodejs';
+
+if (getApps().length === 0) {
+  try {
+    const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+    if (serviceAccountKey) {
+      initializeApp({
+        credential: cert(JSON.parse(serviceAccountKey)),
+      });
+    }
+  } catch (e) {
+    console.error('Firebase Admin initialization error:', e);
+  }
+}
+
+async function getActiveTours() {
+  try {
+    const db = getFirestore();
+    const toursSnapshot = await db.collection('tours').where('isPublic', '==', true).get();
+    const now = new Date();
+    
+    const tours = toursSnapshot.docs
+      .map(doc => {
+        const data = doc.data();
+        const date = data.date?.toDate ? data.date.toDate() : new Date(data.date);
+        return {
+          id: doc.id,
+          destination: data.destination,
+          date: date,
+          price: data.price,
+          currency: data.currency || 'ARS',
+          days: data.days,
+          nights: data.nights,
+          backgroundImage: data.backgroundImage,
+          isFeatured: data.isFeatured,
+        };
+      })
+      .filter(tour => tour.date >= now)
+      .sort((a, b) => a.date.getTime() - b.date.getTime())
+      .slice(0, 5);
+    
+    return tours;
+  } catch (error) {
+    console.error('Error fetching tours:', error);
+    return [];
+  }
+}
 
 const SYSTEM_PROMPT = `Eres el asistente virtual de "YO TE LLEVO", una agencia de viajes argentina especializada en viajes grupales económicos y llenos de buena onda.
 
@@ -28,17 +76,21 @@ Métodos de pago:
 - Tarjeta de crédito/débito
 - Efectivo
 
-Funciones que puedes realizar:
-- Responder preguntas sobre viajes y servicios
-- Explicar cómo reservar
-- Dar información sobre métodos de pago
-- Hablar sobre la empresa
-- Ayudar con dudas generales
+IMPORTANTE - Detección de intención:
+Si el usuario pregunta por viajes disponibles, destinos, tours, o quiere ver opciones de viajes, DEBES responder EXACTAMENTE con este formato JSON:
+{"showTours": true, "message": "Tu mensaje amigable aquí"}
 
-Si te preguntan algo que no sabes o requiere información específica de una reserva/viaje particular, sugiere que el usuario:
-- Revise la sección de "Tours" para ver viajes disponibles
-- Contacte por WhatsApp para atención personalizada
-- Inicie sesión para ver sus reservas
+Ejemplos de frases que indican que quiere ver viajes:
+- "qué viajes tienen"
+- "quiero ver viajes"
+- "a dónde puedo viajar"
+- "destinos disponibles"
+- "qué tours hay"
+- "opciones de viaje"
+- "quiero viajar"
+- "mostrame los viajes"
+
+Para cualquier otra pregunta, responde normalmente con texto.
 
 Mantén tus respuestas concisas pero útiles (máximo 3-4 oraciones para respuestas simples).`;
 
@@ -65,10 +117,24 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    const text = response.text;
+    let text = response.text;
+    let tours = null;
+
+    try {
+      const jsonMatch = text.match(/\{[\s\S]*"showTours"[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        if (parsed.showTours) {
+          tours = await getActiveTours();
+          text = parsed.message || "¡Aquí tienes los viajes disponibles!";
+        }
+      }
+    } catch (e) {
+    }
 
     return NextResponse.json({ 
       message: text,
+      tours: tours,
       success: true 
     });
 

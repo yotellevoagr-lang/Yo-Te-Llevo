@@ -12,12 +12,28 @@ import {
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Bot, User, Send, RotateCcw, MessageCircle } from "lucide-react";
+import { Bot, User, Send, RotateCcw, MessageCircle, Calendar, MapPin, Eye, Ticket } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useRouter } from "next/navigation";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
+
+interface TourData {
+  id: string;
+  destination: string;
+  date: string;
+  price: number;
+  currency: string;
+  days?: number;
+  nights?: number;
+  backgroundImage?: string;
+  isFeatured?: boolean;
+}
 
 interface Message {
   role: "user" | "assistant";
   content: string;
+  tours?: TourData[];
 }
 
 export default function AIChatbot() {
@@ -26,6 +42,7 @@ export default function AIChatbot() {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
 
   const scrollToBottom = () => {
     if (scrollAreaRef.current) {
@@ -46,7 +63,7 @@ export default function AIChatbot() {
     if (isOpen && messages.length === 0) {
       setMessages([{
         role: "assistant",
-        content: "¡Hola! 👋 Soy el asistente virtual de YO TE LLEVO. ¿En qué puedo ayudarte hoy? Puedo responder preguntas sobre nuestros viajes, cómo reservar, métodos de pago y más."
+        content: "¡Hola! 👋 Soy el asistente virtual de YO TE LLEVO. ¿En qué puedo ayudarte hoy?\n\nPuedo mostrarte los viajes disponibles, explicarte cómo reservar, informarte sobre métodos de pago y más."
       }]);
     }
   }, [isOpen, messages.length]);
@@ -76,7 +93,11 @@ export default function AIChatbot() {
       const data = await response.json();
 
       if (data.success && data.message) {
-        setMessages(prev => [...prev, { role: "assistant", content: data.message }]);
+        setMessages(prev => [...prev, { 
+          role: "assistant", 
+          content: data.message,
+          tours: data.tours || undefined
+        }]);
       } else {
         setMessages(prev => [...prev, { 
           role: "assistant", 
@@ -104,8 +125,40 @@ export default function AIChatbot() {
   const resetChat = () => {
     setMessages([{
       role: "assistant",
-      content: "¡Hola! 👋 Soy el asistente virtual de YO TE LLEVO. ¿En qué puedo ayudarte hoy? Puedo responder preguntas sobre nuestros viajes, cómo reservar, métodos de pago y más."
+      content: "¡Hola! 👋 Soy el asistente virtual de YO TE LLEVO. ¿En qué puedo ayudarte hoy?\n\nPuedo mostrarte los viajes disponibles, explicarte cómo reservar, informarte sobre métodos de pago y más."
     }]);
+  };
+
+  const handleViewTour = (tourId: string) => {
+    router.push(`/booking/${tourId}`);
+    setIsOpen(false);
+  };
+
+  const handleQuickAction = (action: string) => {
+    setInput(action);
+    setTimeout(() => {
+      const form = document.querySelector('[data-chat-form]');
+      if (form) {
+        const event = new Event('submit', { bubbles: true });
+        form.dispatchEvent(event);
+      }
+    }, 100);
+  };
+
+  const formatTourDate = (dateStr: string) => {
+    try {
+      const date = new Date(dateStr);
+      return format(date, "d 'de' MMMM", { locale: es });
+    } catch {
+      return dateStr;
+    }
+  };
+
+  const formatPrice = (price: number, currency: string) => {
+    if (currency === 'USD') {
+      return `USD $${price.toLocaleString()}`;
+    }
+    return `$${price.toLocaleString()}`;
   };
 
   return (
@@ -120,7 +173,7 @@ export default function AIChatbot() {
       </Button>
 
       <Sheet open={isOpen} onOpenChange={setIsOpen}>
-        <SheetContent side="right" className="w-full sm:w-[400px] flex flex-col p-0">
+        <SheetContent side="right" className="w-full sm:w-[420px] flex flex-col p-0">
           <SheetHeader className="p-4 border-b bg-primary text-primary-foreground">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -151,35 +204,97 @@ export default function AIChatbot() {
           <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
             <div className="space-y-4">
               {messages.map((message, index) => (
-                <div
-                  key={index}
-                  className={cn(
-                    "flex gap-3",
-                    message.role === "user" ? "flex-row-reverse" : "flex-row"
-                  )}
-                >
-                  <Avatar className={cn(
-                    "h-8 w-8 shrink-0",
-                    message.role === "user" ? "bg-secondary" : "bg-primary"
-                  )}>
-                    <AvatarFallback className="bg-transparent">
-                      {message.role === "user" ? (
-                        <User className="h-4 w-4 text-secondary-foreground" />
-                      ) : (
-                        <Bot className="h-4 w-4 text-primary-foreground" />
-                      )}
-                    </AvatarFallback>
-                  </Avatar>
+                <div key={index} className="space-y-3">
                   <div
                     className={cn(
-                      "rounded-lg px-3 py-2 max-w-[80%] text-sm",
-                      message.role === "user"
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted"
+                      "flex gap-3",
+                      message.role === "user" ? "flex-row-reverse" : "flex-row"
                     )}
                   >
-                    <p className="whitespace-pre-wrap">{message.content}</p>
+                    <Avatar className={cn(
+                      "h-8 w-8 shrink-0",
+                      message.role === "user" ? "bg-secondary" : "bg-primary"
+                    )}>
+                      <AvatarFallback className="bg-transparent">
+                        {message.role === "user" ? (
+                          <User className="h-4 w-4 text-secondary-foreground" />
+                        ) : (
+                          <Bot className="h-4 w-4 text-primary-foreground" />
+                        )}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div
+                      className={cn(
+                        "rounded-lg px-3 py-2 max-w-[85%] text-sm",
+                        message.role === "user"
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted"
+                      )}
+                    >
+                      <p className="whitespace-pre-wrap">{message.content}</p>
+                    </div>
                   </div>
+
+                  {message.tours && message.tours.length > 0 && (
+                    <div className="ml-11 space-y-3">
+                      {message.tours.map((tour) => (
+                        <div
+                          key={tour.id}
+                          className="rounded-lg border bg-card overflow-hidden shadow-sm"
+                        >
+                          {tour.backgroundImage && (
+                            <div 
+                              className="h-24 bg-cover bg-center relative"
+                              style={{ backgroundImage: `url(${tour.backgroundImage})` }}
+                            >
+                              {tour.isFeatured && (
+                                <span className="absolute top-2 left-2 bg-primary text-primary-foreground text-xs px-2 py-0.5 rounded-full">
+                                  ⭐ Destacado
+                                </span>
+                              )}
+                            </div>
+                          )}
+                          <div className="p-3 space-y-2">
+                            <h4 className="font-semibold text-sm">{tour.destination}</h4>
+                            <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                              <span className="flex items-center gap-1">
+                                <Calendar className="h-3 w-3" />
+                                {formatTourDate(tour.date)}
+                              </span>
+                              {tour.days && tour.nights && (
+                                <span className="flex items-center gap-1">
+                                  <MapPin className="h-3 w-3" />
+                                  {tour.days}D/{tour.nights}N
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-sm font-bold text-primary">
+                              {formatPrice(tour.price, tour.currency)}
+                            </p>
+                            <div className="flex gap-2 pt-1">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="flex-1 text-xs h-8"
+                                onClick={() => handleViewTour(tour.id)}
+                              >
+                                <Eye className="h-3 w-3 mr-1" />
+                                Ver más
+                              </Button>
+                              <Button
+                                size="sm"
+                                className="flex-1 text-xs h-8"
+                                onClick={() => handleViewTour(tour.id)}
+                              >
+                                <Ticket className="h-3 w-3 mr-1" />
+                                Reservar
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
 
@@ -199,11 +314,47 @@ export default function AIChatbot() {
                   </div>
                 </div>
               )}
+
+              {messages.length === 1 && (
+                <div className="space-y-2 pt-2">
+                  <p className="text-xs text-muted-foreground text-center">Acciones rápidas:</p>
+                  <div className="flex flex-wrap gap-2 justify-center">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-xs"
+                      onClick={() => handleQuickAction("Mostrame los viajes disponibles")}
+                    >
+                      ✈️ Ver viajes
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-xs"
+                      onClick={() => handleQuickAction("¿Cómo puedo reservar?")}
+                    >
+                      📝 Cómo reservar
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-xs"
+                      onClick={() => handleQuickAction("¿Cuáles son los métodos de pago?")}
+                    >
+                      💳 Métodos de pago
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           </ScrollArea>
 
           <div className="p-4 border-t bg-background">
-            <div className="flex gap-2">
+            <form 
+              data-chat-form
+              onSubmit={(e) => { e.preventDefault(); sendMessage(); }}
+              className="flex gap-2"
+            >
               <Input
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
@@ -213,13 +364,13 @@ export default function AIChatbot() {
                 className="flex-1"
               />
               <Button
-                onClick={sendMessage}
+                type="submit"
                 disabled={!input.trim() || isLoading}
                 size="icon"
               >
                 <Send className="h-4 w-4" />
               </Button>
-            </div>
+            </form>
           </div>
         </SheetContent>
       </Sheet>
