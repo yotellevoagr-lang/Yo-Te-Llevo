@@ -1,129 +1,184 @@
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // --- Helper Functions ---
+    // ==========================================
+    // HELPER FUNCTIONS
+    // ==========================================
+    
     function isSignedIn() {
       return request.auth != null;
     }
 
-    function isSignedInAsRole(role) {
-      // Checks if the user is authenticated and has a document in the specified role collection.
-      return isSignedIn() && exists(/databases/$(database)/documents/$(role)/$(request.auth.uid));
+    function isAdmin() {
+      return isSignedIn() && exists(/databases/$(database)/documents/admin/$(request.auth.uid));
+    }
+
+    function isEmployee() {
+      return isSignedIn() && exists(/databases/$(database)/documents/employees/$(request.auth.uid));
+    }
+
+    function isPassenger() {
+      return isSignedIn() && exists(/databases/$(database)/documents/passengers/$(request.auth.uid));
+    }
+
+    function isAdminOrEmployee() {
+      return isAdmin() || isEmployee();
     }
 
     function isOwner(userId) {
-      // Checks if the authenticated user's UID matches the document ID.
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    // --- Global Read Rules ---
-    // Anyone can read public-facing data.
+    // ==========================================
+    // PUBLIC DATA (lectura pública)
+    // ==========================================
+    
     match /tours/{tourId} {
       allow read: if true;
-      allow write: if isSignedInAsRole('admin');
+      allow write: if isAdminOrEmployee();
     }
-    match /flyers/{flyerId} { allow read: if true; allow write: if isSignedInAsRole('admin'); }
-    match /settings/{settingId} { allow read: if true; allow write: if isSignedInAsRole('admin'); }
-    match /boarding_points/{bpId} { allow read: if true; allow write: if isSignedInAsRole('admin'); }
-    match /pensions/{pensionId} { allow read: if true; allow write: if isSignedInAsRole('admin'); }
-    match /room_types/{rtId} { allow read: if true; allow write: if isSignedInAsRole('admin'); }
 
-    // --- User-related collections (for login lookup) ---
-    // Anyone needs to be able to query these collections to find a user by email/dni/username at login.
+    match /flyers/{flyerId} {
+      allow read: if true;
+      allow write: if isAdminOrEmployee();
+    }
+
+    match /settings/{settingId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /boarding_points/{bpId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /pensions/{pensionId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /room_types/{rtId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /sellers/{sellerId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ==========================================
+    // USER COLLECTIONS (para login/registro)
+    // ==========================================
+
     match /admin/{adminId} {
-        allow read: if true;
-        allow write: if isOwner(adminId); // Admin can only edit their own doc
+      allow read: if true;
+      allow create: if isSignedIn();
+      allow update: if isOwner(adminId) || isAdmin();
+      allow delete: if isAdmin();
     }
+
     match /employees/{employeeId} {
-        allow read: if true;
-        allow create: if true;
-        allow update: if isOwner(employeeId) || isSignedInAsRole('admin');
-        allow delete: if isSignedInAsRole('admin');
+      allow read: if true;
+      allow create: if true;
+      allow update: if isOwner(employeeId) || isAdmin();
+      allow delete: if isAdmin();
     }
-    
-    // --- PASAJEROS (Clientes / Invitados) ---
+
     match /passengers/{passengerId} {
       allow read: if true;
       allow create: if true;
-      allow update: if isOwner(passengerId) || isSignedInAsRole('admin') || isSignedInAsRole('employee');
-      allow delete: if isSignedInAsRole('admin');
+      allow update: if isOwner(passengerId) || isAdminOrEmployee();
+      allow delete: if isAdmin();
+
+      match /benefits/{benefitId} {
+        allow read: if isOwner(passengerId) || isAdminOrEmployee();
+        allow write: if isSignedIn();
+      }
     }
 
-    // --- RESERVAS ---
-    match /reservations/{reservationId} {
-      // Anyone can create a reservation.
-      allow create: if true;
-
-      allow read: if true;
-
-      // Only Admin or Employee can update/delete reservations.
-      allow update, delete: if isSignedInAsRole('admin') || isSignedInAsRole('employee');
-    }
-
-    // --- BUSINESS LOGIC COLLECTIONS ---
-    match /sellers/{sellerId} {
-      // Allow listing for anyone (needed for booking page), but only authenticated can see details.
-      allow read: if true;
-      allow write: if isSignedInAsRole('admin');
-    }
-
-    // --- FINANCIAL COLLECTIONS (Admin only) ---
-    match /transactions/{transactionId} {
-      allow read, write: if isSignedInAsRole('admin');
-    }
-    match /custom_expenses/{expenseId} {
-        allow read, write: if isSignedInAsRole('admin');
-    }
-    match /external_commissions/{commissionId} {
-        allow read, write: if isSignedInAsRole('admin');
-    }
-    match /excursion_incomes/{incomeId} {
-        allow read, write: if isSignedInAsRole('admin');
-    }
-     // --- EX EMPLEADOS (Admin only) ---
     match /ex_employees/{employeeId} {
-      allow read, write: if isSignedInAsRole('admin');
+      allow read, write: if isAdmin();
     }
 
-    // --- COMUNIDAD ---
-    match /communityPosts/{postId} {
+    // ==========================================
+    // RESERVATIONS
+    // ==========================================
+
+    match /reservations/{reservationId} {
       allow read: if true;
-      allow create: if isSignedInAsRole('admin') || isSignedInAsRole('employee');
-      allow update, delete: if isSignedInAsRole('admin') || isSignedInAsRole('employee');
-      
-      // Subcolección de comentarios
+      allow create: if true;
+      allow update, delete: if isAdminOrEmployee();
+    }
+
+    // ==========================================
+    // FINANCIAL (solo Admin)
+    // ==========================================
+
+    match /transactions/{transactionId} {
+      allow read: if isAdminOrEmployee();
+      allow write: if isAdmin();
+    }
+
+    match /custom_expenses/{expenseId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /external_commissions/{commissionId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /excursion_incomes/{incomeId} {
+      allow read, write: if isAdmin();
+    }
+
+    // ==========================================
+    // COMMUNITY (community_posts - snake_case)
+    // ==========================================
+
+    match /community_posts/{postId} {
+      allow read: if true;
+      allow create: if isAdminOrEmployee();
+      allow update, delete: if isAdminOrEmployee();
+
       match /comments/{commentId} {
         allow read: if true;
         allow create: if isSignedIn();
-        allow update, delete: if isSignedInAsRole('admin') || isSignedInAsRole('employee');
+        allow update: if isOwner(resource.data.userId) || isAdminOrEmployee();
+        allow delete: if isAdminOrEmployee();
       }
-      
-      // Subcolección de reacciones
+
       match /reactions/{reactionId} {
         allow read: if true;
         allow write: if isSignedIn();
       }
     }
 
-    // --- BENEFICIOS/CUPONES ---
+    // ==========================================
+    // BENEFITS (benefits + benefit_redemptions)
+    // ==========================================
+
     match /benefits/{benefitId} {
       allow read: if true;
-      allow write: if isSignedInAsRole('admin');
-    }
-    
-    match /benefitRedemptions/{redemptionId} {
-      allow read: if isSignedInAsRole('admin') || isSignedInAsRole('employee');
-      allow create: if isSignedIn();
-      allow update, delete: if isSignedInAsRole('admin');
+      allow write: if isAdmin();
     }
 
-    // Subcolección de beneficios en pasajeros
-    match /passengers/{passengerId}/benefits/{benefitId} {
-      allow read: if isOwner(passengerId) || isSignedInAsRole('admin') || isSignedInAsRole('employee');
-      allow write: if isSignedIn();
+    match /benefit_redemptions/{redemptionId} {
+      allow read: if isAdminOrEmployee() || (isSignedIn() && resource.data.passengerId == request.auth.uid);
+      allow create: if isSignedIn();
+      allow update, delete: if isAdmin();
+    }
+
+    // ==========================================
+    // CHATBOT
+    // ==========================================
+
+    match /chatbot_flows/{flowId} {
+      allow read: if true;
+      allow write: if isAdmin();
     }
   }
 }
