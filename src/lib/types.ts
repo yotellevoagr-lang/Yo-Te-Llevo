@@ -453,3 +453,126 @@ export interface LocationVote {
     city: string;
     createdAt: Date;
 }
+
+export type ReactionType = 'like' | 'love';
+
+export interface CommunityReaction {
+    id: string;
+    type: ReactionType;
+    userId: string;
+    userName: string;
+    createdAt: Date;
+}
+
+export interface CommunityComment {
+    id: string;
+    content: string;
+    userId: string;
+    userName: string;
+    userAvatar?: string;
+    createdAt: Date;
+    parentId?: string;
+}
+
+export interface CommunityPost {
+    id: string;
+    title?: string;
+    content: string;
+    media?: {
+        url: string;
+        type: 'image' | 'video';
+    }[];
+    benefitId?: string;
+    visibility: 'public' | 'registered';
+    status: 'active' | 'archived';
+    createdBy: {
+        uid: string;
+        role: 'admin' | 'employee';
+        name: string;
+    };
+    createdAt: Date;
+    updatedAt: Date;
+    reactionSummary: {
+        likes: number;
+        loves: number;
+    };
+    commentCount: number;
+}
+
+export type DiscountType = 'percentage' | 'fixed';
+export type BenefitStatus = 'active' | 'expired' | 'exhausted' | 'draft';
+export type VisibilityScope = 'public' | 'registered';
+export type EligibleAudience = 'all' | 'selected' | 'recurrent';
+
+export interface BenefitDesign {
+    backgroundColor?: string;
+    textColor?: string;
+    accentColor?: string;
+    backgroundImageUrl?: string;
+    layoutPreset?: 'minimal' | 'bold' | 'elegant';
+}
+
+export interface Benefit {
+    id: string;
+    code: string;
+    title: string;
+    description: string;
+    discountType: DiscountType;
+    discountValue: number;
+    maxUsesTotal: number;
+    currentUsesTotal: number;
+    maxUsesPerPassenger: number;
+    maxPassengersPerUse: number;
+    applicableTripIds: string[];
+    eligibleAudience: EligibleAudience;
+    selectedPassengerIds: string[];
+    visibilityScope: VisibilityScope;
+    publishToCommunity: boolean;
+    communityPostId?: string;
+    status: BenefitStatus;
+    validFrom: Date;
+    validUntil: Date;
+    autoApply: boolean;
+    design?: BenefitDesign;
+    createdAt: Date;
+    createdBy: string;
+}
+
+export interface BenefitRedemption {
+    id: string;
+    benefitId: string;
+    benefitCode: string;
+    passengerId: string;
+    passengerName: string;
+    bookingId?: string;
+    tripId?: string;
+    discountApplied: number;
+    discountType: DiscountType;
+    usedAt: Date;
+    appliedBy: string;
+    source: 'manual' | 'auto' | 'booking';
+}
+
+export interface PassengerBenefit {
+    id: string;
+    benefitId: string;
+    benefitCode: string;
+    title: string;
+    description: string;
+    discountType: DiscountType;
+    discountValue: number;
+    status: 'available' | 'used' | 'expired';
+    applicableTripIds: string[];
+    remainingUses: number;
+    claimedAt: Date;
+    expiresAt: Date;
+    usedAt?: Date;
+    usedInBookingId?: string;
+}
+
+export interface PassengerStats {
+    totalTrips: number;
+    completedTrips: number;
+    totalSpent: number;
+    lastTripDate?: Date;
+}

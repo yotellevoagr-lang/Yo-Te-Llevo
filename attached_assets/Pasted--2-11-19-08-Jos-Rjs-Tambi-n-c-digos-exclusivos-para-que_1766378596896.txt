@@ -1,0 +1,54 @@
+[2/11 19:08] José Rjs: También códigos exclusivos para que cualquier pueda tener, estos códigos son limitados
+[2/11 19:10] José Rjs: Estos beneficios pueden ser descuentos o cosas que yo ponga como beneficio
+[2/11 19:16] José Rjs: Cada beneficio puede ser para una cantidad determinada de personas 
+
+
+Es decir pongo un beneficio 
+
+
+20% de descuento para 2 personas y un cliente lo canjea y ese beneficio ya se carga para usarlo 
+
+Y tiene que elegir con cuál integrante usar ese descuento 
+
+También si un familiar tiene un beneficio y esa persona se crea una cuenta para canjear un beneficio más, si puede hacerlo porque aunque sean del mismo grupo familiar son desde 2 cuentas diferentes 
+
+Y los beneficios no son acumulativos 
+
+Es decir si un cliente quiere usar el beneficio desde una cuenta y lo pone a un pasajero y después de la otra cuenta lo pone al mismo pasajero, ese pasajero no tendrá acumulado 20% más 20% es decir 40% de descuento 
+
+Solo se le cargará 1 solo, 20% de descuento 
+
+
+Cada beneficio se podrá usar hasta tal fecha o para tal viaje
+[2/11 19:22] José Rjs: Si un cliente en la página de la comunidad aprieta y canjea un beneficio, este beneficio le aparecerá en sección de beneficios del cliente
+
+Porque los clientes tambien tendrán esa sección
+
+Y también al momento de hacer una reserva tendrá esa opción de canjear ese beneficio si lo quiere usar o no
+
+Y si ese beneficio está a punto de caducar, se le va a notificar 
+
+Si es el beneficio para un viaje en específico, ejemplo
+
+Agarro de la comunidad un beneficio para barrio chino un descuento de 30% en 1 o 2 o la cantidad de pasajes que diga el beneficio
+
+
+Si hace una reserva en ese viaje, obvio el beneficio se usará automáticamente 
+
+
+Si ya tenía una reserva en ese viaje y después agarra el beneficio de la comunidad, ese beneficio se usará automáticamente y se le notificará de todo al cliente
+[2/11 19:25] José Rjs: También en la sección de beneficios de la parte de administrador como ya dije, se podrá poner beneficios exclusivos para clientes recurrentes de la empresa
+
+
+Y también en la sección de pasajeros del administrador, el administrador podra ver la cantidad de viajes que hizo cada pasajero en la vista previa de la información de cada pasajero
+
+
+También tendrá una opción para que diga ordenar pasajeros por mayor cantidad de viajes hechos 
+
+O menor cantidad de viajes hechos 
+
+También tendrá para buscar por rangos
+
+Mostrar pasajeros de tal cantidad de viajes a tal cantidad de viajes
+[2/11 19:34] José Rjs: Notificaciones
+[2/11 19:49] José Rjs: Notificación de viajes destacados, viajes, beneficios y demás, también de si alguien accedió a su cuenta desde un dispositivo diferente

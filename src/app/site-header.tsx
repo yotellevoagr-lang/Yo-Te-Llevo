@@ -7,7 +7,7 @@ import React from "react"
 import { Logo } from "./logo"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
-import { MenuIcon, LogInIcon, UserPlus, UserCircle, LogOut, Settings, LayoutDashboard, Shuffle } from "lucide-react"
+import { MenuIcon, LogInIcon, UserPlus, UserCircle, LogOut, Settings, LayoutDashboard, Shuffle, Gift } from "lucide-react"
 import { useAuth } from "./auth/auth-provider"
 import { useRouter } from "next/navigation"
 import {
@@ -41,6 +41,7 @@ export function SiteHeader() {
     { href: "/", label: t('nav.home') },
     { href: "/tours", label: t('nav.trips') },
     { href: "/flyers", label: t('nav.flyers') },
+    { href: "/community", label: "Comunidad" },
     { href: "/contact", label: t('nav.contact') },
   ]
   
@@ -134,6 +135,9 @@ export function SiteHeader() {
                         {userRole === 'employee' && <DropdownMenuItem asChild><Link href="/employee/dashboard"><LayoutDashboard className="mr-2"/>{t('employee_panel')}</Link></DropdownMenuItem>}
                          <DropdownMenuItem asChild>
                             <Link href="/profile"><Settings className="mr-2"/>{t('my_profile')}</Link>
+                         </DropdownMenuItem>
+                         <DropdownMenuItem asChild>
+                            <Link href="/profile/benefits"><Gift className="mr-2"/>Mis Beneficios</Link>
                          </DropdownMenuItem>
                         <DropdownMenuItem>{t('my_trips')}</DropdownMenuItem>
                         {availableRoles.length > 1 && (

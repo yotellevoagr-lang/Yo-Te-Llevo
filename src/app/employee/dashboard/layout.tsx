@@ -13,7 +13,8 @@ import {
   TicketCheck,
   Plane,
   LayoutDashboard,
-  Receipt
+  Receipt,
+  MessageCircle
 } from "lucide-react";
 
 import {
@@ -53,6 +54,7 @@ export default function EmployeeDashboardLayout({
     { href: "/employee/dashboard/trips", label: t('admin_nav.trips'), icon: Plane },
     { href: "/employee/dashboard/reservations", label: t('admin_nav.reservations'), icon: Ticket },
     { href: "/employee/dashboard/passengers", label: t('admin_nav.passengers'), icon: Users },
+    { href: "/employee/dashboard/community", label: "Comunidad", icon: MessageCircle },
     { href: "/employee/dashboard/tickets", label: t('admin_nav.tickets'), icon: TicketCheck },
     { href: "/employee/dashboard/receipts", label: t('admin_nav.receipts'), icon: Receipt },
     { href: "/employee/dashboard/settings", label: t('employee_nav.settings'), icon: Settings },
