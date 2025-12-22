@@ -113,7 +113,7 @@ export default function AdminBenefitsPage() {
         getAllFromCollection_client<Passenger>('passengers')
       ]);
       setBenefits(benefitsData);
-      setTours(toursData.filter((t: Tour) => new Date(t.date) >= new Date()));
+      setTours(toursData);
       setPassengers(passengersData);
     } catch (error) {
       console.error('Error loading data:', error);
