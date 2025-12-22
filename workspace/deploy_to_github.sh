@@ -66,12 +66,6 @@ echo "Paso 2.7: Aplicando cambios locales guardados..."
 git stash pop
 echo ""
 
-# PASO CLAVE: Eliminar .env del seguimiento de Git
-echo "Paso 2.8: Eliminando el archivo .env del historial de Git..."
-git rm --cached .env > /dev/null 2>&1
-echo "El archivo .env ya no está siendo rastreado por Git."
-echo ""
-
 # 3. Añade todos los archivos modificados y nuevos al área de preparación.
 echo "Paso 3: Añadiendo todos los cambios al área de preparación (git add .)..."
 git add .
@@ -89,11 +83,21 @@ if [ -z "$COMMIT_MESSAGE" ]; then
 fi
 
 git commit -m "$COMMIT_MESSAGE"
-# Verificamos si el commit se creó o si no había nada que commitear.
-if [ $? -eq 0 ]; then
-  echo "¡Commit creado exitosamente!"
+if [ $? -ne 0 ]; then
+  echo "No se encontraron cambios nuevos para commitear. Verificando historial..."
+fi
+echo ""
+
+# 4.5. PASO CRÍTICO: Eliminar .env del historial del último commit si existe.
+echo "Paso 4.5: Verificando y limpiando el historial del último commit..."
+# Revisa si .env estaba en el commit anterior antes de la enmienda
+if git show HEAD:./.env > /dev/null 2>&1; then
+    echo "Se encontró .env en el último commit. Reescribiendo el historial para eliminarlo..."
+    git rm --cached .env
+    git commit --amend --no-edit
+    echo "✅ ¡Historial del commit limpiado!"
 else
-  echo "No se encontraron cambios para commitear. Sincronizando con el repositorio remoto..."
+    echo "El último commit está limpio. No se encontraron secretos."
 fi
 echo ""
 
@@ -108,3 +112,4 @@ echo ""
 
 echo "🎉 --- ¡PROCESO COMPLETADO! --- 🎉"
 echo "Tus cambios han sido subidos a GitHub. Revisa tu repositorio para confirmarlo."
+
