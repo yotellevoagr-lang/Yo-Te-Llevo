@@ -41,6 +41,16 @@ The project uses Firebase configuration stored in `.env`:
 - `FIREBASE_SERVICE_ACCOUNT_KEY` - For server-side Firebase Admin
 
 ## Recent Changes
+- 2025-12-22: Sistema de Comunidad y Beneficios
+  - Nueva sección "Comunidad" para publicaciones sociales con feed, reacciones (like/love) y comentarios
+  - Soporte multimedia (fotos/videos) en publicaciones
+  - Sistema de Beneficios/Cupones: creación de cupones con códigos, descuentos (% o fijo), límites de uso
+  - Diseño visual personalizable de cupones con vista previa
+  - Beneficios pueden publicarse automáticamente en la comunidad
+  - Sección "Mis Beneficios" para clientes: ver disponibles/usados/expirados, canjear por código
+  - Panel de admin para gestionar comunidad y beneficios
+  - Panel de empleados para gestionar comunidad
+  - Navegación actualizada en todos los paneles
 - 2025-12-22: Asistente virtual con IA (Gemini)
   - Nuevo componente AIChatbot reemplaza el chatbot basado en reglas
   - API /api/chat conecta con Google Gemini 1.5 Flash
