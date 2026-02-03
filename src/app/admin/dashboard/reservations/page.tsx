@@ -59,6 +59,7 @@ import { useToast } from "@/hooks/use-toast"
 import { AssignTierDialog } from "@/components/admin/assign-tier-dialog"
 import { DatePicker } from "@/components/ui/date-picker"
 import { format } from "date-fns"
+import { PassengerForm } from "@/components/admin/passenger-form"
 
 const calculateAge = (dob?: any): number | string => {
     if (!dob) return 'N/A';
@@ -146,6 +147,7 @@ export default function ReservationsPage() {
   const [editingReservation, setEditingReservation] = useState<EditReservationState>({ isOpen: false, reservation: null, originalReservation: null });
   const [addingReservation, setAddingReservation] = useState<AddReservationState>({ isOpen: false, tour: null });
   const [assignTierState, setAssignTierState] = useState<AssignTierState>({ isOpen: false, reservationId: null });
+  const [isNewPassengerFormOpen, setIsNewPassengerFormOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const { toast } = useToast();
 
@@ -250,7 +252,6 @@ export default function ReservationsPage() {
 
   
   const handleAddReservation = async (newReservation: Reservation) => {
-    // The reservation is already created by AddReservationForm, just update local state
     try {
         await fetchData();
         window.dispatchEvent(new Event('storage'));
@@ -272,6 +273,17 @@ export default function ReservationsPage() {
     try {
         const updatedReservation = { ...editingReservation.reservation };
         const originalReservation = { ...editingReservation.originalReservation };
+
+        const tour = tours.find(t => t.id === updatedReservation.tripId);
+        if (!tour) throw new Error("Viaje no encontrado");
+
+        const reservationPassengers = passengers.filter(p => updatedReservation.passengerIds.includes(p.id));
+        const calculatedPrice = reservationPassengers.reduce((total, p) => {
+            const tier = tour.pricingTiers?.find(t => t.id === p.tierId);
+            return total + (tier?.price ?? tour.price);
+        }, 0);
+        
+        updatedReservation.finalPrice = calculatedPrice;
 
         const newInstallments = updatedReservation.installments?.details || [];
         const originalInstallments = originalReservation.installments?.details || [];
@@ -325,9 +337,9 @@ export default function ReservationsPage() {
         window.dispatchEvent(new Event('storage'));
         setEditingReservation({isOpen: false, reservation: null, originalReservation: null });
         toast({ title: "Reserva Actualizada", description: "Los cambios han sido guardados y las transacciones actualizadas."});
-    } catch(error) {
+    } catch(error: any) {
         console.error("Error updating reservation and transactions:", error);
-        toast({ title: "Error", description: "No se pudieron guardar los cambios.", variant: "destructive"});
+        toast({ title: "Error", description: error.message || "No se pudieron guardar los cambios.", variant: "destructive"});
     }
   }
 
@@ -449,6 +461,55 @@ export default function ReservationsPage() {
     toast({ title: "Tarifas actualizadas." });
   }
 
+  const handleRemovePassengerFromReservation = (passengerIdToRemove: string) => {
+    setEditingReservation(prev => {
+        if (!prev.reservation) return prev;
+        const currentIds = prev.reservation.passengerIds;
+        if (currentIds.length <= 1) {
+            toast({ title: "Acción no permitida", description: "La reserva debe tener al menos un pasajero.", variant: "destructive" });
+            return prev;
+        }
+        if (currentIds[0] === passengerIdToRemove) {
+            toast({ title: "Acción no permitida", description: "No se puede eliminar al pasajero principal.", variant: "destructive" });
+            return prev;
+        }
+
+        const newPassengerIds = currentIds.filter(id => id !== passengerIdToRemove);
+        return {
+            ...prev,
+            reservation: { ...prev.reservation, passengerIds: newPassengerIds, paxCount: newPassengerIds.length }
+        }
+    });
+  };
+
+    const handleAddPassengerToReservation = (passengerIdToAdd: string) => {
+        if (!passengerIdToAdd) return;
+        setEditingReservation(prev => {
+            if (!prev.reservation) return prev;
+            if (prev.reservation.passengerIds.includes(passengerIdToAdd)) {
+                toast({ title: "Duplicado", description: "Este pasajero ya está en la reserva.", variant: "default" });
+                return prev;
+            }
+            const newPassengerIds = [...prev.reservation.passengerIds, passengerIdToAdd];
+            return {
+                ...prev,
+                reservation: { ...prev.reservation, passengerIds: newPassengerIds, paxCount: newPassengerIds.length }
+            };
+        });
+    };
+
+    const handleNewPassengerCreatedAndAdded = async (passengerData: Passenger) => {
+        try {
+            const newPassengerId = await savePassenger(passengerData, passengerData.id);
+            await fetchData();
+            handleAddPassengerToReservation(newPassengerId);
+            setIsNewPassengerFormOpen(false);
+            toast({ title: "Pasajero Creado", description: `${passengerData.fullName} ha sido creado y añadido a la reserva.` });
+        } catch (error) {
+            toast({ title: "Error", description: "No se pudo crear el nuevo pasajero.", variant: "destructive" });
+        }
+    }
+
   const categoryIcons: Record<LayoutCategory, React.ElementType> = {
     vehicles: Bus,
     airplanes: Plane,
@@ -481,23 +542,45 @@ export default function ReservationsPage() {
         label: s.name,
         keywords: [s.dni]
     }));
+    
+    const availablePassengersForAdding = passengers.filter(p => 
+        !reservation.passengerIds.includes(p.id) && 
+        !reservations.some(r => r.tripId === tour.id && r.id !== reservation.id && r.passengerIds.includes(p.id))
+    );
 
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {/* Columna Izquierda: Edición de Datos */}
         <div className="space-y-4">
             <Card>
-                <CardHeader className="flex-row items-center justify-between">
+                <CardHeader>
                     <CardTitle className="flex items-center gap-2"><Users className="w-5 h-5"/> Pasajeros en la Reserva</CardTitle>
-                    <Button variant="outline" size="sm" onClick={() => setAssignTierState({isOpen: true, reservationId: reservation.id})}>
-                        Asignar Tarifas
-                    </Button>
                 </CardHeader>
-                <CardContent className="space-y-3 text-sm">
-                    {reservationPassengers.map(p => {
-                        const tier = tour.pricingTiers?.find(t => t.id === p.tierId);
-                        return <InfoRow key={p.id} label={p.fullName} value={`${p.dni} (${tier?.name || 'Adulto'})`} />
-                    })}
+                <CardContent className="space-y-3">
+                    <div className="space-y-2">
+                        {reservationPassengers.map((p, index) => (
+                            <div key={p.id} className="flex items-center justify-between p-2 bg-secondary/50 rounded-md">
+                                <p className="font-medium text-sm">{index === 0 && <span className="font-bold text-primary">(Principal) </span>}{p.fullName} <span className="text-xs text-muted-foreground">({p.dni})</span></p>
+                                {index > 0 && (
+                                    <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => handleRemovePassengerFromReservation(p.id)}>
+                                        <Trash2 className="w-4 h-4"/>
+                                    </Button>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                    <Separator />
+                    <div className="space-y-2">
+                        <Label>Añadir Pasajero a la Reserva</Label>
+                        <SearchableSelect
+                            options={availablePassengersForAdding.map(p => ({ value: p.id, label: `${p.fullName} (${p.dni})`, keywords: [p.dni]}))}
+                            value={""}
+                            onChange={handleAddPassengerToReservation}
+                            placeholder="Buscar pasajero existente..."
+                        />
+                    </div>
+                    <Button variant="outline" size="sm" className="w-full" onClick={() => setIsNewPassengerFormOpen(true)}>
+                        <UserPlus className="mr-2 h-4 w-4"/> Crear y Añadir Nuevo Pasajero
+                    </Button>
                 </CardContent>
             </Card>
            <Card>
@@ -669,7 +752,6 @@ export default function ReservationsPage() {
           </Card>
         </div>
 
-        {/* Columna Derecha: Asignación de Asientos */}
         <div className="space-y-4">
           <Card>
             <CardHeader>
@@ -752,6 +834,15 @@ export default function ReservationsPage() {
         tour={tours.find(t => t.id === reservations.find(r => r.id === assignTierState.reservationId)?.tripId) || null}
         passengers={passengers}
         onPassengerTierChange={handlePassengerTierChange}
+    />
+    
+    <PassengerForm
+        isOpen={isNewPassengerFormOpen}
+        onOpenChange={setIsNewPassengerFormOpen}
+        onSave={handleNewPassengerCreatedAndAdded}
+        passenger={null}
+        allPassengers={passengers}
+        boardingPoints={boardingPoints}
     />
 
     <Dialog open={editingReservation.isOpen} onOpenChange={(open) => setEditingReservation({ isOpen: open, reservation: open ? editingReservation.reservation : null, originalReservation: open ? editingReservation.originalReservation : null })}>
@@ -912,8 +1003,7 @@ export default function ReservationsPage() {
                                                               <div className="space-y-2">
                                                                   {(res.installments?.details || []).map((inst, idx) => {
                                                                       const paidAtRaw = inst.paidAt;
-                                                                      if (!paidAtRaw) return null;
-                                                                      const paidAtDate = paidAtRaw instanceof Date ? paidAtRaw : (paidAtRaw as any).toDate ? (paidAtRaw as any).toDate() : new Date(paidAtRaw);
+                                                                      const paidAtDate = paidAtRaw instanceof Date ? paidAtRaw : (paidAtRaw as any).toDate ? (paidAtRaw as any).toDate() : null;
                                                                       const isValidDate = paidAtDate instanceof Date && !isNaN(paidAtDate.getTime());
                                                                       return (
                                                                         <div key={idx} className="flex justify-between items-center text-xs">

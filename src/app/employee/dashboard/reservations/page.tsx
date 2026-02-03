@@ -24,6 +24,17 @@ import {
   DialogFooter,
   DialogClose,
 } from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -48,6 +59,7 @@ import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/components/auth/auth-provider"
 import { DatePicker } from "@/components/ui/date-picker"
 import { format } from "date-fns"
+import { PassengerForm } from "@/components/admin/passenger-form"
 
 type ActiveTransportUnitInfo = {
   unitNumber: number;
@@ -129,6 +141,7 @@ export default function ReservationsPage() {
   const [activeUnit, setActiveUnit] = useState<ActiveTransportUnitInfo>(null);
   const [editingReservation, setEditingReservation] = useState<EditReservationState>({ isOpen: false, reservation: null, originalReservation: null });
   const [addingReservation, setAddingReservation] = useState<AddReservationState>({ isOpen: false, tour: null });
+  const [isNewPassengerFormOpen, setIsNewPassengerFormOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const { toast } = useToast();
   const { user } = useAuth();
@@ -246,7 +259,6 @@ export default function ReservationsPage() {
 
   
   const handleAddReservation = async (newReservation: Reservation) => {
-    // The reservation is already created by AddReservationForm, just update local state
     try {
         await fetchData();
         window.dispatchEvent(new Event('storage'));
@@ -268,6 +280,17 @@ export default function ReservationsPage() {
     try {
         const updatedReservation = { ...editingReservation.reservation };
         const originalReservation = { ...editingReservation.originalReservation };
+
+        const tour = tours.find(t => t.id === updatedReservation.tripId);
+        if (!tour) throw new Error("Viaje no encontrado");
+
+        const reservationPassengers = passengers.filter(p => updatedReservation.passengerIds.includes(p.id));
+        const calculatedPrice = reservationPassengers.reduce((total, p) => {
+            const tier = tour.pricingTiers?.find(t => t.id === p.tierId);
+            return total + (tier?.price ?? tour.price);
+        }, 0);
+        
+        updatedReservation.finalPrice = calculatedPrice;
 
         const newInstallments = updatedReservation.installments?.details || [];
         const originalInstallments = originalReservation.installments?.details || [];
@@ -321,9 +344,9 @@ export default function ReservationsPage() {
         window.dispatchEvent(new Event('storage'));
         setEditingReservation({isOpen: false, reservation: null, originalReservation: null });
         toast({ title: "Reserva Actualizada", description: "Los cambios han sido guardados y las transacciones actualizadas."});
-    } catch(error) {
+    } catch(error: any) {
         console.error("Error updating reservation and transactions:", error);
-        toast({ title: "Error", description: "No se pudieron guardar los cambios.", variant: "destructive"});
+        toast({ title: "Error", description: error.message || "No se pudieron guardar los cambios.", variant: "destructive"});
     }
   }
 
@@ -429,6 +452,56 @@ export default function ReservationsPage() {
     });
   };
 
+  const handleRemovePassengerFromReservation = (passengerIdToRemove: string) => {
+    setEditingReservation(prev => {
+        if (!prev.reservation) return prev;
+        const currentIds = prev.reservation.passengerIds;
+        if (currentIds.length <= 1) {
+            toast({ title: "Acción no permitida", description: "La reserva debe tener al menos un pasajero.", variant: "destructive" });
+            return prev;
+        }
+        if (currentIds[0] === passengerIdToRemove) {
+            toast({ title: "Acción no permitida", description: "No se puede eliminar al pasajero principal.", variant: "destructive" });
+            return prev;
+        }
+
+        const newPassengerIds = currentIds.filter(id => id !== passengerIdToRemove);
+        return {
+            ...prev,
+            reservation: { ...prev.reservation, passengerIds: newPassengerIds, paxCount: newPassengerIds.length }
+        }
+    });
+  };
+
+    const handleAddPassengerToReservation = (passengerIdToAdd: string) => {
+        if (!passengerIdToAdd) return;
+        setEditingReservation(prev => {
+            if (!prev.reservation) return prev;
+            if (prev.reservation.passengerIds.includes(passengerIdToAdd)) {
+                toast({ title: "Duplicado", description: "Este pasajero ya está en la reserva.", variant: "default" });
+                return prev;
+            }
+            const newPassengerIds = [...prev.reservation.passengerIds, passengerIdToAdd];
+            return {
+                ...prev,
+                reservation: { ...prev.reservation, passengerIds: newPassengerIds, paxCount: newPassengerIds.length }
+            };
+        });
+    };
+
+    const handleNewPassengerCreatedAndAdded = async (passengerData: Passenger) => {
+        try {
+            const newPassengerId = await savePassenger(passengerData, passengerData.id);
+            await fetchData();
+            handleAddPassengerToReservation(newPassengerId);
+            setIsNewPassengerFormOpen(false);
+            toast({ title: "Pasajero Creado", description: `${passengerData.fullName} ha sido creado y añadido a la reserva.` });
+        } catch (error) {
+            toast({ title: "Error", description: "No se pudo crear el nuevo pasajero.", variant: "destructive" });
+        }
+    }
+
+
   const categoryIcons: Record<LayoutCategory, React.ElementType> = {
     vehicles: Bus,
     airplanes: Plane,
@@ -445,9 +518,16 @@ export default function ReservationsPage() {
 
     const installments = reservation.installments || { count: 1, details: [{ amount: reservation.finalPrice, isPaid: false }] };
     const paidAmount = installments.details.reduce((sum, inst) => inst.isPaid ? sum + inst.amount : sum, 0);
-    const balance = reservation.finalPrice - paidAmount;
-    const unitList = getExpandedTransportList(tour);
+    
     const reservationPassengers = passengers.filter(p => (reservation.passengerIds || []).includes(p.id));
+    
+    const calculatedPrice = reservationPassengers.reduce((total, p) => {
+        const tier = tour.pricingTiers?.find(t => t.id === p.tierId);
+        return total + (tier?.price ?? tour.price);
+    }, 0);
+    const balance = calculatedPrice - paidAmount;
+
+    const unitList = getExpandedTransportList(tour);
 
     const sellerOptions = sellers.map(s => ({
         value: s.id,
@@ -455,20 +535,46 @@ export default function ReservationsPage() {
         keywords: [s.dni]
     }));
 
+    const availablePassengersForAdding = passengers.filter(p => 
+        !reservation.passengerIds.includes(p.id) && 
+        !reservations.some(r => r.tripId === tour.id && r.id !== reservation.id && r.passengerIds.includes(p.id))
+    );
+
     const hasLiberadoTier = tour.pricingTiers?.some(tier => tier.name.toLowerCase().includes('liberado'));
 
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {/* Columna Izquierda: Edición de Datos */}
         <div className="space-y-4">
-            <Card>
+             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2"><Users className="w-5 h-5"/> Pasajeros en la Reserva</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-3 text-sm">
-                    {reservationPassengers.map(p => (
-                        <InfoRow key={p.id} label={p.fullName} value={`${p.dni} (${calculateAge(p.dob)} años)`} />
-                    ))}
+                <CardContent className="space-y-3">
+                    <div className="space-y-2">
+                        {reservationPassengers.map((p, index) => (
+                            <div key={p.id} className="flex items-center justify-between p-2 bg-secondary/50 rounded-md">
+                                <p className="font-medium text-sm">{index === 0 && <span className="font-bold text-primary">(Principal) </span>}{p.fullName} <span className="text-xs text-muted-foreground">({p.dni})</span></p>
+                                {index > 0 && (
+                                    <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => handleRemovePassengerFromReservation(p.id)}>
+                                        <Trash2 className="w-4 h-4"/>
+                                    </Button>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                    <Separator />
+                    <div className="space-y-2">
+                        <Label>Añadir Pasajero a la Reserva</Label>
+                        <SearchableSelect
+                            options={availablePassengersForAdding.map(p => ({ value: p.id, label: `${p.fullName} (${p.dni})`, keywords: [p.dni]}))}
+                            value={""}
+                            onChange={handleAddPassengerToReservation}
+                            placeholder="Buscar pasajero existente..."
+                        />
+                    </div>
+                    <Button variant="outline" size="sm" className="w-full" onClick={() => setIsNewPassengerFormOpen(true)}>
+                        <UserPlus className="mr-2 h-4 w-4"/> Crear y Añadir Nuevo Pasajero
+                    </Button>
                 </CardContent>
             </Card>
            <Card>
@@ -489,7 +595,7 @@ export default function ReservationsPage() {
             <CardHeader><CardTitle className="flex items-center gap-2"><CreditCard className="w-5 h-5"/> Datos de Pago</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="totalPrice">Precio Final</Label>
+                <Label htmlFor="totalPrice">Precio Final (calculado: ${calculatedPrice.toLocaleString('es-AR')})</Label>
                 <Input
                   id="totalPrice"
                   type="number"
@@ -560,7 +666,7 @@ export default function ReservationsPage() {
                                             <SelectItem value="Efectivo">Efectivo</SelectItem>
                                         </SelectContent>
                                     </Select>
-                                     <DatePicker
+                                    <DatePicker
                                         date={inst.paidAt ? (inst.paidAt instanceof Date ? inst.paidAt : (inst.paidAt as any).toDate ? (inst.paidAt as any).toDate() : new Date(inst.paidAt as any)) : undefined}
                                         setDate={(d) => {
                                             const newDetails = [...installments.details];
@@ -636,31 +742,6 @@ export default function ReservationsPage() {
                         ))}
                     </div>
                 </div>
-                 {hasLiberadoTier && (
-                    <div className="space-y-3 pt-2">
-                        <Label>Pasajeros Liberados</Label>
-                        <div className="space-y-2 p-2 border rounded-md max-h-40 overflow-y-auto">
-                            {reservationPassengers.map(p => (
-                                <div key={p.id} className="flex items-center space-x-2">
-                                    <Checkbox
-                                        id={`release-${p.id}`}
-                                        checked={(reservation.releasedPassengerIds || []).includes(p.id)}
-                                        onCheckedChange={(checked) => {
-                                            setEditingReservation(prev => {
-                                                const currentReleased = prev.reservation?.releasedPassengerIds || [];
-                                                const newReleased = checked 
-                                                    ? [...currentReleased, p.id]
-                                                    : currentReleased.filter(id => id !== p.id);
-                                                return {...prev, reservation: {...prev.reservation!, releasedPassengerIds: newReleased}}
-                                            });
-                                        }}
-                                    />
-                                    <Label htmlFor={`release-${p.id}`} className="font-normal">{p.fullName}</Label>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
               </CardContent>
           </Card>
         </div>
@@ -741,6 +822,17 @@ export default function ReservationsPage() {
         />
     )}
 
+    {editingReservation.reservation && editingReservation.isOpen && (
+      <PassengerForm
+        isOpen={isNewPassengerFormOpen}
+        onOpenChange={setIsNewPassengerFormOpen}
+        onSave={handleNewPassengerCreatedAndAdded}
+        passenger={null}
+        allPassengers={passengers}
+        boardingPoints={boardingPoints}
+      />
+    )}
+
     <Dialog open={editingReservation.isOpen} onOpenChange={(open) => setEditingReservation({ isOpen: open, reservation: open ? editingReservation.reservation : null, originalReservation: open ? editingReservation.originalReservation : null })}>
       <DialogContent onOpenAutoFocus={(e) => e.preventDefault()} className="max-w-4xl flex flex-col max-h-[90vh]">
         <DialogHeader>
@@ -753,11 +845,26 @@ export default function ReservationsPage() {
           {renderDialogContent()}
         </div>
         <DialogFooter className="mt-auto pt-4 border-t">
-          <Button variant="destructive" className="mr-auto" onClick={() => {
-              if (editingReservation.reservation) handleDelete(editingReservation.reservation.id);
-            }}>
-              <Trash2 className="mr-2 h-4 w-4" /> Eliminar Reserva
-            </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+                <Button variant="destructive" className="mr-auto">
+                    <Trash2 className="mr-2 h-4 w-4" /> Eliminar Reserva
+                </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                <AlertDialogTitle>¿Confirmas la eliminación?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    Esta acción no se puede deshacer. Se eliminará permanentemente la reserva de <strong>{editingReservation.reservation?.passenger}</strong>.
+                </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={() => { if (editingReservation.reservation) handleDelete(editingReservation.reservation.id); }} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
           <DialogClose asChild><Button variant="outline">Cancelar</Button></DialogClose>
           <Button onClick={handleUpdateReservation}>Guardar Cambios</Button>
         </DialogFooter>
@@ -813,9 +920,15 @@ export default function ReservationsPage() {
                                {tripReservations.length > 0 ? (
                                 <div className="space-y-2 mt-4">
                                 {tripReservations.map((res, index) => {
+                                    const reservationPassengers = passengers.filter(p => res.passengerIds.includes(p.id));
+                                    const calculatedPrice = reservationPassengers.reduce((total, p) => {
+                                        const tier = tour.pricingTiers?.find(t => t.id === p.tierId);
+                                        return total + (tier?.price ?? tour.price);
+                                    }, 0);
+                                    
                                     const paidAmount = res.installments?.details.reduce((sum, inst) => inst.isPaid ? sum + inst.amount : sum, 0) || 0;
-                                    const balance = (res.finalPrice || 0) - paidAmount;
-                                    const paymentColor = getPaymentColor(res.finalPrice || 0, balance);
+                                    const balance = calculatedPrice - paidAmount;
+                                    const paymentColor = getPaymentColor(calculatedPrice, balance);
                                     
                                     const mainResPassenger = passengers.find(p => p.id === res.passengerIds[0]);
                                     
@@ -874,7 +987,7 @@ export default function ReservationsPage() {
                                                               </CardTitle>
                                                           </CardHeader>
                                                           <CardContent className="space-y-3 text-sm">
-                                                              <InfoRow label="Monto Total" value={`$${(res.finalPrice || 0).toLocaleString('es-AR')}`} />
+                                                              <InfoRow label="Monto Total" value={`$${(calculatedPrice).toLocaleString('es-AR')}`} />
                                                               <InfoRow label="Pagado" value={`$${(paidAmount).toLocaleString('es-AR')}`} />
                                                               <InfoRow label="Saldo" value={`$${(balance).toLocaleString('es-AR')}`} />
                                                               <Separator className="my-2" />
@@ -948,5 +1061,6 @@ export default function ReservationsPage() {
     </>
   )
 }
+    
 
     
