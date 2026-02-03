@@ -1,5 +1,3 @@
-
-
 "use client"
 
 import { useState, useMemo, useEffect } from "react";
@@ -49,6 +47,7 @@ const dataColumns = {
   age: "Edad",
   dob: "F. Nacimiento",
   boardingPoint: "Embarque",
+  assignedSeat: "Asiento",
 };
 
 const calculateAge = (dob: any) => {
@@ -93,7 +92,7 @@ export function DataExporter({ isOpen, onOpenChange }: DataExporterProps) {
   const [boardingPoints, setBoardingPoints] = useState<BoardingPoint[]>([]);
   
   const [selectedTripIds, setSelectedTripIds] = useState<string[]>([]);
-  const [selectedColumns, setSelectedColumns] = useState<string[]>(["ticketId", "fullName", "dni"]);
+  const [selectedColumns, setSelectedColumns] = useState<string[]>(["ticketId", "fullName", "dni", "assignedSeat"]);
   const [showInsuredOnly, setShowInsuredOnly] = useState(false);
   const [boardingSortOrder, setBoardingSortOrder] = useState<"asc" | "desc" | "custom">("asc");
   const [customBoardingOrder, setCustomBoardingOrder] = useState<BoardingPoint[]>([]);
@@ -184,6 +183,7 @@ export function DataExporter({ isOpen, onOpenChange }: DataExporterProps) {
           const boardingPoint = boardingPoints.find(bp => bp.id === p.boardingPointId)?.name || "N/A";
           const dobDate = p.dob?.toDate ? p.dob.toDate() : (p.dob ? new Date(p.dob) : null);
           const dobString = dobDate ? dobDate.toLocaleDateString("es-AR") : "N/A";
+          const assignedSeat = (r.assignedSeats?.length > 0) ? r.assignedSeats.map(s => s.seatId).join(', ') : "N/A";
 
           return {
               id: p.id,
@@ -195,6 +195,7 @@ export function DataExporter({ isOpen, onOpenChange }: DataExporterProps) {
               dob: dobString,
               boardingPoint,
               boardingPointId: p.boardingPointId,
+              assignedSeat: assignedSeat,
           };
       });
 
