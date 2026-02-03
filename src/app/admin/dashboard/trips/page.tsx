@@ -1,5 +1,4 @@
 
-
 "use client"
 
 import { useState, useMemo, useEffect } from "react"
@@ -225,7 +224,7 @@ export default function TripsPage() {
     
     // If we're setting a tour as popup, check the limit.
     if (field === 'showAsPopup' && value) {
-        const popupCount = tours.filter(t => t.showAsPopup).length;
+        const popupCount = activeTours.filter(t => t.showAsPopup).length;
         if (popupCount >= MAX_POPUP_TOURS) {
             toast({
                 title: "Límite de Popups alcanzado",
@@ -423,5 +422,7 @@ export default function TripsPage() {
     </div>
   )
 }
+
+    
 
     
