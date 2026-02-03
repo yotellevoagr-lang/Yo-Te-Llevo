@@ -1039,6 +1039,9 @@ export default function ReservationsPage() {
                                                         </Card>
                                                     </div>
                                                      <div className="flex justify-end gap-2 mt-4">
+                                                        <Button variant="outline" size="sm" onClick={() => setAssignTierState({ isOpen: true, reservationId: res.id })}>
+                                                            <BadgePercent className="mr-2 h-4 w-4" /> Asignar Tarifas
+                                                        </Button>
                                                         <Button variant="outline" size="sm" onClick={() => handleDialogOpen(tour, res)}>
                                                             <Edit className="mr-2 h-4 w-4" /> Gestionar
                                                         </Button>
@@ -1069,3 +1072,4 @@ export default function ReservationsPage() {
     
 
     
+
