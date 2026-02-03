@@ -359,12 +359,14 @@ export default function ReservationsPage() {
             }
         }
         await deleteDocument('reservations', reservationId);
+        
         await fetchData();
         window.dispatchEvent(new Event('storage'));
-        setEditingReservation({isOpen: false, reservation: null, originalReservation: null});
+        setEditingReservation({isOpen: false, reservation: null, originalReservation: null });
         toast({ title: "Reserva Eliminada", variant: "destructive"});
-    } catch(error) {
-        toast({ title: "Error", description: "No se pudo eliminar la reserva.", variant: "destructive"});
+    } catch(error: any) {
+        console.error("Error deleting reservation:", error);
+        toast({ title: "Error", description: error.message || "No se pudo eliminar la reserva.", variant: "destructive"});
     }
   }
 
@@ -877,7 +879,7 @@ export default function ReservationsPage() {
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                <AlertDialogAction onClick={() => { if (editingReservation.reservation) handleDeleteReservation(editingReservation.reservation.id); }} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
+                <AlertDialogAction onClick={() => { if (editingReservation.reservation) handleDelete(editingReservation.reservation.id); }} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
@@ -1002,5 +1004,6 @@ export default function ReservationsPage() {
     
 
     
+
 
 

@@ -59,6 +59,10 @@ service cloud.firestore {
             // App-side logic must be robust to prevent unauthorized modifications.
             allow update: if true;
             allow delete: if true;
+
+             match /benefits/{benefitId} {
+                allow read, write: if isOwner(passengerId);
+            }
         }
 
         // --- RESERVAS ---
@@ -76,7 +80,7 @@ service cloud.firestore {
 
         // --- COLECCIONES FINANCIERAS ---
         match /transactions/{transactionId} {
-            allow read, write: if isSignedInAsRole('admin');
+            allow read, write: if isSignedInAsRole('admin') || isSignedInAsRole('employee');
         }
         match /custom_expenses/{expenseId} {
             allow read, write: if isSignedInAsRole('admin');
@@ -104,6 +108,33 @@ service cloud.firestore {
         match /location_votes/{voteId} {
             allow create: if true; // Anyone can create a vote
             allow read, delete: if isSignedInAsRole('admin'); // Only admins can see and manage votes
+        }
+
+        // --- Community ---
+        match /community_posts/{postId} {
+          allow read: if true;
+          allow create, update, delete: if isSignedInAsRole('admin') || isSignedInAsRole('employee');
+          
+          match /comments/{commentId} {
+            allow read: if true;
+            allow create: if isSignedIn();
+            allow update, delete: if isOwner(resource.data.userId) || isSignedInAsRole('admin') || isSignedInAsRole('employee');
+          }
+          match /reactions/{reactionId} {
+            allow read: if true;
+            allow write: if isSignedIn();
+          }
+        }
+        
+        // --- Benefits ---
+        match /benefits/{benefitId} {
+          allow read: if true;
+          allow write: if isSignedInAsRole('admin');
+        }
+        match /benefit_redemptions/{redemptionId} {
+          allow read: if isSignedInAsRole('admin') || isSignedInAsRole('employee');
+          allow create: if isSignedIn();
+          allow update, delete: if isSignedInAsRole('admin');
         }
     }
 }

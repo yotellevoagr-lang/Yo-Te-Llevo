@@ -362,7 +362,7 @@ export default function ReservationsPage() {
         const reservationToDelete = reservations.find(r => r.id === reservationId);
         if (reservationToDelete?.installments) {
             for (const inst of reservationToDelete.installments.details) {
-                if (inst.transactionId) {
+                if (inst.isPaid && inst.transactionId) {
                     await deleteDocument('transactions', inst.transactionId);
                 }
             }
@@ -372,8 +372,9 @@ export default function ReservationsPage() {
         window.dispatchEvent(new Event('storage'));
         setEditingReservation({isOpen: false, reservation: null, originalReservation: null});
         toast({ title: "Reserva Eliminada", variant: "destructive"});
-    } catch(error) {
-        toast({ title: "Error", description: "No se pudo eliminar la reserva.", variant: "destructive"});
+    } catch(error: any) {
+        console.error("Error deleting reservation:", error);
+        toast({ title: "Error", description: error.message || "No se pudo eliminar la reserva.", variant: "destructive"});
     }
   }
 
@@ -1022,5 +1023,6 @@ export default function ReservationsPage() {
     
 
     
+
 
 
