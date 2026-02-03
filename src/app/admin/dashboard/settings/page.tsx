@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import Image from "next/image"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
@@ -34,9 +34,8 @@ import { getDisplayUrl } from "@/lib/utils"
 import { GeoSettingsCard } from "@/components/admin/settings/geo-settings-card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Separator } from "@/components/ui/separator"
-import { arrayRemove, writeBatch } from "firebase/firestore"
+import { arrayRemove, writeBatch, doc } from "firebase/firestore"
 import { db } from "@/lib/firebase"
-import { doc } from "firebase/firestore"
 import { uploadFileToStorage, deleteFileFromStorage, isStorageUrl } from "@/lib/storage-service"
 
 const fileToDataUrl = (file: File): Promise<string> => {
@@ -183,6 +182,7 @@ export default function SettingsPage() {
     const [aboutUsMediaFile, setAboutUsMediaFile] = useState<File | null>(null);
     const [aboutUsMediaPreview, setAboutUsMediaPreview] = useState<{url: string, type: 'image' | 'video'} | null>(null);
     const [boardingPoints, setBoardingPoints] = useState<BoardingPoint[]>([]);
+    const [initialBoardingPoints, setInitialBoardingPoints] = useState<BoardingPoint[]>([]);
     const [pensions, setPensions] = useState<Pension[]>([]);
     const [roomTypes, setRoomTypes] = useState<RoomType[]>([]);
     const [isEditorOpen, setIsEditorOpen] = useState(false);
@@ -191,6 +191,22 @@ export default function SettingsPage() {
     const [adminUser, setAdminUser] = useState<Employee | null>(null);
     const [travelTags, setTravelTags] = useState<string[]>([]);
 
+    const getNextLetterId = (lastId: string): string => {
+        if (!lastId) return 'A';
+        const len = lastId.length;
+        let i = len - 1;
+        let newId = lastId.split('');
+        while (i >= 0) {
+            if (newId[i] === 'Z') {
+            newId[i] = 'A';
+            i--;
+            } else {
+            newId[i] = String.fromCharCode(newId[i].charCodeAt(0) + 1);
+            return newId.join('');
+            }
+        }
+        return 'A' + newId.join('');
+    }
 
     const fetchData = async () => {
         setIsLoading(true);
@@ -239,6 +255,7 @@ export default function SettingsPage() {
             if (domainSettingsData) setDomainSettings(domainSettingsData);
             if (geoSettingsData) setGeoSettings(geoSettingsData);
             setBoardingPoints(boardingPointsData);
+            setInitialBoardingPoints(boardingPointsData);
             setPensions(pensionsData);
             setRoomTypes(roomTypesData);
             if (layoutConfigData) setLayoutConfig(layoutConfigData);
@@ -591,28 +608,59 @@ export default function SettingsPage() {
         toast({ title: "¡Guardado!", description: `El layout "${newConfigData.name}" se ha guardado.` });
     };
 
-    const handleAddBoardingPoint = async () => {
-        await saveDocument('boarding_points', { name: '' });
-        await fetchData();
+    const handleAddBoardingPoint = () => {
+        setBoardingPoints(prev => {
+            const sorted = [...prev].sort((a, b) => a.id.length - b.id.length || a.id.localeCompare(b.id));
+            const lastId = sorted.length > 0 ? sorted[sorted.length - 1].id : '';
+            const newId = getNextLetterId(lastId);
+            return [...prev, { id: newId, name: '' }];
+        });
     };
-    const handleBoardingPointChange = (id: string, name: string) => setBoardingPoints(prev => prev.map(p => p.id === id ? { ...p, name } : p));
-    const handleRemoveBoardingPoint = async (id: string) => {
-        await deleteDocument('boarding_points', id);
-        await fetchData();
+    
+    const handleBoardingPointChange = (idToUpdate: string, field: 'id' | 'name', value: string) => {
+        setBoardingPoints(prev => {
+            const isDuplicate = field === 'id' && prev.some(p => p.id === value.toUpperCase() && p.id !== idToUpdate);
+            if (isDuplicate) {
+                toast({ title: "ID Duplicado", description: "Este ID ya está en uso. Por favor, elige otro.", variant: "destructive" });
+                return prev;
+            }
+            return prev.map(p =>
+                p.id === idToUpdate
+                    ? { ...p, [field]: field === 'id' ? value.toUpperCase() : value }
+                    : p
+            );
+        });
+    };
+
+    const handleRemoveBoardingPoint = (id: string) => {
+        setBoardingPoints(prev => prev.filter(p => p.id !== id));
     };
     
     const handleSaveBoardingPoints = async () => {
         setIsSaving('boarding');
         try {
-            for(const point of boardingPoints) {
-                if (point.name.trim()) {
-                    await saveDocument('boarding_points', point, point.id);
-                } else {
-                    await deleteDocument('boarding_points', point.id);
+            const batch = writeBatch(db);
+            const currentPointsMap = new Map(boardingPoints.map(p => [p.id, p]));
+            
+            for (const initialPoint of initialBoardingPoints) {
+                if (!currentPointsMap.has(initialPoint.id)) {
+                    const docRef = doc(db, 'boarding_points', initialPoint.id);
+                    batch.delete(docRef);
                 }
             }
+
+            for (const point of boardingPoints) {
+                if (point.name.trim()) {
+                    const docRef = doc(db, 'boarding_points', point.id);
+                    batch.set(docRef, { name: point.name });
+                } else {
+                    const docRef = doc(db, 'boarding_points', point.id);
+                    batch.delete(docRef);
+                }
+            }
+
+            await batch.commit();
             await fetchData();
-            window.dispatchEvent(new Event('storage'));
             toast({ title: "Puntos de embarque guardados." });
         } catch (error) {
              toast({ title: "Error", description: "No se pudieron guardar los puntos de embarque.", variant: "destructive" });
@@ -681,6 +729,15 @@ export default function SettingsPage() {
         }
     }
 
+    const sortedBoardingPoints = useMemo(() => {
+        return [...boardingPoints].sort((a, b) => {
+            if (a.id.length !== b.id.length) {
+                return a.id.length - b.id.length;
+            }
+            return a.id.localeCompare(b.id);
+        });
+    }, [boardingPoints]);
+
     const layoutCategoryDetails = {
         vehicles: { icon: Bus, title: "Tipos de Vehículo" },
         airplanes: { icon: Plane, title: "Tipos de Avión" },
@@ -701,7 +758,6 @@ export default function SettingsPage() {
         const newTags = travelTags.filter((_, i) => i !== index);
         setTravelTags(newTags);
 
-        // This is a preview. To make it permanent, user must save.
         toast({
             title: `Etiqueta '${tagToRemove}' marcada para eliminar`,
             description: "Guarda los cambios para que la eliminación sea permanente y se actualice en todos los viajes.",
@@ -923,8 +979,30 @@ export default function SettingsPage() {
                     <AccordionTrigger className="w-full px-6 text-left hover:no-underline text-xl">Puntos de Embarque</AccordionTrigger>
                     <AccordionContent className="p-6 pt-2">
                         <CardDescription className="mb-4">Añade y gestiona las paradas o puntos de encuentro para los viajes.</CardDescription>
-                        <div className="space-y-2">{boardingPoints.map((point) => (<div key={point.id} className="flex items-center gap-2"><Input value={point.name} onChange={(e) => handleBoardingPointChange(point.id, e.target.value)} placeholder="Nombre de la parada..."/><Button variant="ghost" size="icon" onClick={() => handleRemoveBoardingPoint(point.id)}><Trash2 className="w-4 h-4 text-destructive"/></Button></div>))}</div>
-                        <div className="flex justify-between items-center pt-4"><Button variant="outline" onClick={handleAddBoardingPoint}><PlusCircle className="mr-2 h-4 w-4"/> Añadir Parada</Button><Button onClick={handleSaveBoardingPoints} disabled={!!isSaving}>{isSaving === 'boarding' && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}Guardar Paradas</Button></div>
+                        <div className="space-y-2">
+                            {sortedBoardingPoints.map((point) => (
+                                <div key={point.id} className="flex items-center gap-2">
+                                     <Input
+                                        value={point.id}
+                                        onChange={(e) => handleBoardingPointChange(point.id, 'id', e.target.value)}
+                                        className="w-20 font-mono uppercase"
+                                        placeholder="ID"
+                                    />
+                                    <Input 
+                                        value={point.name} 
+                                        onChange={(e) => handleBoardingPointChange(point.id, 'name', e.target.value)} 
+                                        placeholder="Nombre de la parada..."
+                                    />
+                                    <Button variant="ghost" size="icon" onClick={() => handleRemoveBoardingPoint(point.id)}><Trash2 className="w-4 h-4 text-destructive"/></Button>
+                                </div>
+                            ))}
+                        </div>
+                        <div className="flex justify-between items-center pt-4">
+                            <Button variant="outline" onClick={handleAddBoardingPoint}><PlusCircle className="mr-2 h-4 w-4"/> Añadir Parada</Button>
+                            <Button onClick={handleSaveBoardingPoints} disabled={isSaving === 'boarding'}>
+                                {isSaving === 'boarding' && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}Guardar Paradas
+                            </Button>
+                        </div>
                     </AccordionContent>
                 </Card>
             </AccordionItem>
