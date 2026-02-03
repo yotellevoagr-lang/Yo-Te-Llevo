@@ -135,7 +135,8 @@ type AssignTierState = {
 
 export default function ReservationsPage() {
   const [reservations, setReservations] = useState<Reservation[]>([])
-  const [tours, setTours] = useState<Tour[]>([]);
+  const [allTours, setAllTours] = useState<Tour[]>([]);
+  const [activeTours, setActiveTours] = useState<Tour[]>([]);
   const [sellers, setSellers] = useState<Seller[]>([]);
   const [passengers, setPassengers] = useState<Passenger[]>([]);
   const [boardingPoints, setBoardingPoints] = useState<BoardingPoint[]>([]);
@@ -180,7 +181,7 @@ export default function ReservationsPage() {
     });
 
     setReservations(reservationsData);
-    setTours(processedTours);
+    setAllTours(processedTours);
     setSellers(sellersData);
     setPassengers(passengersData);
     setBoardingPoints(boardingPointsData);
@@ -198,15 +199,19 @@ export default function ReservationsPage() {
       setLocalInstallmentCount(editingReservation.reservation.installments.count);
     }
   }, [editingReservation.isOpen, editingReservation.reservation]);
+  
+  useEffect(() => {
+    const now = new Date();
+    const filteredActiveTours = allTours.filter(tour => tour.date && new Date(tour.date) >= now);
+    setActiveTours(filteredActiveTours);
+  }, [allTours]);
 
   const reservationsByTrip = useMemo(() => {
-    const activeTours = tours.filter(tour => tour.date && new Date(tour.date) >= new Date());
-    
     let filteredReservations = reservations;
     if (searchTerm) {
         const lowercasedTerm = searchTerm.toLowerCase();
         filteredReservations = reservations.filter(res => {
-            const tour = tours.find(t => t.id === res.tripId);
+            const tour = allTours.find(t => t.id === res.tripId);
             const mainPassenger = passengers.find(p => p.id === res.passengerIds[0]);
             
             const displayId = generateDisplayID('R', res, tour, mainPassenger).toLowerCase();
@@ -243,7 +248,7 @@ export default function ReservationsPage() {
         }
         return acc;
     }, {} as Record<string, { tour: Tour, reservations: Reservation[], availableSeats: number, occupiedCount: number }>);
-  }, [reservations, tours, passengers, searchTerm, layoutConfig]);
+  }, [reservations, activeTours, allTours, passengers, searchTerm, layoutConfig]);
 
 
   const getExpandedTransportList = (tour: Tour): TransportUnit[] => {
@@ -274,7 +279,7 @@ export default function ReservationsPage() {
         const updatedReservation = { ...editingReservation.reservation };
         const originalReservation = { ...editingReservation.originalReservation };
 
-        const tour = tours.find(t => t.id === updatedReservation.tripId);
+        const tour = allTours.find(t => t.id === updatedReservation.tripId);
         if (!tour) throw new Error("Viaje no encontrado");
 
         const reservationPassengers = passengers.filter(p => updatedReservation.passengerIds.includes(p.id));
@@ -296,7 +301,7 @@ export default function ReservationsPage() {
             const wasJustUnpaid = !newInst.isPaid && originalInst && originalInst.isPaid;
 
             if (wasJustPaid) {
-                const tour = tours.find(t => t.id === updatedReservation.tripId);
+                const tour = allTours.find(t => t.id === updatedReservation.tripId);
                 const transaction: Omit<Transaction, 'id'> = {
                     amount: newInst.amount,
                     currency: tour?.currency || 'ARS',
@@ -520,7 +525,7 @@ export default function ReservationsPage() {
     if (!editingReservation.reservation) return null;
     
     const reservation = editingReservation.reservation;
-    const tour = tours.find(t => t.id === reservation.tripId);
+    const tour = allTours.find(t => t.id === reservation.tripId);
     
     if (!tour) return null;
 
@@ -831,7 +836,7 @@ export default function ReservationsPage() {
         isOpen={assignTierState.isOpen}
         onOpenChange={(open) => setAssignTierState({isOpen: open, reservationId: open ? assignTierState.reservationId : null})}
         reservation={reservations.find(r => r.id === assignTierState.reservationId) || null}
-        tour={tours.find(t => t.id === reservations.find(r => r.id === assignTierState.reservationId)?.tripId) || null}
+        tour={allTours.find(t => t.id === reservations.find(r => r.id === assignTierState.reservationId)?.tripId) || null}
         passengers={passengers}
         onPassengerTierChange={handlePassengerTierChange}
     />
@@ -850,7 +855,7 @@ export default function ReservationsPage() {
         <DialogHeader>
           <DialogTitle>Gestionar Reserva</DialogTitle>
           <DialogDescription>
-            Modificar detalles de la reserva para {editingReservation.reservation?.passenger} en el viaje a {tours.find(t => t.id === editingReservation.reservation?.tripId)?.destination}.
+            Modificar detalles de la reserva para {editingReservation.reservation?.passenger} en el viaje a {allTours.find(t => t.id === editingReservation.reservation?.tripId)?.destination}.
           </DialogDescription>
         </DialogHeader>
         <div className="flex-1 overflow-y-auto pr-2">
@@ -872,7 +877,7 @@ export default function ReservationsPage() {
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                <AlertDialogAction onClick={() => { if (editingReservation.reservation) handleDelete(editingReservation.reservation.id); }} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
+                <AlertDialogAction onClick={() => { if (editingReservation.reservation) handleDeleteReservation(editingReservation.reservation.id); }} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
@@ -885,13 +890,11 @@ export default function ReservationsPage() {
 
 
     <div className="space-y-6">
-      <div className="flex justify-between items-start">
-        <div>
-          <h2 className="text-2xl font-bold">Gestión de Reservas</h2>
-          <p className="text-muted-foreground">
-            Visualiza las reservas, asigna asientos y gestiona los estados.
-          </p>
-        </div>
+      <div>
+        <h2 className="text-2xl font-bold">Gestión de Reservas</h2>
+        <p className="text-muted-foreground">
+          Visualiza las reservas, asigna asientos y gestiona los estados.
+        </p>
       </div>
       <Card>
         <CardHeader>
@@ -956,87 +959,14 @@ export default function ReservationsPage() {
                                                 </AccordionTrigger>
                                                 <AccordionContent className="p-4 bg-secondary/20 space-y-4">
                                                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                                                        <Card>
-                                                            <CardHeader>
-                                                                <CardTitle className="text-lg flex items-center gap-2">
-                                                                    <Users className="w-5 h-5 text-primary"/>
-                                                                    Pasajero Principal
-                                                                </CardTitle>
-                                                            </CardHeader>
-                                                            <CardContent className="space-y-3 text-sm">
-                                                                <InfoRow label="Nombre" value={res.passenger}/>
-                                                                <InfoRow label="DNI" value={passengers.find(p => p.id === res.passengerIds[0])?.dni}/>
-                                                                <InfoRow label="F. Nac." value={formatDate(passengers.find(p => p.id === res.passengerIds[0])?.dob)}/>
-                                                                <InfoRow label="Edad" value={calculateAge(passengers.find(p => p.id === res.passengerIds[0])?.dob)}/>
-                                                                <InfoRow label="Grupo" value={passengers.find(p => p.id === res.passengerIds[0])?.family}/>
-                                                            </CardContent>
-                                                        </Card>
-
-                                                        <Card>
-                                                            <CardHeader>
-                                                                <CardTitle className="text-lg flex items-center gap-2">
-                                                                    <Tag className="w-5 h-5 text-primary"/>
-                                                                    Detalles de Reserva
-                                                                </CardTitle>
-                                                            </CardHeader>
-                                                            <CardContent className="space-y-3 text-sm">
-                                                                <InfoRow label="ID Reserva" value={generateDisplayID('R', res, tour, passengers.find(p => p.id === res.passengerIds[0]))} />
-                                                                <InfoRow label="Cantidad" value={`${res.paxCount} pasajero(s)`}/>
-                                                                <InfoRow label="Embarque" value={boardingPoints.find(bp => bp.id === res.boardingPointId)?.name}/>
-                                                                <InfoRow label="Ubicación" value={[(res.assignedSeats || []).map(s => s.seatId),(res.assignedCabins || []).map(c => c.cabinId)].flat().join(', ')}/>
-                                                                <InfoRow label="Vendedor/a" value={sellers.find(s => s.id === res.sellerId)?.name} icon={<PercentSquare className="w-4 h-4 text-purple-600"/>}/>
-                                                            </CardContent>
-                                                        </Card>
-
-                                                        <Card>
-                                                          <CardHeader>
-                                                              <CardTitle className="text-lg flex items-center gap-2">
-                                                                  <CreditCard className="w-5 h-5 text-primary"/>
-                                                                  Información de Pago
-                                                              </CardTitle>
-                                                          </CardHeader>
-                                                          <CardContent className="space-y-3 text-sm">
-                                                              <InfoRow label="Monto Total" value={`$${(calculatedPrice).toLocaleString('es-AR')}`} />
-                                                              <InfoRow label="Pagado" value={`$${(paidAmount).toLocaleString('es-AR')}`} />
-                                                              <InfoRow label="Saldo" value={`$${(balance).toLocaleString('es-AR')}`} />
-                                                              <Separator className="my-2" />
-                                                              <div className="space-y-2">
-                                                                  {(res.installments?.details || []).map((inst, idx) => {
-                                                                      const paidAtRaw = inst.paidAt;
-                                                                      const paidAtDate = paidAtRaw instanceof Date ? paidAtRaw : (paidAtRaw as any).toDate ? (paidAtRaw as any).toDate() : null;
-                                                                      const isValidDate = paidAtDate instanceof Date && !isNaN(paidAtDate.getTime());
-                                                                      return (
-                                                                        <div key={idx} className="flex justify-between items-center text-xs">
-                                                                            <div className="flex items-center gap-2">
-                                                                                {inst.isPaid ? <CheckCircle className="w-4 h-4 text-green-600"/> : <Clock className="w-4 h-4 text-muted-foreground"/>}
-                                                                                <span>Cuota {idx + 1}</span>
-                                                                            </div>
-                                                                            <div className="flex items-center gap-1 font-mono">
-                                                                                {inst.isPaid && inst.paymentMethod && <Badge variant="outline" className="text-[10px] p-0.5 px-1">{paymentMethodAbbreviations[inst.paymentMethod]}</Badge>}
-                                                                                {inst.isPaid && isValidDate && <span className="text-muted-foreground">{format(paidAtDate, 'dd/MM/yy')}</span>}
-                                                                                <span>${(inst.amount || 0).toLocaleString('es-AR')}</span>
-                                                                            </div>
-                                                                        </div>
-                                                                      );
-                                                                  })}
-                                                              </div>
-                                                          </CardContent>
-                                                        </Card>
-
-                                                         <Card>
-                                                            <CardHeader>
-                                                                <CardTitle className="text-lg flex items-center gap-2">
-                                                                    <Home className="w-5 h-5 text-primary"/>
-                                                                    Detalles del Viaje
-                                                                </CardTitle>
-                                                            </CardHeader>
-                                                            <CardContent className="space-y-3 text-sm">
-                                                                <InfoRow label="Seguro" value={(res.insuredPassengerIds?.length || 0) > 0 ? `Sí (${res.insuredPassengerIds?.length})` : 'No'} icon={<ShieldCheck className="w-4 h-4 text-green-600"/>}/>
-                                                                <InfoRow label="Liberados" value={(res.releasedPassengerIds?.length || 0) > 0 ? `Sí (${res.releasedPassengerIds?.length})` : 'No'} icon={<BadgePercent className="w-4 h-4 text-blue-600"/>}/>
-                                                                <InfoRow label="Pensión" value={pensions.find(p => p.id === res.pensionId)?.name || 'No incluida'} icon={<Utensils className="w-4 h-4 text-orange-600"/>}/>
-                                                                <InfoRow label="Tipo de Hab." value={roomTypes.find(rt => rt.id === res.roomTypeId)?.name} icon={<BedDouble className="w-4 h-4 text-blue-600"/>}/>
-                                                            </CardContent>
-                                                        </Card>
+                                                        <Card><CardHeader><CardTitle className="text-lg flex items-center gap-2"><Users className="w-5 h-5 text-primary"/>Pasajero Principal</CardTitle></CardHeader><CardContent className="space-y-3 text-sm"><InfoRow label="Nombre" value={res.passenger}/><InfoRow label="DNI" value={passengers.find(p => p.id === res.passengerIds[0])?.dni}/><InfoRow label="F. Nac." value={formatDate(passengers.find(p => p.id === res.passengerIds[0])?.dob)}/><InfoRow label="Edad" value={calculateAge(passengers.find(p => p.id === res.passengerIds[0])?.dob)}/><InfoRow label="Grupo" value={passengers.find(p => p.id === res.passengerIds[0])?.family}/></CardContent></Card>
+                                                        <Card><CardHeader><CardTitle className="text-lg flex items-center gap-2"><Tag className="w-5 h-5 text-primary"/>Detalles de Reserva</CardTitle></CardHeader><CardContent className="space-y-3 text-sm"><InfoRow label="ID Reserva" value={generateDisplayID('R', res, tour, passengers.find(p => p.id === res.passengerIds[0]))} /><InfoRow label="Cantidad" value={`${res.paxCount} pasajero(s)`}/><InfoRow label="Embarque" value={boardingPoints.find(bp => bp.id === res.boardingPointId)?.name}/><InfoRow label="Ubicación" value={[(res.assignedSeats || []).map(s => s.seatId),(res.assignedCabins || []).map(c => c.cabinId)].flat().join(', ')}/><InfoRow label="Vendedor/a" value={sellers.find(s => s.id === res.sellerId)?.name} icon={<PercentSquare className="w-4 h-4 text-purple-600"/>}/></CardContent></Card>
+                                                        <Card><CardHeader><CardTitle className="text-lg flex items-center gap-2"><CreditCard className="w-5 h-5 text-primary"/>Información de Pago</CardTitle></CardHeader><CardContent className="space-y-3 text-sm"><InfoRow label="Monto Total" value={`$${(calculatedPrice).toLocaleString('es-AR')}`} /><InfoRow label="Pagado" value={`$${(paidAmount).toLocaleString('es-AR')}`} /><InfoRow label="Saldo" value={`$${(balance).toLocaleString('es-AR')}`} /><Separator className="my-2" /><div className="space-y-2">{(res.installments?.details || []).map((inst, idx) => {
+                                                        const paidAtRaw = inst.paidAt;
+                                                        const paidAtDate = paidAtRaw instanceof Date ? paidAtRaw : paidAtRaw && (paidAtRaw as any).toDate ? (paidAtRaw as any).toDate() : null;
+                                                        const isValidDate = paidAtDate instanceof Date && !isNaN(paidAtDate.getTime());
+                                                        return (<div key={idx} className="flex justify-between items-center text-xs"><div className="flex items-center gap-2">{inst.isPaid ? <CheckCircle className="w-4 h-4 text-green-600"/> : <Clock className="w-4 h-4 text-muted-foreground"/>}<span>Cuota {idx + 1}</span></div><div className="flex items-center gap-1 font-mono">{inst.isPaid && inst.paymentMethod && <Badge variant="outline" className="text-[10px] p-0.5 px-1">{paymentMethodAbbreviations[inst.paymentMethod]}</Badge>}{inst.isPaid && isValidDate && <span className="text-muted-foreground">{format(paidAtDate, 'dd/MM/yy')}</span>}<span>${(inst.amount || 0).toLocaleString('es-AR')}</span></div></div>);})}</div></CardContent></Card>
+                                                         <Card><CardHeader><CardTitle className="text-lg flex items-center gap-2"><Home className="w-5 h-5 text-primary"/>Detalles del Viaje</CardTitle></CardHeader><CardContent className="space-y-3 text-sm"><InfoRow label="Seguro" value={(res.insuredPassengerIds?.length || 0) > 0 ? `Sí (${res.insuredPassengerIds?.length})` : 'No'} icon={<ShieldCheck className="w-4 h-4 text-green-600"/>}/><InfoRow label="Liberados" value={(res.releasedPassengerIds?.length || 0) > 0 ? `Sí (${res.releasedPassengerIds?.length})` : 'No'} icon={<BadgePercent className="w-4 h-4 text-blue-600"/>}/><InfoRow label="Pensión" value={pensions.find(p => p.id === res.pensionId)?.name || 'No incluida'} icon={<Utensils className="w-4 h-4 text-orange-600"/>}/><InfoRow label="Tipo de Hab." value={roomTypes.find(rt => rt.id === res.roomTypeId)?.name} icon={<BedDouble className="w-4 h-4 text-blue-600"/>}/></CardContent></Card>
                                                     </div>
                                                      <div className="flex justify-end gap-2 mt-4">
                                                         <Button variant="outline" size="sm" onClick={() => setAssignTierState({ isOpen: true, reservationId: res.id })}>
@@ -1072,4 +1002,5 @@ export default function ReservationsPage() {
     
 
     
+
 

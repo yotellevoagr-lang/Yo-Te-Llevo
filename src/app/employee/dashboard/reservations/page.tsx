@@ -107,9 +107,15 @@ const paymentMethodAbbreviations: Record<PaymentMethod, string> = {
 };
 
 const getPaymentColor = (finalPrice: number, balance: number): string => {
-    if (finalPrice === 0) return 'bg-gray-400';
-    if (balance <= 0) return 'bg-green-500';
-    if (balance < finalPrice) return 'bg-orange-500';
+    if (finalPrice === 0) {
+        return 'bg-gray-400';
+    }
+    if (balance <= 0) {
+        return 'bg-green-500';
+    }
+    if (balance < finalPrice) {
+        return 'bg-orange-500';
+    }
     return 'bg-red-500';
 };
 
@@ -125,7 +131,8 @@ const InfoRow = ({ label, value, icon }: { label: string, value: string | number
 
 export default function ReservationsPage() {
   const [reservations, setReservations] = useState<Reservation[]>([])
-  const [tours, setTours] = useState<Tour[]>([]);
+  const [allTours, setAllTours] = useState<Tour[]>([]);
+  const [activeTours, setActiveTours] = useState<Tour[]>([]);
   const [sellers, setSellers] = useState<Seller[]>([]);
   const [passengers, setPassengers] = useState<Passenger[]>([]);
   const [boardingPoints, setBoardingPoints] = useState<BoardingPoint[]>([]);
@@ -171,7 +178,7 @@ export default function ReservationsPage() {
     });
 
     setReservations(reservationsData);
-    setTours(processedTours);
+    setAllTours(processedTours);
     setSellers(sellersData);
     setPassengers(passengersData);
     setBoardingPoints(boardingPointsData);
@@ -189,15 +196,32 @@ export default function ReservationsPage() {
       setLocalInstallmentCount(editingReservation.reservation.installments.count);
     }
   }, [editingReservation.isOpen, editingReservation.reservation]);
+  
+  useEffect(() => {
+    const now = new Date();
+    const filteredActiveTours = allTours.filter(tour => tour.date && new Date(tour.date) >= now);
+    setActiveTours(filteredActiveTours);
+  }, [allTours]);
+
+  const employeeFamilyDnis = useMemo(() => {
+    if (!user) return new Set<string>();
+    const employeePassengerProfile = passengers.find(p => p.id === user.id);
+    if (!employeePassengerProfile || !employeePassengerProfile.family) return new Set([employeePassengerProfile?.dni].filter(Boolean));
+    
+    const familyDnis = passengers
+        .filter(p => p.family === employeePassengerProfile.family && p.dni)
+        .map(p => p.dni);
+        
+    return new Set(familyDnis);
+  }, [user, passengers]);
+
 
   const reservationsByTrip = useMemo(() => {
-    const activeTours = tours.filter(tour => tour.date && new Date(tour.date) >= new Date());
-    
     let filteredReservations = reservations;
     if (searchTerm) {
         const lowercasedTerm = searchTerm.toLowerCase();
         filteredReservations = reservations.filter(res => {
-            const tour = tours.find(t => t.id === res.tripId);
+            const tour = allTours.find(t => t.id === res.tripId);
             const mainPassenger = passengers.find(p => p.id === res.passengerIds[0]);
             
             const displayId = generateDisplayID('R', res, tour, mainPassenger).toLowerCase();
@@ -234,20 +258,7 @@ export default function ReservationsPage() {
         }
         return acc;
     }, {} as Record<string, { tour: Tour, reservations: Reservation[], availableSeats: number, occupiedCount: number }>);
-  }, [reservations, tours, passengers, searchTerm, layoutConfig]);
-
-  const employeeFamilyDnis = useMemo(() => {
-    if (!user) return new Set<string>();
-    const employeePassengerProfile = passengers.find(p => p.id === user.id);
-    if (!employeePassengerProfile || !employeePassengerProfile.family) return new Set([employeePassengerProfile?.dni].filter(Boolean));
-    
-    const familyDnis = passengers
-        .filter(p => p.family === employeePassengerProfile.family && p.dni)
-        .map(p => p.dni);
-        
-    return new Set(familyDnis);
-  }, [user, passengers]);
-
+  }, [reservations, activeTours, allTours, passengers, searchTerm, layoutConfig]);
 
   const getExpandedTransportList = (tour: Tour): TransportUnit[] => {
     return tour.transportUnits || [];
@@ -277,7 +288,7 @@ export default function ReservationsPage() {
         const updatedReservation = { ...editingReservation.reservation };
         const originalReservation = { ...editingReservation.originalReservation };
 
-        const tour = tours.find(t => t.id === updatedReservation.tripId);
+        const tour = allTours.find(t => t.id === updatedReservation.tripId);
         if (!tour) throw new Error("Viaje no encontrado");
 
         const reservationPassengers = passengers.filter(p => updatedReservation.passengerIds.includes(p.id));
@@ -299,7 +310,7 @@ export default function ReservationsPage() {
             const wasJustUnpaid = !newInst.isPaid && originalInst && originalInst.isPaid;
 
             if (wasJustPaid) {
-                const tour = tours.find(t => t.id === updatedReservation.tripId);
+                const tour = allTours.find(t => t.id === updatedReservation.tripId);
                 const transaction: Omit<Transaction, 'id'> = {
                     amount: newInst.amount,
                     currency: tour?.currency || 'ARS',
@@ -513,7 +524,6 @@ export default function ReservationsPage() {
         }
     }
 
-
   const categoryIcons: Record<LayoutCategory, React.ElementType> = {
     vehicles: Bus,
     airplanes: Plane,
@@ -524,7 +534,7 @@ export default function ReservationsPage() {
     if (!editingReservation.reservation) return null;
     
     const reservation = editingReservation.reservation;
-    const tour = tours.find(t => t.id === reservation.tripId);
+    const tour = allTours.find(t => t.id === reservation.tripId);
     
     if (!tour) return null;
 
@@ -546,7 +556,7 @@ export default function ReservationsPage() {
         label: s.name,
         keywords: [s.dni]
     }));
-
+    
     const availablePassengersForAdding = passengers.filter(p => 
         !reservation.passengerIds.includes(p.id) && 
         !reservations.some(r => r.tripId === tour.id && r.id !== reservation.id && r.passengerIds.includes(p.id))
@@ -835,7 +845,7 @@ export default function ReservationsPage() {
         isOpen={assignTierState.isOpen}
         onOpenChange={(open) => setAssignTierState({isOpen: open, reservationId: open ? assignTierState.reservationId : null})}
         reservation={reservations.find(r => r.id === assignTierState.reservationId) || null}
-        tour={tours.find(t => t.id === reservations.find(r => r.id === assignTierState.reservationId)?.tripId) || null}
+        tour={allTours.find(t => t.id === reservations.find(r => r.id === assignTierState.reservationId)?.tripId) || null}
         passengers={passengers}
         onPassengerTierChange={handlePassengerTierChange}
     />
@@ -854,7 +864,7 @@ export default function ReservationsPage() {
         <DialogHeader>
           <DialogTitle>Gestionar Reserva</DialogTitle>
           <DialogDescription>
-            Modificar detalles de la reserva para {editingReservation.reservation?.passenger} en el viaje a {tours.find(t => t.id === editingReservation.reservation?.tripId)?.destination}.
+            Modificar detalles de la reserva para {editingReservation.reservation?.passenger} en el viaje a {allTours.find(t => t.id === editingReservation.reservation?.tripId)?.destination}.
           </DialogDescription>
         </DialogHeader>
         <div className="flex-1 overflow-y-auto pr-2">
@@ -1012,4 +1022,5 @@ export default function ReservationsPage() {
     
 
     
+
 
