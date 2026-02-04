@@ -1,5 +1,3 @@
-
-
 "use client"
 
 import { useEffect, useState } from "react"
@@ -45,11 +43,10 @@ export default function BookingConfirmationPage() {
         return <div className="flex items-center justify-center min-h-screen">Cargando confirmación...</div>
     }
 
-    const { reservation, tour, seller, mainPassenger } = data;
+    const { reservation, tour, mainPassenger } = data;
 
-    const sellerPhone = seller?.phone?.replace(/\D/g, '');
     const mainPhone = mainWhatsapp?.replace(/\D/g, '');
-    const whatsappNumber = sellerPhone || mainPhone;
+    const whatsappNumber = mainPhone;
     
     const displayId = generateDisplayID('R', reservation, tour, mainPassenger);
     const message = `¡Hola! Quiero coordinar el pago de mi reserva (N° ${displayId}) para el viaje a ${tour.destination}.`;
