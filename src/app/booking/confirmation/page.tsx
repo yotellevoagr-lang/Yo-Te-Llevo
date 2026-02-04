@@ -147,6 +147,9 @@ export default function BookingConfirmationPage() {
                                             <Download className="mr-2"/>
                                             Descargar Resumen
                                         </Button>
+                                        <p className="text-xs text-muted-foreground text-center max-w-xs">
+                                          En caso de no poseer la versión de WhatsApp en PC, puede escanear el QR con su celular que lo redirigirá a la aplicación para coordinar el pago.
+                                        </p>
                                         <Popover>
                                             <PopoverTrigger asChild>
                                                 <Button variant="outline" size="lg" className="h-12 text-base w-full max-w-xs">
