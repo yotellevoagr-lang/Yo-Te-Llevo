@@ -1,16 +1,21 @@
+
 "use client"
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import Image from "next/image"
 import { SiteHeader } from "@/components/site-header"
 import { SiteFooter } from "@/components/site-footer"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
-import { CheckCircle, MessageSquare, Download, ArrowLeft } from "lucide-react"
+import { CheckCircle, MessageSquare, Download, ArrowLeft, QrCode } from "lucide-react"
 import type { Tour, Reservation, Seller, GeneralSettings, Passenger } from "@/lib/types"
 import { generateDisplayID } from "@/lib/utils"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
 
 type ConfirmationData = {
     reservation: Reservation;
@@ -29,7 +34,6 @@ export default function BookingConfirmationPage() {
         if (storedData) {
             setData(JSON.parse(storedData));
         } else {
-            // If there's no data, maybe redirect to home
             router.replace('/');
         }
         const storedSettings = localStorage.getItem("ytl_general_settings");
@@ -38,8 +42,36 @@ export default function BookingConfirmationPage() {
         }
     }, [router]);
 
+    const handleDownload = () => {
+        if (!data) return;
+
+        const doc = new jsPDF();
+        const { reservation, tour, mainPassenger } = data;
+        const displayId = generateDisplayID('R', reservation, tour, mainPassenger);
+
+        doc.setFontSize(22);
+        doc.text("Resumen de Reserva - YO TE LLEVO", 105, 20, { align: 'center' });
+
+        doc.setFontSize(12);
+        doc.text(`Viaje a: ${tour.destination}`, 14, 40);
+        doc.text(`Fecha: ${new Date(tour.date).toLocaleDateString('es-AR')}`, 14, 47);
+
+        autoTable(doc, {
+            startY: 55,
+            head: [['Detalle', 'Información']],
+            body: [
+                ['Pasajero Principal', reservation.passenger],
+                ['Cantidad de Pasajeros', reservation.paxCount.toString()],
+                ['ID de Reserva', displayId],
+                ['Precio Final', `$${reservation.finalPrice.toLocaleString('es-AR')}`],
+            ],
+            theme: 'striped'
+        });
+
+        doc.save(`Reserva_${displayId}.pdf`);
+    };
+
     if (!data) {
-        // You can show a loading spinner here
         return <div className="flex items-center justify-center min-h-screen">Cargando confirmación...</div>
     }
 
@@ -50,7 +82,7 @@ export default function BookingConfirmationPage() {
     
     const displayId = generateDisplayID('R', reservation, tour, mainPassenger);
     const message = `¡Hola! Quiero coordinar el pago de mi reserva (N° ${displayId}) para el viaje a ${tour.destination}.`;
-    const whatsappLink = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
+    const whatsappLink = whatsappNumber ? `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}` : null;
 
     return (
         <div className="flex flex-col min-h-screen bg-muted/20">
@@ -87,37 +119,67 @@ export default function BookingConfirmationPage() {
                                     <span className="font-bold text-primary">${reservation.finalPrice.toLocaleString('es-AR')}</span>
                                 </div>
                             </div>
-                            <div className="text-center space-y-4">
-                               <p className="text-muted-foreground">
-                                    El siguiente paso es coordinar el pago. Para confirmar tus lugares, por favor, contáctate con tu vendedor/a por WhatsApp.
-                                </p>
-                                {whatsappNumber ? (
-                                    <Button asChild size="lg" className="h-14 text-lg w-full">
+                        </CardContent>
+                        <CardFooter className="flex-col gap-4 p-6">
+                            <p className="text-sm text-muted-foreground text-center">
+                                El siguiente paso es coordinar el pago. Para confirmar tus lugares, por favor, contáctate con nosotros por WhatsApp.
+                            </p>
+
+                            {whatsappLink ? (
+                                <>
+                                    {/* Mobile and Main WhatsApp Button */}
+                                    <Button asChild size="lg" className="h-14 text-lg w-full md:hidden">
                                         <a href={whatsappLink} target="_blank" rel="noopener noreferrer">
                                             <MessageSquare className="mr-3"/>
                                             Pagar por WhatsApp
                                         </a>
                                     </Button>
-                                ) : (
-                                    <p className="font-semibold p-4 bg-yellow-100 border border-yellow-300 rounded-md">
-                                        No se ha configurado un número de WhatsApp para este vendedor. Por favor, contacta a la agencia directamente.
-                                    </p>
-                                )}
-                            </div>
-                            <Separator />
-                             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                                <Button asChild variant="outline">
-                                    <Link href="/tours">
-                                        <ArrowLeft className="mr-2 h-4 w-4"/>
-                                        Ver más viajes
-                                    </Link>
-                                </Button>
-                                {/* <Button variant="secondary">
-                                    <Download className="mr-2 h-4 w-4"/>
-                                    Descargar Resumen
-                                </Button> */}
-                            </div>
-                        </CardContent>
+
+                                    {/* Desktop Buttons */}
+                                    <div className="hidden md:flex items-center justify-center gap-4 w-full">
+                                        <Button asChild size="lg" className="h-12 text-base">
+                                            <a href={whatsappLink} target="_blank" rel="noopener noreferrer">
+                                                <MessageSquare className="mr-3"/>
+                                                Pagar por WhatsApp
+                                            </a>
+                                        </Button>
+                                        <Button variant="outline" size="lg" className="h-12 text-base" onClick={handleDownload}>
+                                            <Download className="mr-2"/>
+                                            Descargar Resumen
+                                        </Button>
+                                        <Popover>
+                                            <PopoverTrigger asChild>
+                                                <Button variant="secondary" size="lg" className="h-12 text-base">
+                                                    <QrCode className="mr-2"/>
+                                                    Escanear QR
+                                                </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-auto p-2">
+                                                <Image
+                                                    src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(whatsappLink)}`}
+                                                    alt="QR para contactar por WhatsApp"
+                                                    width={180}
+                                                    height={180}
+                                                />
+                                            </PopoverContent>
+                                        </Popover>
+                                    </div>
+                                </>
+                            ) : (
+                                <p className="font-semibold p-4 bg-yellow-100 border border-yellow-300 rounded-md">
+                                    No se ha configurado un número de WhatsApp. Por favor, contacta a la agencia directamente.
+                                </p>
+                            )}
+                            <Separator className="mt-6" />
+                            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                               <Button asChild variant="ghost">
+                                   <Link href="/tours">
+                                       <ArrowLeft className="mr-2 h-4 w-4"/>
+                                       Ver más viajes
+                                   </Link>
+                               </Button>
+                           </div>
+                        </CardFooter>
                     </Card>
                 </div>
             </main>
