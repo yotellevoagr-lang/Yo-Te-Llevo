@@ -212,7 +212,7 @@ export default function ReservationsPage() {
         const lowercasedTerm = searchTerm.toLowerCase();
         filteredReservations = reservations.filter(res => {
             const tour = allTours.find(t => t.id === res.tripId);
-            const mainPassenger = passengers.find(p => p.id === res.passengerIds[0]);
+            const mainPassenger = passengers.find(p => p.id === res.passengerIds?.[0]);
             
             const displayId = generateDisplayID('R', res, tour, mainPassenger).toLowerCase();
 
@@ -592,7 +592,7 @@ export default function ReservationsPage() {
             </Card>
            <Card>
             <CardHeader><CardTitle className="flex items-center gap-2"><Tag className="w-5 h-5"/> Datos de Venta</CardTitle></CardHeader>
-            <CardContent>
+            <CardContent className="space-y-2">
                <div className="space-y-2">
                 <Label htmlFor="seller">Vendedor/a Asignado</Label>
                 <SearchableSelect
@@ -602,6 +602,36 @@ export default function ReservationsPage() {
                     placeholder="Buscar y seleccionar vendedor..."
                 />
                </div>
+                <div className="space-y-2 pt-4">
+                    <Label htmlFor="boardingPoint">Punto de Embarque de la Reserva</Label>
+                    <Select
+                        value={reservation.boardingPointId || 'default'}
+                        onValueChange={(value) =>
+                            setEditingReservation((prev) => ({
+                            ...prev,
+                            reservation: {
+                                ...prev.reservation!,
+                                boardingPointId: value === 'default' ? undefined : value,
+                            },
+                            }))
+                        }
+                        >
+                        <SelectTrigger id="boardingPoint">
+                            <SelectValue placeholder="Embarque del pasajero" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="default">
+                                Usar el predeterminado del pasajero
+                            </SelectItem>
+                            {boardingPoints.map((bp) => (
+                                <SelectItem key={bp.id} value={bp.id}>
+                                    {bp.name}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">Anula el punto de embarque por defecto del pasajero solo para este viaje.</p>
+                </div>
             </CardContent>
           </Card>
           <Card>
@@ -949,6 +979,11 @@ export default function ReservationsPage() {
                                     const balance = calculatedPrice - paidAmount;
                                     const paymentColor = getPaymentColor(calculatedPrice, balance);
                                     
+                                    const mainResPassenger = passengers.find(p => p.id === res.passengerIds?.[0]);
+                                    const reservationBoardingPoint = boardingPoints.find(bp => bp.id === res.boardingPointId);
+                                    const passengerBoardingPoint = mainResPassenger ? boardingPoints.find(bp => bp.id === mainResPassenger.boardingPointId) : undefined;
+                                    const boardingPointName = reservationBoardingPoint?.name || passengerBoardingPoint?.name;
+
                                     return (
                                         <Accordion key={`${res.id}-${index}`} type="single" collapsible>
                                             <AccordionItem value={res.id} className="border rounded-lg">
@@ -962,7 +997,7 @@ export default function ReservationsPage() {
                                                 <AccordionContent className="p-4 bg-secondary/20 space-y-4">
                                                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                                                         <Card><CardHeader><CardTitle className="text-lg flex items-center gap-2"><Users className="w-5 h-5 text-primary"/>Pasajero Principal</CardTitle></CardHeader><CardContent className="space-y-3 text-sm"><InfoRow label="Nombre" value={res.passenger}/><InfoRow label="DNI" value={passengers.find(p => p.id === res.passengerIds[0])?.dni}/><InfoRow label="F. Nac." value={formatDate(passengers.find(p => p.id === res.passengerIds[0])?.dob)}/><InfoRow label="Edad" value={calculateAge(passengers.find(p => p.id === res.passengerIds[0])?.dob)}/><InfoRow label="Grupo" value={passengers.find(p => p.id === res.passengerIds[0])?.family}/></CardContent></Card>
-                                                        <Card><CardHeader><CardTitle className="text-lg flex items-center gap-2"><Tag className="w-5 h-5 text-primary"/>Detalles de Reserva</CardTitle></CardHeader><CardContent className="space-y-3 text-sm"><InfoRow label="ID Reserva" value={generateDisplayID('R', res, tour, passengers.find(p => p.id === res.passengerIds[0]))} /><InfoRow label="Cantidad" value={`${res.paxCount} pasajero(s)`}/><InfoRow label="Embarque" value={boardingPoints.find(bp => bp.id === res.boardingPointId)?.name}/><InfoRow label="Ubicación" value={[(res.assignedSeats || []).map(s => s.seatId),(res.assignedCabins || []).map(c => c.cabinId)].flat().join(', ')}/><InfoRow label="Vendedor/a" value={sellers.find(s => s.id === res.sellerId)?.name} icon={<PercentSquare className="w-4 h-4 text-purple-600"/>}/></CardContent></Card>
+                                                        <Card><CardHeader><CardTitle className="text-lg flex items-center gap-2"><Tag className="w-5 h-5 text-primary"/>Detalles de Reserva</CardTitle></CardHeader><CardContent className="space-y-3 text-sm"><InfoRow label="ID Reserva" value={generateDisplayID('R', res, tour, passengers.find(p => p.id === res.passengerIds[0]))} /><InfoRow label="Cantidad" value={`${res.paxCount} pasajero(s)`}/><InfoRow label="Embarque" value={boardingPointName}/><InfoRow label="Ubicación" value={[(res.assignedSeats || []).map(s => s.seatId),(res.assignedCabins || []).map(c => c.cabinId)].flat().join(', ')}/><InfoRow label="Vendedor/a" value={sellers.find(s => s.id === res.sellerId)?.name} icon={<PercentSquare className="w-4 h-4 text-purple-600"/>}/></CardContent></Card>
                                                         <Card><CardHeader><CardTitle className="text-lg flex items-center gap-2"><CreditCard className="w-5 h-5 text-primary"/>Información de Pago</CardTitle></CardHeader><CardContent className="space-y-3 text-sm"><InfoRow label="Monto Total" value={`$${(calculatedPrice).toLocaleString('es-AR')}`} /><InfoRow label="Pagado" value={`$${(paidAmount).toLocaleString('es-AR')}`} /><InfoRow label="Saldo" value={`$${(balance).toLocaleString('es-AR')}`} /><Separator className="my-2" /><div className="space-y-2">{(res.installments?.details || []).map((inst, idx) => {
                                                         const paidAtRaw = inst.paidAt;
                                                         const paidAtDate = paidAtRaw instanceof Date ? paidAtRaw : paidAtRaw && (paidAtRaw as any).toDate ? (paidAtRaw as any).toDate() : null;
@@ -1004,6 +1039,7 @@ export default function ReservationsPage() {
     
 
     
+
 
 
 
