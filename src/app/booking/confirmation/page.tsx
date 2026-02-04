@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useEffect, useState } from "react"
@@ -135,20 +136,20 @@ export default function BookingConfirmationPage() {
                                     </Button>
 
                                     {/* Desktop Buttons */}
-                                    <div className="hidden md:flex items-center justify-center gap-4 w-full">
-                                        <Button asChild size="lg" className="h-12 text-base">
+                                    <div className="hidden md:flex flex-col items-center justify-center gap-4 w-full">
+                                        <Button asChild size="lg" className="h-12 text-base w-full max-w-xs">
                                             <a href={whatsappLink} target="_blank" rel="noopener noreferrer">
                                                 <MessageSquare className="mr-3"/>
                                                 Pagar por WhatsApp
                                             </a>
                                         </Button>
-                                        <Button variant="outline" size="lg" className="h-12 text-base" onClick={handleDownload}>
+                                        <Button variant="outline" size="lg" className="h-12 text-base w-full max-w-xs" onClick={handleDownload}>
                                             <Download className="mr-2"/>
                                             Descargar Resumen
                                         </Button>
                                         <Popover>
                                             <PopoverTrigger asChild>
-                                                <Button variant="outline" size="lg" className="h-12 text-base">
+                                                <Button variant="outline" size="lg" className="h-12 text-base w-full max-w-xs">
                                                     <QrCode className="mr-2"/>
                                                     Escanear QR
                                                 </Button>
@@ -156,7 +157,7 @@ export default function BookingConfirmationPage() {
                                             <PopoverContent className="w-auto p-2">
                                                 <Image
                                                     src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(whatsappLink)}`}
-                                                    alt="QR para contactar por WhatsApp"
+                                                    alt={`QR para contactar por WhatsApp`}
                                                     width={180}
                                                     height={180}
                                                 />
