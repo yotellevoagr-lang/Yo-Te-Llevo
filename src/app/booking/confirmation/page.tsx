@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useEffect, useState } from "react"
@@ -149,7 +148,7 @@ export default function BookingConfirmationPage() {
                                         </Button>
                                         <Popover>
                                             <PopoverTrigger asChild>
-                                                <Button variant="secondary" size="lg" className="h-12 text-base">
+                                                <Button variant="outline" size="lg" className="h-12 text-base">
                                                     <QrCode className="mr-2"/>
                                                     Escanear QR
                                                 </Button>
