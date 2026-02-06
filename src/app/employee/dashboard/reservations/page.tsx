@@ -46,7 +46,7 @@ import {
 } from "@/components/ui/select"
 import { SearchableSelect } from "@/components/searchable-select"
 import { SeatSelector } from "@/components/booking/seat-selector"
-import { MoreHorizontal, CheckCircle, Clock, Trash2, Armchair, Bus, Plane, Ship, Edit, UserPlus, CreditCard, Users, Info, Calendar, MapPin, DollarSign, Home, Tag, ShieldCheck, Utensils, BedDouble, PercentSquare, Check, ChevronsUpDown, BadgePercent, Search } from "lucide-react"
+import { MoreHorizontal, CheckCircle, Clock, Trash2, Armchair, Bus, Plane, Ship, Edit, UserPlus, CreditCard, Users, Info, Calendar, MapPin, DollarSign, Home, Tag, ShieldCheck, Utensils, BedDouble, PercentSquare, Check, ChevronsUpDown, BadgePercent, Search, Star } from "lucide-react"
 import type { Tour, Reservation, LayoutCategory, LayoutItemType, Seller, PaymentStatus, Passenger, BoardingPoint, Pension, RoomType, TransportUnit, PaymentMethod, Installment, Transaction, CustomLayoutConfig } from "@/lib/types"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
@@ -480,19 +480,28 @@ export default function ReservationsPage() {
     setEditingReservation(prev => {
         if (!prev.reservation) return prev;
         const currentIds = prev.reservation.passengerIds;
+        
         if (currentIds.length <= 1) {
-            toast({ title: "Acción no permitida", description: "La reserva debe tener al menos un pasajero.", variant: "destructive" });
-            return prev;
-        }
-        if (currentIds[0] === passengerIdToRemove) {
-            toast({ title: "Acción no permitida", description: "No se puede eliminar al pasajero principal.", variant: "destructive" });
+            toast({ title: "Acción no permitida", description: "La reserva debe tener al menos un pasajero. Para eliminarlo, cancela la reserva completa.", variant: "destructive" });
             return prev;
         }
 
         const newPassengerIds = currentIds.filter(id => id !== passengerIdToRemove);
+        let newPrincipalName = prev.reservation.passenger;
+
+        if (currentIds[0] === passengerIdToRemove) {
+            const newPrincipal = passengers.find(p => p.id === newPassengerIds[0]);
+            newPrincipalName = newPrincipal?.fullName || 'Desconocido';
+        }
+
         return {
             ...prev,
-            reservation: { ...prev.reservation, passengerIds: newPassengerIds, paxCount: newPassengerIds.length }
+            reservation: { 
+                ...prev.reservation, 
+                passenger: newPrincipalName,
+                passengerIds: newPassengerIds, 
+                paxCount: newPassengerIds.length 
+            }
         }
     });
   };
@@ -524,6 +533,28 @@ export default function ReservationsPage() {
             toast({ title: "Error", description: "No se pudo crear el nuevo pasajero.", variant: "destructive" });
         }
     }
+  
+    const handleSetPrincipal = (newPrincipalId: string) => {
+      setEditingReservation(prev => {
+          if (!prev.reservation) return prev;
+          const currentIds = prev.reservation.passengerIds;
+          if (!currentIds.includes(newPrincipalId)) return prev;
+  
+          const newPrincipalPassenger = passengers.find(p => p.id === newPrincipalId);
+          if (!newPrincipalPassenger) return prev;
+  
+          const newPassengerIds = [newPrincipalId, ...currentIds.filter(id => id !== newPrincipalId)];
+  
+          return {
+              ...prev,
+              reservation: {
+                  ...prev.reservation,
+                  passenger: newPrincipalPassenger.fullName,
+                  passengerIds: newPassengerIds
+              }
+          };
+      });
+    };
 
   const categoryIcons: Record<LayoutCategory, React.ElementType> = {
     vehicles: Bus,
@@ -542,7 +573,7 @@ export default function ReservationsPage() {
     const installments = reservation.installments || { count: 1, details: [{ amount: reservation.finalPrice, isPaid: false }] };
     const paidAmount = installments.details.reduce((sum, inst) => inst.isPaid ? sum + inst.amount : sum, 0);
     
-    const reservationPassengers = passengers.filter(p => (reservation.passengerIds || []).includes(p.id));
+    const reservationPassengers = reservation.passengerIds.map(id => passengers.find(p => p.id === id)).filter((p): p is Passenger => !!p);
     
     const calculatedPrice = reservationPassengers.reduce((total, p) => {
         const tier = tour.pricingTiers?.find(t => t.id === p.tierId);
@@ -574,12 +605,21 @@ export default function ReservationsPage() {
                     <div className="space-y-2">
                         {reservationPassengers.map((p, index) => (
                             <div key={p.id} className="flex items-center justify-between p-2 bg-secondary/50 rounded-md">
-                                <p className="font-medium text-sm">{index === 0 && <span className="font-bold text-primary">(Principal) </span>}{p.fullName} <span className="text-xs text-muted-foreground">({p.dni})</span></p>
-                                {index > 0 && (
-                                    <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => handleRemovePassengerFromReservation(p.id)}>
-                                        <Trash2 className="w-4 h-4"/>
-                                    </Button>
-                                )}
+                                <div className="flex items-center gap-2">
+                                    {index === 0 ? (
+                                        <Star className="w-4 h-4 text-amber-500 fill-amber-400" />
+                                    ) : (
+                                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleSetPrincipal(p.id)} title="Hacer principal">
+                                            <Star className="w-4 h-4 text-muted-foreground hover:text-amber-500"/>
+                                        </Button>
+                                    )}
+                                    <p className="font-medium text-sm">
+                                        {p.fullName} <span className="text-xs text-muted-foreground">({p.dni})</span>
+                                    </p>
+                                </div>
+                                <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => handleRemovePassengerFromReservation(p.id)}>
+                                    <Trash2 className="w-4 h-4"/>
+                                </Button>
                             </div>
                         ))}
                     </div>
@@ -1060,3 +1100,6 @@ export default function ReservationsPage() {
 
 
 
+
+
+    
