@@ -1,0 +1,25 @@
+# apphosting.yaml
+# Specifies the build and run configurations for the Firebase App Hosting backend.
+# See https://firebase.google.com/docs/hosting/app-hosting/reference/apphosting-yaml
+# for more details.
+
+# Specifies the build configuration.
+build:
+  # The command to run to build the app.
+  run: npm run build
+
+# Specifies the run configuration.
+run:
+  # The command to run to start the app.
+  run: npm run start
+  # The environment variables to set.
+  environment:
+    - variable: GEMINI_API_KEY
+      # This will inject the value of the 'GEMINI_API_KEY' secret into the
+      # 'GEMINI_API_KEY' environment variable.
+      # Before deploying, you must create the secret by running:
+      # `gcloud secrets create GEMINI_API_KEY --project="<your-project-id>"`
+      # and grant the principal 'firebase-app-hosting-run-sa@<your-project-id>.iam.gserviceaccount.com'
+      # the 'Secret Manager Secret Accessor' role.
+      secret: GEMINI_API_KEY
+  # You can specify other run settings here, like cpu, memory, etc.
