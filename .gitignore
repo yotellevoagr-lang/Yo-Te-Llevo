@@ -14,8 +14,25 @@
 
 # Environment variables
 .env
-.env.*
+.env.local
+.env.production
+.env.development
+.env.*.local
+*.env
 !.env.example
+
+# Firebase
+firebase-key.json
+service-account.json
+.runtimeconfig.json
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+
+# Replit
+.replit
+replit.nix
+secrets.json
 
 # Misc
 .DS_Store
