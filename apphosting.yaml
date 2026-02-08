@@ -25,14 +25,3 @@ environment:
     secret: GEMINI_API_KEY
   - variable: FIREBASE_SERVICE_ACCOUNT_KEY
     secret: FIREBASE_SERVICE_ACCOUNT_KEY
-
-# Specifies the build configuration.
-build:
-  # The command to run to build the app.
-  run: npm run build
-
-# Specifies the run configuration.
-run:
-  # The command to run to start the app.
-  run: npm run start
-  # You can specify other run settings here, like cpu, memory, etc.
