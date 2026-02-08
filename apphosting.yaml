@@ -3,6 +3,29 @@
 # See https://firebase.google.com/docs/hosting/app-hosting/reference/apphosting-yaml
 # for more details.
 
+# The environment variables to set. These will be available during both build and run time.
+# Before deploying, you must create these secrets in Google Secret Manager.
+# Grant the 'Secret Manager Secret Accessor' role to BOTH service accounts:
+# 1. Build SA: `service-<your-project-number>@gcp-sa-apphosting.iam.gserviceaccount.com`
+# 2. Run SA: `firebase-app-hosting-run-sa@<your-project-id>.iam.gserviceaccount.com`
+environment:
+  - variable: NEXT_PUBLIC_FIREBASE_API_KEY
+    secret: NEXT_PUBLIC_FIREBASE_API_KEY
+  - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+    secret: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+  - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    secret: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+  - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+    secret: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+  - variable: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+    secret: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+  - variable: NEXT_PUBLIC_FIREBASE_APP_ID
+    secret: NEXT_PUBLIC_FIREBASE_APP_ID
+  - variable: GEMINI_API_KEY
+    secret: GEMINI_API_KEY
+  - variable: FIREBASE_SERVICE_ACCOUNT_KEY
+    secret: FIREBASE_SERVICE_ACCOUNT_KEY
+
 # Specifies the build configuration.
 build:
   # The command to run to build the app.
@@ -12,14 +35,4 @@ build:
 run:
   # The command to run to start the app.
   run: npm run start
-  # The environment variables to set.
-  environment:
-    - variable: GEMINI_API_KEY
-      # This will inject the value of the 'GEMINI_API_KEY' secret into the
-      # 'GEMINI_API_KEY' environment variable.
-      # Before deploying, you must create the secret by running:
-      # `gcloud secrets create GEMINI_API_KEY --project="<your-project-id>"`
-      # and grant the principal 'firebase-app-hosting-run-sa@<your-project-id>.iam.gserviceaccount.com'
-      # the 'Secret Manager Secret Accessor' role.
-      secret: GEMINI_API_KEY
   # You can specify other run settings here, like cpu, memory, etc.
