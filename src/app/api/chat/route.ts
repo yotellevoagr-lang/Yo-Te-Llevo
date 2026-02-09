@@ -80,7 +80,7 @@ async function getAllToursAdmin(): Promise<TourData[]> {
   if (!db) return [];
   
   try {
-    const toursSnapshot = await db.collection('tours').where('isPublic', '==', true).get();
+    const toursSnapshot = await db.collection('tours').get();
     const now = new Date();
     
     return toursSnapshot.docs
@@ -97,9 +97,13 @@ async function getAllToursAdmin(): Promise<TourData[]> {
           nights: data.nights,
           backgroundImage: data.backgroundImage,
           isFeatured: data.isFeatured,
+          isPublic: data.isPublic ?? true
         };
       })
-      .filter(tour => new Date(tour.date) >= now)
+      .filter(tour => {
+        const isPublic = tour.isPublic !== false;
+        return isPublic && new Date(tour.date) >= now;
+      })
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   } catch (error) {
     console.error('Error fetching tours with Admin:', error);
@@ -112,7 +116,7 @@ async function getAllToursREST(): Promise<TourData[]> {
     const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
     if (!projectId) return [];
     
-    const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/tours`;
+    const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/tours?pageSize=100`;
     const response = await fetch(url, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
