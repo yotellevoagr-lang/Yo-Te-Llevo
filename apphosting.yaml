@@ -5,16 +5,16 @@ runConfig:
   memoryMiB: 512
 env:
   - variable: NEXT_PUBLIC_FIREBASE_API_KEY
-    value: "REPLACE_WITH_YOUR_FIREBASE_API_KEY"
+    value: "AIzaSyD_XNPVSVrIT8yUOlt9jbk-BK9i5EYDrFo"
   - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
-    value: "REPLACE_WITH_YOUR_FIREBASE_AUTH_DOMAIN"
+    value: "yo-te-llevo-1021c.firebaseapp.com"
   - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
-    value: "REPLACE_WITH_YOUR_FIREBASE_PROJECT_ID"
+    value: "yo-te-llevo-1021c"
   - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
-    value: "REPLACE_WITH_YOUR_FIREBASE_STORAGE_BUCKET"
+    value: "yo-te-llevo-1021c.firebasestorage.app"
   - variable: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
-    value: "REPLACE_WITH_YOUR_FIREBASE_MESSAGING_SENDER_ID"
+    value: "757700586305"
   - variable: NEXT_PUBLIC_FIREBASE_APP_ID
-    value: "REPLACE_WITH_YOUR_FIREBASE_APP_ID"
+    value: "1:757700586305:web:2ed893413499c39fc50fc0"
   - variable: GOOGLE_GENAI_API_KEY
     secret: GOOGLE_GENAI_API_KEY
