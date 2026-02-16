@@ -41,7 +41,7 @@ import { useToast } from "@/hooks/use-toast"
 import { Slider } from "@/components/ui/slider";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { DatePicker } from "@/components/ui/date-picker";
-import { cn, generateDisplayID, getDisplayUrl } from "@/lib/utils";
+import { cn, generateDisplayID } from "@/lib/utils";
 import { getAllFromCollection_client, getDocumentById, saveDocument } from "@/lib/firestore-services";
 import { Textarea } from "@/components/ui/textarea";
 

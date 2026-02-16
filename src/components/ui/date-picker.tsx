@@ -21,9 +21,12 @@ interface DatePickerProps extends CalendarProps {
     setDate?: (date: Date | undefined) => void;
     placeholder?: string;
     className?: string;
+    captionLayout?: "label" | "dropdown" | "dropdown-buttons";
+    fromYear?: number;
+    toYear?: number;
 }
 
-export function DatePicker({ id, date, setDate, placeholder, className, ...props }: DatePickerProps) {
+export function DatePicker({ id, date, setDate, placeholder, className, captionLayout, fromYear, toYear, ...props }: DatePickerProps) {
   
   const handleDateChange = (newDate: Date | undefined) => {
     if (setDate) {
@@ -57,6 +60,9 @@ export function DatePicker({ id, date, setDate, placeholder, className, ...props
           onSelect={handleDateChange}
           initialFocus
           locale={es}
+          captionLayout={captionLayout}
+          fromYear={fromYear}
+          toYear={toYear}
           {...props}
         />
       </PopoverContent>

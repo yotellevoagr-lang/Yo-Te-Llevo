@@ -474,9 +474,6 @@ export function TripForm({ isOpen, onOpenChange, onSave, tour, boardingPoints }:
                       date={formData.date} 
                       setDate={(d) => handleFormChange('date', d)} 
                       className="h-10 w-full"
-                      captionLayout="dropdown-buttons"
-                      fromYear={new Date().getFullYear()}
-                      toYear={new Date().getFullYear() + 10}
                     />
                 </div>
                  <div className="space-y-2">
