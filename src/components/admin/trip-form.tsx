@@ -254,16 +254,34 @@ export function TripForm({ isOpen, onOpenChange, onSave, tour, boardingPoints }:
 
 
   const handleAddExtraCost = () => {
-    setFormData(prev => ({...prev, costs: {...prev.costs, extras: [...(prev.costs?.extras || []), {id: `E-${Math.random().toString(36).substring(2, 9)}`, description: '', amount: 0, currency: formData.currency || 'ARS'}]}}));
+    setFormData(prev => ({
+      ...prev, 
+      costs: {
+        ...prev.costs, 
+        extras: [...(prev.costs?.extras || []), {id: `E-${Math.random().toString(36).substring(2, 9)}`, description: '', amount: 0, currency: prev.currency || 'ARS'}]
+      }
+    } as Omit<Tour, 'id'>));
   }
 
   const handleExtraCostChange = (id: string, field: 'description' | 'amount' | 'currency', value: string | number) => {
     const processedValue = field === 'amount' && value === '' ? '' : value;
-    setFormData(prev => ({ ...prev, costs: {...prev.costs, extras: (prev.costs?.extras || []).map(c => c.id === id ? {...c, [field]: processedValue} : c)}}));
+    setFormData(prev => ({ 
+      ...prev, 
+      costs: {
+        ...prev.costs, 
+        extras: (prev.costs?.extras || []).map(c => c.id === id ? {...c, [field]: processedValue} : c)
+      }
+    } as Omit<Tour, 'id'>));
   }
 
   const handleRemoveExtraCost = (id: string) => {
-    setFormData(prev => ({ ...prev, costs: {...prev.costs, extras: (prev.costs?.extras || []).filter(c => c.id !== id)}}));
+    setFormData(prev => ({ 
+      ...prev, 
+      costs: {
+        ...prev.costs, 
+        extras: (prev.costs?.extras || []).filter(c => c.id !== id)
+      }
+    } as Omit<Tour, 'id'>));
   }
 
   const handleBackgroundImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -371,7 +389,7 @@ export function TripForm({ isOpen, onOpenChange, onSave, tour, boardingPoints }:
         if (backgroundImageFile && backgroundImagePreview?.startsWith('blob:')) {
             finalBackgroundImageUrl = await uploadFileToStorage(backgroundImageFile, 'trips');
         } else if (backgroundImagePreview !== formData.backgroundImage) {
-            finalBackgroundImageUrl = backgroundImagePreview;
+            finalBackgroundImageUrl = backgroundImagePreview ?? undefined;
         }
         
         const filesToUpload = newGalleryFiles.map(gf => ({
