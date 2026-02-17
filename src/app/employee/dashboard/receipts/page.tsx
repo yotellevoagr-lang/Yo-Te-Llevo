@@ -30,7 +30,7 @@ import {
   DialogTrigger,
   DialogClose
 } from "@/components/ui/dialog"
-import { Receipt as ReceiptIcon, Printer, Pencil, Trash2, Text, Palette, FontSize, Upload, Save, ZoomIn, ZoomOut, Maximize, Bold, Italic, Type, CalendarPlus, Loader2, Download } from "lucide-react"
+import { Receipt as ReceiptIcon, Printer, Pencil, Trash2, Text, Palette, Upload, Save, ZoomIn, ZoomOut, Maximize, Bold, Italic, Type, CalendarPlus, Loader2, Download } from "lucide-react"
 import type { Tour, Reservation, Passenger, GeneralSettings } from "@/lib/types"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
