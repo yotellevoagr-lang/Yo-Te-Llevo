@@ -1,8 +1,23 @@
 
 
 import { db, auth } from './firebase';
-import { collection, doc, getDoc, getDocs, setDoc, deleteDoc, query, where, writeBatch, addDoc, updateDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, setDoc, deleteDoc, query, where, writeBatch, addDoc, updateDoc, enableIndexedDbPersistence, terminate } from 'firebase/firestore';
 import { createUserWithEmailAndPassword, sendEmailVerification, signInWithEmailAndPassword, User as FirebaseAuthUser } from 'firebase/auth';
+
+// Enable offline persistence for better performance
+if (typeof window !== "undefined") {
+  enableIndexedDbPersistence(db).catch((err) => {
+    if (err.code === 'failed-precondition') {
+        // Multiple tabs open, persistence can only be enabled
+        // in one tab at a a time.
+        console.warn('Firestore persistence failed: multiple tabs');
+    } else if (err.code === 'unimplemented') {
+        // The current browser does not support all of the
+        // features required to enable persistence
+        console.warn('Firestore persistence failed: browser not supported');
+    }
+  });
+}
 import type { Tour, Passenger, Reservation, Seller, Employee, CommissionSettings, GeneralSettings, ChatbotNode } from "./types";
 import { getLayoutForType } from './layouts';
 

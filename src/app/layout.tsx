@@ -18,12 +18,14 @@ const lato = Lato({
   subsets: ['latin'],
   weight: ['400', '700'],
   variable: '--font-body',
+  display: 'swap',
 });
 
 const lilitaOne = Lilita_One({
   subsets: ['latin'],
   weight: ['400'],
   variable: '--font-headline',
+  display: 'swap',
 });
 
 // Default metadata
