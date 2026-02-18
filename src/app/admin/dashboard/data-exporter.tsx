@@ -136,11 +136,12 @@ export function DataExporter({ isOpen, onOpenChange }: DataExporterProps) {
   const relevantBoardingPoints = useMemo(() => {
     const boardingPointIdsInSelectedTrips = new Set(
         reservations
-            .filter(r => selectedTripIds.includes(r.tripId) && r.boardingPointId)
-            .map(r => r.boardingPointId)
+            .filter(r => selectedTripIds.includes(r.tripId) && (r.boardingPointId || passengers.find(p => p.id === r.passengerIds[0])?.boardingPointId))
+            .map(r => r.boardingPointId || passengers.find(p => p.id === r.passengerIds[0])?.boardingPointId)
+            .filter((id): id is string => !!id)
     );
     return boardingPoints.filter(bp => boardingPointIdsInSelectedTrips.has(bp.id));
-  }, [selectedTripIds, reservations, boardingPoints]);
+  }, [selectedTripIds, reservations, boardingPoints, passengers]);
   
   const handleOpenSortModal = () => {
     setCustomBoardingOrder(relevantBoardingPoints);
