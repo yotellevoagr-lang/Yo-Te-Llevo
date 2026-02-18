@@ -180,7 +180,7 @@ export function DataExporter({ isOpen, onOpenChange }: DataExporterProps) {
           }));
         })
         .map(({ passenger: p, reservation: r }) => {
-          const boardingPoint = boardingPoints.find(bp => bp.id === p.boardingPointId)?.name || "N/A";
+          const boardingPoint = boardingPoints.find(bp => bp.id === (r.boardingPointId || p.boardingPointId))?.name || "N/A";
           const dobDate = p.dob?.toDate ? p.dob.toDate() : (p.dob ? new Date(p.dob) : null);
           const dobString = dobDate ? dobDate.toLocaleDateString("es-AR") : "N/A";
           const assignedSeat = (r.assignedSeats?.length > 0) ? r.assignedSeats.map(s => s.seatId).join(', ') : "N/A";
@@ -194,7 +194,7 @@ export function DataExporter({ isOpen, onOpenChange }: DataExporterProps) {
               age: calculateAge(p.dob),
               dob: dobString,
               boardingPoint,
-              boardingPointId: p.boardingPointId,
+              boardingPointId: r.boardingPointId || p.boardingPointId,
               assignedSeat: assignedSeat,
           };
       });
