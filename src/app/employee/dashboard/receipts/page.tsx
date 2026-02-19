@@ -1,9 +1,7 @@
-
 "use client"
 
-import { useState, useMemo, useEffect, useRef } from "react"
-import { DndContext, useDraggable } from '@dnd-kit/core';
-import { CSS } from '@dnd-kit/utilities';
+import { useState, useMemo, useEffect, useRef, useCallback } from "react"
+import { DndContext, useDraggable, DragEndEvent } from '@dnd-kit/core';
 import { toPng } from 'html-to-image';
 import jsPDF from 'jspdf';
 import {
@@ -27,10 +25,13 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
-  DialogTrigger,
-  DialogClose
 } from "@/components/ui/dialog"
-import { Receipt as ReceiptIcon, Printer, Pencil, Trash2, Text, Palette, Upload, Save, ZoomIn, ZoomOut, Maximize, Bold, Italic, Type, CalendarPlus, Loader2, Download } from "lucide-react"
+import {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs"
+import { Receipt as ReceiptIcon, Printer, Pencil, Trash2, ZoomIn, ZoomOut, Maximize, Bold, Italic, Loader2, Download, Save } from "lucide-react"
 import type { Tour, Reservation, Passenger, GeneralSettings } from "@/lib/types"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
@@ -43,8 +44,8 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { cn, generateDisplayID, getDisplayUrl } from "@/lib/utils";
 import { getAllFromCollection_client, getDocumentById, saveDocument } from "@/lib/firestore-services";
 import { Textarea } from "@/components/ui/textarea";
+import { Separator } from "@/components/ui/separator";
 
-// --- Types for the Template Builder ---
 type FieldType = 'receiptNumber' | 'date' | 'day' | 'month' | 'year' | 'passengerName' | 'passengerDni' | 'passengerPhone' | 'paidAmountText' | 'concept' | 'destination' | 'paxCount' | 'tourDate' | 'totalAmountText' | 'cancellationPolicy' | 'customText' | 'customDate' | 'editableText';
 
 type TemplateField = {
@@ -58,9 +59,11 @@ type TemplateField = {
   color: string;
   isBold: boolean;
   isItalic: boolean;
-  page: number; // 0 for page 1, 1 for page 2
+  page: number;
   customText?: string;
-  customDate?: string; // ISO string for dates
+  customDate?: string;
+  width?: number;
+  height?: number;
 };
 
 type ReceiptTemplate = {
@@ -73,7 +76,12 @@ type ReceiptTemplate = {
   zoom?: number;
 };
 
-const availableFields: { type: FieldType, label: string }[] = [
+type ReceiptTemplates = {
+  template1: ReceiptTemplate;
+  template2: ReceiptTemplate;
+};
+
+const availableFieldsTemplate1: { type: FieldType, label: string }[] = [
     { type: 'receiptNumber', label: 'N° Recibo' },
     { type: 'date', label: 'Fecha Completa' },
     { type: 'day', label: 'Día' },
@@ -94,6 +102,14 @@ const availableFields: { type: FieldType, label: string }[] = [
     { type: 'editableText', label: 'Texto Editable (por recibo)' },
 ];
 
+const availableFieldsTemplate2: { type: FieldType, label: string }[] = [
+    { type: 'editableText', label: 'Texto Editable (por recibo)' },
+    { type: 'date', label: 'Fecha Completa' },
+    { type: 'day', label: 'Día' },
+    { type: 'month', label: 'Mes (número)' },
+    { type: 'year', label: 'Año' },
+];
+
 const fonts = [
     { value: 'Arial, sans-serif', label: 'Arial' },
     { value: 'Verdana, sans-serif', label: 'Verdana' },
@@ -102,23 +118,125 @@ const fonts = [
     { value: '"Courier New", monospace', label: 'Courier New' },
 ]
 
-// --- Draggable Field Component for the Editor ---
-function DraggableField({ id, children, style, isSelected }: { id: string, children: React.ReactNode, style: React.CSSProperties, isSelected: boolean }) {
-    const { attributes, listeners, setNodeRef, transform } = useDraggable({ id });
-    const finalStyle = {
+const emptyTemplate: ReceiptTemplate = {
+  page1Image: null,
+  page1ImageDimensions: null,
+  page2Image: null,
+  page2ImageDimensions: null,
+  fields: [],
+  zoom: 1,
+};
+
+type ResizeHandle = 'right' | 'bottom' | 'bottom-right';
+
+interface ResizableDraggableFieldProps {
+  id: string;
+  children: React.ReactNode;
+  style: React.CSSProperties;
+  isSelected: boolean;
+  isResizable: boolean;
+  width?: number;
+  height?: number;
+  zoom: number;
+  onResize: (id: string, width: number, height: number) => void;
+  onClick: () => void;
+}
+
+function ResizableDraggableField({ 
+  id, 
+  children, 
+  style, 
+  isSelected, 
+  isResizable,
+  width = 200,
+  height = 40,
+  zoom,
+  onResize,
+  onClick 
+}: ResizableDraggableFieldProps) {
+    const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id });
+    const [isResizing, setIsResizing] = useState(false);
+    const [resizeHandle, setResizeHandle] = useState<ResizeHandle | null>(null);
+    const startPosRef = useRef({ x: 0, y: 0, width: 0, height: 0 });
+    
+    const finalStyle: React.CSSProperties = {
         ...style,
-        transform: CSS.Translate.toString(transform),
+        transform: transform && !isResizing ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
+        cursor: isDragging ? 'grabbing' : (isResizing ? 'nwse-resize' : 'grab'),
+        zIndex: isDragging || isResizing ? 1000 : 1,
+        width: isResizable ? `${width}px` : 'auto',
+        height: isResizable ? `${height}px` : 'auto',
     };
 
+    const handleResizeStart = (e: React.PointerEvent, handle: ResizeHandle) => {
+        e.stopPropagation();
+        e.preventDefault();
+        setIsResizing(true);
+        setResizeHandle(handle);
+        startPosRef.current = { x: e.clientX, y: e.clientY, width, height };
+        (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    };
+
+    const handleResizeMove = useCallback((e: React.PointerEvent) => {
+        if (!isResizing || !resizeHandle) return;
+        
+        const deltaX = (e.clientX - startPosRef.current.x) / zoom;
+        const deltaY = (e.clientY - startPosRef.current.y) / zoom;
+        
+        let newWidth = startPosRef.current.width;
+        let newHeight = startPosRef.current.height;
+        
+        if (resizeHandle === 'right' || resizeHandle === 'bottom-right') {
+            newWidth = Math.max(50, Math.min(1000, startPosRef.current.width + deltaX));
+        }
+        if (resizeHandle === 'bottom' || resizeHandle === 'bottom-right') {
+            newHeight = Math.max(20, Math.min(500, startPosRef.current.height + deltaY));
+        }
+        
+        onResize(id, newWidth, newHeight);
+    }, [isResizing, resizeHandle, zoom, id, onResize]);
+
+    const handleResizeEnd = useCallback(() => {
+        setIsResizing(false);
+        setResizeHandle(null);
+    }, []);
+
     return (
-        <div ref={setNodeRef} style={finalStyle} {...listeners} {...attributes} className={`absolute p-1 border border-dashed cursor-move ${isSelected ? 'border-primary bg-primary/10' : 'border-transparent'}`}>
+        <div 
+            ref={setNodeRef} 
+            style={finalStyle} 
+            {...(isResizing ? {} : listeners)}
+            {...(isResizing ? {} : attributes)} 
+            className={`absolute p-1 border border-dashed ${isSelected ? 'border-primary bg-primary/10' : 'border-transparent hover:border-gray-400'}`}
+            onClick={(e) => { e.stopPropagation(); onClick(); }}
+            onPointerMove={handleResizeMove}
+            onPointerUp={handleResizeEnd}
+            onPointerCancel={handleResizeEnd}
+        >
             {children}
+            {isResizable && isSelected && (
+                <>
+                    <div 
+                        className="absolute top-0 right-0 w-2 h-full cursor-ew-resize bg-primary/30 hover:bg-primary/50"
+                        style={{ transform: 'translateX(50%)' }}
+                        onPointerDown={(e) => handleResizeStart(e, 'right')}
+                    />
+                    <div 
+                        className="absolute bottom-0 left-0 w-full h-2 cursor-ns-resize bg-primary/30 hover:bg-primary/50"
+                        style={{ transform: 'translateY(50%)' }}
+                        onPointerDown={(e) => handleResizeStart(e, 'bottom')}
+                    />
+                    <div 
+                        className="absolute bottom-0 right-0 w-3 h-3 cursor-nwse-resize bg-primary/50 hover:bg-primary rounded-sm"
+                        style={{ transform: 'translate(50%, 50%)' }}
+                        onPointerDown={(e) => handleResizeStart(e, 'bottom-right')}
+                    />
+                </>
+            )}
         </div>
     );
 }
 
-
-// --- Main Page Component ---
 export default function ReceiptsPage() {
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [tours, setTours] = useState<Tour[]>([]);
@@ -131,13 +249,10 @@ export default function ReceiptsPage() {
   const { toast } = useToast();
 
   const [isEditorOpen, setIsEditorOpen] = useState(false);
-  const [template, setTemplate] = useState<ReceiptTemplate>({
-    page1Image: null,
-    page1ImageDimensions: null,
-    page2Image: null,
-    page2ImageDimensions: null,
-    fields: [],
-    zoom: 1,
+  const [activeTemplateTab, setActiveTemplateTab] = useState<'template1' | 'template2'>('template1');
+  const [templates, setTemplates] = useState<ReceiptTemplates>({
+    template1: { ...emptyTemplate },
+    template2: { ...emptyTemplate },
   });
   const [page1ImageFile, setPage1ImageFile] = useState<File | null>(null);
   const [page2ImageFile, setPage2ImageFile] = useState<File | null>(null);
@@ -146,6 +261,16 @@ export default function ReceiptsPage() {
   const [zoom, setZoom] = useState(1);
   const canvasRef = useRef<HTMLDivElement>(null);
 
+  const currentTemplate = templates[activeTemplateTab];
+  const setCurrentTemplate = (updater: (prev: ReceiptTemplate) => ReceiptTemplate) => {
+    setTemplates(prev => ({
+      ...prev,
+      [activeTemplateTab]: updater(prev[activeTemplateTab])
+    }));
+  };
+
+  const isManualReceipt = selectedTripId === 'MANUAL_RECEIPT';
+
   useEffect(() => {
     const fetchData = async () => {
         const [reservationsData, toursData, passengersData, settingsData, templateData] = await Promise.all([
@@ -153,7 +278,7 @@ export default function ReceiptsPage() {
             getAllFromCollection_client<Tour>('tours'),
             getAllFromCollection_client<Passenger>('passengers'),
             getDocumentById<GeneralSettings>('settings', 'general'),
-            getDocumentById<ReceiptTemplate>('settings', 'receiptTemplate'),
+            getDocumentById<ReceiptTemplates>('settings', 'receiptTemplates'),
         ]);
 
         const processedTours = toursData.map(t => {
@@ -167,8 +292,20 @@ export default function ReceiptsPage() {
         setGeneralSettings(settingsData);
         
         if (templateData) {
-            setTemplate({ ...templateData, zoom: templateData.zoom || 1 });
-            setZoom(templateData.zoom || 1);
+            setTemplates({
+              template1: templateData.template1 || { ...emptyTemplate },
+              template2: templateData.template2 || { ...emptyTemplate },
+            });
+            setZoom(templateData.template1?.zoom || 1);
+        } else {
+            const oldTemplate = await getDocumentById<ReceiptTemplate>('settings', 'receiptTemplate');
+            if (oldTemplate) {
+                setTemplates(prev => ({
+                    ...prev,
+                    template1: { ...oldTemplate, zoom: oldTemplate.zoom || 1 }
+                }));
+                setZoom(oldTemplate.zoom || 1);
+            }
         }
     };
     fetchData();
@@ -179,7 +316,7 @@ export default function ReceiptsPage() {
   }, [tours]);
 
   const reservationOptions = useMemo(() => {
-    if (!selectedTripId) return [];
+    if (!selectedTripId || selectedTripId === 'MANUAL_RECEIPT') return [];
     return reservations
         .filter(r => r.tripId === selectedTripId)
         .map(res => {
@@ -198,39 +335,36 @@ export default function ReceiptsPage() {
       return reservations.find(r => r.id === selectedReservationId);
   }, [reservations, selectedReservationId]);
 
+  const activeDisplayTemplate = isManualReceipt ? templates.template2 : templates.template1;
+
   useEffect(() => {
-    if (selectedReservationId) {
-        // Reset editable texts when a new reservation is selected
-        const initialEditableTexts: Record<string, string> = {};
-        template.fields.filter(f => f.type === 'editableText').forEach(field => {
-            initialEditableTexts[field.id] = '';
-        });
-        setEditableTexts(initialEditableTexts);
-    } else {
-        setEditableTexts({});
-    }
-  }, [selectedReservationId, template.fields]);
+    const templateToUse = isManualReceipt ? templates.template2 : templates.template1;
+    const initialEditableTexts: Record<string, string> = {};
+    templateToUse.fields.filter(f => f.type === 'editableText').forEach(field => {
+        initialEditableTexts[field.id] = '';
+    });
+    setEditableTexts(initialEditableTexts);
+  }, [selectedReservationId, selectedTripId, templates, isManualReceipt]);
 
   const handleEditableTextChange = (fieldId: string, value: string) => {
     setEditableTexts(prev => ({ ...prev, [fieldId]: value }));
   }
   
-  // --- Editor Logic ---
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, page: 0 | 1) => {
     const file = e.target.files?.[0];
     if (file) {
       const tempUrl = URL.createObjectURL(file);
       if (page === 0) {
         setPage1ImageFile(file);
-        setTemplate(prev => ({ ...prev, page1Image: tempUrl }));
+        setCurrentTemplate(prev => ({ ...prev, page1Image: tempUrl }));
       } else {
         setPage2ImageFile(file);
-        setTemplate(prev => ({ ...prev, page2Image: tempUrl }));
+        setCurrentTemplate(prev => ({ ...prev, page2Image: tempUrl }));
       }
 
       const img = new window.Image();
       img.onload = () => {
-        setTemplate(prev => ({
+        setCurrentTemplate(prev => ({
           ...prev,
           [page === 0 ? 'page1ImageDimensions' : 'page2ImageDimensions']: { width: img.naturalWidth, height: img.naturalHeight },
         }));
@@ -240,6 +374,7 @@ export default function ReceiptsPage() {
   };
 
   const addField = (type: FieldType) => {
+    const availableFields = activeTemplateTab === 'template1' ? availableFieldsTemplate1 : availableFieldsTemplate2;
     const label = availableFields.find(f => f.type === type)?.label || 'Nuevo Campo';
     const newField: TemplateField = {
       id: `field-${Date.now()}`,
@@ -253,38 +388,49 @@ export default function ReceiptsPage() {
       isBold: false,
       isItalic: false,
       page: 0,
+      width: type === 'editableText' ? 200 : undefined,
+      height: type === 'editableText' ? 40 : undefined,
     };
     if (type === 'customDate') {
         newField.customDate = new Date().toISOString();
     }
     if (type === 'editableText') {
-        newField.label = `Texto Editable ${template.fields.filter(f => f.type === 'editableText').length + 1}`;
+        newField.label = `Texto Editable ${currentTemplate.fields.filter(f => f.type === 'editableText').length + 1}`;
     }
-    setTemplate(prev => ({ ...prev, fields: [...prev.fields, newField] }));
+    setCurrentTemplate(prev => ({ ...prev, fields: [...prev.fields, newField] }));
     setActiveEditorField(newField.id);
   };
   
   const updateField = (id: string, updates: Partial<TemplateField>) => {
-    setTemplate(prev => ({
+    setCurrentTemplate(prev => ({
       ...prev,
       fields: prev.fields.map(f => (f.id === id ? { ...f, ...updates } : f))
     }));
   };
 
   const removeField = (id: string) => {
-    setTemplate(prev => ({ ...prev, fields: prev.fields.filter(f => f.id !== id) }));
+    setCurrentTemplate(prev => ({ ...prev, fields: prev.fields.filter(f => f.id !== id) }));
     setActiveEditorField(null);
   }
 
-  const handleDragEnd = (event: any) => {
+  const handleDragEnd = (event: DragEndEvent) => {
     const { active, delta } = event;
-    const field = template.fields.find(f => f.id === active.id);
-    if (field) {
-        updateField(field.id, { x: field.x + delta.x / zoom, y: field.y + delta.y / zoom });
+    const field = currentTemplate.fields.find(f => f.id === active.id);
+    if (field && delta) {
+        const newX = Math.max(0, field.x + delta.x / zoom);
+        const newY = Math.max(0, field.y + delta.y / zoom);
+        updateField(field.id, { x: newX, y: newY });
     }
   };
+
+  const handleFieldResize = useCallback((id: string, width: number, height: number) => {
+    setCurrentTemplate(prev => ({
+      ...prev,
+      fields: prev.fields.map(f => (f.id === id ? { ...f, width, height } : f))
+    }));
+  }, [setCurrentTemplate]);
   
-const saveTemplate = async () => {
+  const saveTemplate = async () => {
     setIsSavingTemplate(true);
     try {
         const toBase64 = (file: File): Promise<string> =>
@@ -295,35 +441,33 @@ const saveTemplate = async () => {
                 reader.onerror = (error) => reject(error);
             });
 
-        let page1Url = template.page1Image;
+        let page1Url = currentTemplate.page1Image;
         if (page1ImageFile) {
             page1Url = await toBase64(page1ImageFile);
         }
 
-        let page2Url = template.page2Image;
+        let page2Url = currentTemplate.page2Image;
         if (page2ImageFile) {
             page2Url = await toBase64(page2ImageFile);
         }
         
-        const dataToSave: Partial<ReceiptTemplate> = {
-            fields: template.fields,
+        const updatedTemplate: ReceiptTemplate = {
+            ...currentTemplate,
             zoom: zoom,
             page1Image: page1Url,
             page2Image: page2Url,
-            page1ImageDimensions: template.page1ImageDimensions,
-            page2ImageDimensions: template.page2ImageDimensions,
+        };
+
+        const updatedTemplates = {
+            ...templates,
+            [activeTemplateTab]: updatedTemplate
         };
         
-        await saveDocument('settings', dataToSave, 'receiptTemplate');
+        await saveDocument('settings', updatedTemplates, 'receiptTemplates');
 
-        setTemplate(prev => ({
-            ...prev,
-            zoom: zoom,
-            page1Image: page1Url || prev.page1Image,
-            page2Image: page2Url || prev.page2Image,
-        }));
+        setTemplates(updatedTemplates);
         
-        toast({ title: "Plantilla Guardada", description: "El diseño del recibo ha sido actualizado." });
+        toast({ title: "Plantilla Guardada", description: `La ${activeTemplateTab === 'template1' ? 'Plantilla 1' : 'Plantilla 2'} ha sido actualizada.` });
         setIsEditorOpen(false);
     } catch (error) {
         console.error("Error saving template:", error);
@@ -333,7 +477,7 @@ const saveTemplate = async () => {
         setPage1ImageFile(null);
         setPage2ImageFile(null);
     }
-};
+  };
   
   const fitToScreen = () => {
       if (!canvasRef.current) return;
@@ -341,8 +485,8 @@ const saveTemplate = async () => {
       const canvasWidth = canvasRef.current.offsetWidth;
       const canvasHeight = canvasRef.current.offsetHeight;
 
-      const page1Dims = template.page1ImageDimensions;
-      const page2Dims = template.page2ImageDimensions;
+      const page1Dims = currentTemplate.page1ImageDimensions;
+      const page2Dims = currentTemplate.page2ImageDimensions;
 
       let maxWidth = 0;
       let totalHeight = 0;
@@ -364,10 +508,11 @@ const saveTemplate = async () => {
       setZoom(Math.min(scaleX, scaleY) * 0.95);
   }
 
-  const activeFieldData = template.fields.find(f => f.id === activeEditorField);
+  const activeFieldData = currentTemplate.fields.find(f => f.id === activeEditorField);
+  const availableFields = activeTemplateTab === 'template1' ? availableFieldsTemplate1 : availableFieldsTemplate2;
 
-  // --- Receipt Data Generation ---
   const generatedReceiptData = useMemo(() => {
+    if (isManualReceipt) return null;
     if (!selectedReservation) return null;
 
     const passenger = passengers.find(p => p.id === selectedReservation.passengerIds[0]);
@@ -395,7 +540,7 @@ const saveTemplate = async () => {
       totalAmountText: `$ ${selectedReservation.finalPrice.toLocaleString('es-AR')}`,
       cancellationPolicy: tour?.cancellationPolicy || globalCancellationPolicy,
     };
-  }, [selectedReservation, passengers, tours, generalSettings]);
+  }, [selectedReservation, passengers, tours, generalSettings, isManualReceipt]);
   
   const generatePdf = async () => {
     if (!contentToPrintRef.current) {
@@ -416,7 +561,6 @@ const saveTemplate = async () => {
       });
       
       const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
       const imgProps = pdf.getImageProperties(dataUrl);
       const imgHeight = (imgProps.height * pdfWidth) / imgProps.width;
       
@@ -440,279 +584,393 @@ const saveTemplate = async () => {
 
   const handleDownloadPdf = async () => {
     const pdf = await generatePdf();
-    if (pdf && generatedReceiptData) {
-        pdf.save(`Recibo_${generatedReceiptData.passengerName.replace(/ /g, '_')}.pdf`);
-    } else if (pdf) {
-        pdf.save('Recibo.pdf');
+    if (pdf) {
+        if (generatedReceiptData) {
+            pdf.save(`Recibo_${generatedReceiptData.passengerName.replace(/ /g, '_')}.pdf`);
+        } else {
+            pdf.save('Recibo_Manual.pdf');
+        }
     }
   }
 
+  const canShowReceipt = isManualReceipt || (selectedReservation && generatedReceiptData);
 
   return (
     <>
     <Dialog open={isEditorOpen} onOpenChange={setIsEditorOpen}>
         <DialogContent className="max-w-[95vw] h-[95vh] flex flex-col" onPointerDownOutside={(e) => e.preventDefault()}>
             <DialogHeader>
-                <DialogTitle>Diseñador de Plantilla de Recibo</DialogTitle>
-                <DialogDescription>Carga tus imágenes de fondo y arrastra los campos de texto para crear tu recibo.</DialogDescription>
+                <DialogTitle>Diseñador de Plantillas de Recibo</DialogTitle>
+                <DialogDescription>Edita tus plantillas de recibo. La Plantilla 1 usa datos de reservas, la Plantilla 2 es completamente editable.</DialogDescription>
             </DialogHeader>
             
-            <div className="grid grid-cols-12 gap-4 flex-1 min-h-0">
-                {/* --- CONTROLS --- */}
-                <div className="col-span-3 flex flex-col min-h-0">
-                    <h3 className="font-semibold text-lg border-b pb-2 mb-4 shrink-0">Controles</h3>
-                     <ScrollArea className="flex-1 -mx-2 px-2">
-                        <div className="space-y-4">
-                            <div className="space-y-2">
-                                <Label>Zoom</Label>
-                                <div className="flex items-center gap-2">
-                                    <ZoomOut className="w-4 h-4"/>
-                                    <Slider value={[zoom]} onValueChange={(v) => setZoom(v[0])} min={0.2} max={2} step={0.05} />
-                                    <ZoomIn className="w-4 h-4"/>
-                                </div>
-                                <Button variant="outline" size="sm" className="w-full" onClick={fitToScreen}>
-                                    <Maximize className="w-4 h-4 mr-2"/>
-                                    Ajustar a Pantalla
-                                </Button>
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Añadir Campo</Label>
-                                <Select onValueChange={(v) => addField(v as FieldType)}>
-                                    <SelectTrigger><SelectValue placeholder="Seleccionar tipo de campo..." /></SelectTrigger>
-                                    <SelectContent>
-                                        <ScrollArea className="h-72">
-                                            {availableFields.map(f => <SelectItem key={f.type} value={f.type}>{f.label}</SelectItem>)}
-                                        </ScrollArea>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="page1-upload">Fondo Página 1</Label>
-                                <Input id="page1-upload" type="file" accept="image/*" onChange={e => handleImageUpload(e, 0)} />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="page2-upload">Fondo Página 2</Label>
-                                <Input id="page2-upload" type="file" accept="image/*" onChange={e => handleImageUpload(e, 1)} />
-                            </div>
-                            <hr className="my-4" />
-                            {activeFieldData ? (
-                                <div className="space-y-4">
-                                <div className="flex justify-between items-center">
-                                    <h4 className="font-semibold">Editando: <span className="text-primary">{activeFieldData.label}</span></h4>
-                                    <Button variant="ghost" size="icon" className="text-destructive h-7 w-7" onClick={() => removeField(activeFieldData.id)}><Trash2 className="w-4 h-4"/></Button>
+            <Tabs value={activeTemplateTab} onValueChange={(v) => { setActiveTemplateTab(v as 'template1' | 'template2'); setActiveEditorField(null); }} className="flex-1 flex flex-col min-h-0">
+                <TabsList className="grid w-full grid-cols-2 mb-4">
+                    <TabsTrigger value="template1">Plantilla 1 (Con Reservas)</TabsTrigger>
+                    <TabsTrigger value="template2">Plantilla 2 (Manual)</TabsTrigger>
+                </TabsList>
+
+                <div className="grid grid-cols-12 gap-4 flex-1 min-h-0">
+                    {/* --- CONTROLS --- */}
+                    <div className="col-span-3 flex flex-col min-h-0">
+                        <h3 className="font-semibold text-lg border-b pb-2 mb-4 shrink-0">Controles</h3>
+                        <ScrollArea className="flex-1 -mx-2 px-2">
+                            <div className="space-y-4">
+                                <div className="space-y-2">
+                                    <Label>Zoom</Label>
+                                    <div className="flex items-center gap-2">
+                                        <ZoomOut className="w-4 h-4"/>
+                                        <Slider value={[zoom]} onValueChange={(v) => setZoom(v[0])} min={0.2} max={2} step={0.05} />
+                                        <ZoomIn className="w-4 h-4"/>
+                                    </div>
+                                    <Button variant="outline" size="sm" className="w-full" onClick={fitToScreen}>
+                                        <Maximize className="w-4 h-4 mr-2"/>
+                                        Ajustar a Pantalla
+                                    </Button>
                                 </div>
                                 <div className="space-y-2">
-                                    <Label>Página</Label>
-                                    <Select value={String(activeFieldData.page)} onValueChange={v => updateField(activeFieldData.id, { page: parseInt(v) })}>
-                                        <SelectTrigger><SelectValue/></SelectTrigger>
-                                        <SelectContent><SelectItem value="0">Página 1</SelectItem><SelectItem value="1">Página 2</SelectItem></SelectContent>
+                                    <Label>Añadir Campo</Label>
+                                    <Select onValueChange={(v) => addField(v as FieldType)}>
+                                        <SelectTrigger><SelectValue placeholder="Seleccionar tipo de campo..." /></SelectTrigger>
+                                        <SelectContent>
+                                            <ScrollArea className="h-72">
+                                                {availableFields.map(f => <SelectItem key={f.type} value={f.type}>{f.label}</SelectItem>)}
+                                            </ScrollArea>
+                                        </SelectContent>
                                     </Select>
                                 </div>
-                                {activeFieldData.type === 'customText' && (
-                                    <div className="space-y-2">
-                                        <Label>Texto Fijo</Label>
-                                        <Input value={activeFieldData.customText || ''} onChange={e => updateField(activeFieldData.id, { customText: e.target.value })} />
+                                <div className="space-y-2">
+                                    <Label htmlFor="page1-upload">Fondo Página 1</Label>
+                                    <Input id="page1-upload" type="file" accept="image/*" onChange={e => handleImageUpload(e, 0)} />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="page2-upload">Fondo Página 2</Label>
+                                    <Input id="page2-upload" type="file" accept="image/*" onChange={e => handleImageUpload(e, 1)} />
+                                </div>
+                                <hr className="my-4" />
+                                {activeFieldData ? (
+                                    <div className="space-y-4">
+                                    <div className="flex justify-between items-center">
+                                        <h4 className="font-semibold">Editando: <span className="text-primary">{activeFieldData.label}</span></h4>
+                                        <Button variant="ghost" size="icon" className="text-destructive h-7 w-7" onClick={() => removeField(activeFieldData.id)}><Trash2 className="w-4 h-4"/></Button>
                                     </div>
-                                )}
-                                {activeFieldData.type === 'customDate' && (
                                     <div className="space-y-2">
-                                        <Label>Fecha Fija</Label>
-                                        <DatePicker 
-                                            date={activeFieldData.customDate ? new Date(activeFieldData.customDate) : undefined}
-                                            setDate={(d) => updateField(activeFieldData.id, { customDate: d?.toISOString() })}
-                                            className="w-full"
-                                        />
+                                        <Label>Página</Label>
+                                        <Select value={String(activeFieldData.page)} onValueChange={v => updateField(activeFieldData.id, { page: parseInt(v) })}>
+                                            <SelectTrigger><SelectValue/></SelectTrigger>
+                                            <SelectContent><SelectItem value="0">Página 1</SelectItem><SelectItem value="1">Página 2</SelectItem></SelectContent>
+                                        </Select>
                                     </div>
-                                )}
-                                <div className="grid grid-cols-2 gap-2">
-                                    <div className="space-y-2"><Label>Fuente</Label><Select value={activeFieldData.font} onValueChange={v => updateField(activeFieldData.id, { font: v })}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{fonts.map(f => <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>)}</SelectContent></Select></div>
-                                    <div className="space-y-2"><Label>Tamaño (px)</Label><Input type="number" value={activeFieldData.size} onChange={e => updateField(activeFieldData.id, { size: e.target.value === '' ? '' : parseInt(e.target.value) })}/></div>
-                                </div>
-                                 <div className="grid grid-cols-2 gap-2">
-                                    <Button variant={activeFieldData.isBold ? "secondary" : "outline"} onClick={() => updateField(activeFieldData.id, { isBold: !activeFieldData.isBold })}><Bold className="w-4 h-4"/></Button>
-                                    <Button variant={activeFieldData.isItalic ? "secondary" : "outline"} onClick={() => updateField(activeFieldData.id, { isItalic: !activeFieldData.isItalic })}><Italic className="w-4 h-4"/></Button>
-                                </div>
-                                <div className="space-y-2"><Label>Color</Label><Input type="color" value={activeFieldData.color} onChange={e => updateField(activeFieldData.id, { color: e.target.value })} className="h-10 p-1"/></div>
-                                </div>
-                            ) : <p className="text-muted-foreground text-sm">Selecciona un campo para editarlo.</p>}
-                        </div>
-                    </ScrollArea>
-                    <DialogFooter className="pt-4 border-t shrink-0">
-                        <Button variant="outline" onClick={() => setIsEditorOpen(false)}>Cancelar</Button>
-                        <Button onClick={saveTemplate} disabled={isSavingTemplate}>
-                            {isSavingTemplate && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
-                            {isSavingTemplate ? "Guardando..." : "Guardar Plantilla"}
-                        </Button>
-                    </DialogFooter>
-                </div>
-
-                {/* --- CANVAS --- */}
-                 <div ref={canvasRef} className="col-span-9 overflow-auto bg-gray-200 rounded-md flex justify-center items-start p-8">
-                   <DndContext onDragEnd={handleDragEnd}>
-                    <div style={{ transform: `scale(${zoom})`, transformOrigin: 'top center' }} >
-                      <div className="flex flex-col items-center gap-4">
-                          {[0, 1].map(pageIndex => {
-                            const imageKey = pageIndex === 0 ? 'page1Image' : 'page2Image';
-                            const imageUrl = template[imageKey];
-                            const pageDimensions = pageIndex === 0 ? template.page1ImageDimensions : template.page2ImageDimensions;
-                            
-                            const pageStyle = pageDimensions
-                                ? { width: `${pageDimensions.width}px`, height: `${pageDimensions.height}px` }
-                                : {};
-                            
-                            const hasContentForPage = imageUrl || template.fields.some(f => f.page === pageIndex);
-                            if (!hasContentForPage) return null;
-
-                             return (
-                             <div key={pageIndex} style={pageStyle} className="relative bg-white shadow-lg shrink-0">
-                                  { imageUrl && <img src={getDisplayUrl(imageUrl)} alt={`Fondo Página ${pageIndex + 1}`} className="absolute inset-0 w-full h-full object-cover" /> }
-                                  
-                                  {template.fields.filter(f => f.page === pageIndex).map(field => (
-                                       <DraggableField key={field.id} id={field.id} style={{ top: field.y, left: field.x }} isSelected={activeEditorField === field.id}>
-                                          <div onClick={() => setActiveEditorField(field.id)} style={{ fontSize: `${field.size || 12}px`, color: field.color, fontFamily: field.font, fontWeight: field.isBold ? 'bold' : 'normal', fontStyle: field.isItalic ? 'italic' : 'normal', whiteSpace: 'nowrap' }}>
-                                            {field.type === 'customText' 
-                                                ? (field.customText || `[${field.label}]`)
-                                                : field.type === 'customDate'
-                                                    ? (field.customDate ? new Date(field.customDate).toLocaleDateString('es-AR') : `[${field.label}]`)
-                                                    : field.type === 'editableText'
-                                                        ? `[Escribir aquí...]`
-                                                        : `[${field.label}]`}
-                                          </div>
-                                       </DraggableField>
-                                  ))}
-                             </div>
-                          )})}
-                      </div>
+                                    {activeFieldData.type === 'customText' && (
+                                        <div className="space-y-2">
+                                            <Label>Texto Fijo</Label>
+                                            <Input value={activeFieldData.customText || ''} onChange={e => updateField(activeFieldData.id, { customText: e.target.value })} />
+                                        </div>
+                                    )}
+                                    {activeFieldData.type === 'customDate' && (
+                                        <div className="space-y-2">
+                                            <Label>Fecha Fija</Label>
+                                            <DatePicker 
+                                                date={activeFieldData.customDate ? new Date(activeFieldData.customDate) : undefined}
+                                                setDate={(d) => updateField(activeFieldData.id, { customDate: d?.toISOString() })}
+                                                className="w-full"
+                                            />
+                                        </div>
+                                    )}
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <div className="space-y-2"><Label>Fuente</Label><Select value={activeFieldData.font} onValueChange={v => updateField(activeFieldData.id, { font: v })}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{fonts.map(f => <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>)}</SelectContent></Select></div>
+                                        <div className="space-y-2"><Label>Tamaño (px)</Label><Input type="number" value={activeFieldData.size} onChange={e => updateField(activeFieldData.id, { size: e.target.value === '' ? '' : parseInt(e.target.value) })}/></div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <Button variant={activeFieldData.isBold ? "secondary" : "outline"} onClick={() => updateField(activeFieldData.id, { isBold: !activeFieldData.isBold })}><Bold className="w-4 h-4"/></Button>
+                                        <Button variant={activeFieldData.isItalic ? "secondary" : "outline"} onClick={() => updateField(activeFieldData.id, { isItalic: !activeFieldData.isItalic })}><Italic className="w-4 h-4"/></Button>
+                                    </div>
+                                    <div className="space-y-2"><Label>Color</Label><Input type="color" value={activeFieldData.color} onChange={e => updateField(activeFieldData.id, { color: e.target.value })} className="h-10 p-1"/></div>
+                                    
+                                    <div className="grid grid-cols-2 gap-2 pt-2 border-t mt-2">
+                                        <div className="space-y-2">
+                                            <Label>Ancho (px)</Label>
+                                            <Input 
+                                                type="number" 
+                                                value={activeFieldData.width || 200} 
+                                                min={50}
+                                                max={1000}
+                                                onChange={e => handleFieldResize(activeFieldData.id, parseInt(e.target.value) || 200, activeFieldData.height || 40)}
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label>Alto (px)</Label>
+                                            <Input 
+                                                type="number" 
+                                                value={activeFieldData.height || 40} 
+                                                min={20}
+                                                max={500}
+                                                onChange={e => handleFieldResize(activeFieldData.id, activeFieldData.width || 200, parseInt(e.target.value) || 40)}
+                                            />
+                                        </div>
+                                    </div>
+                                    </div>
+                                ) : <p className="text-muted-foreground text-sm">Selecciona un campo para editarlo.</p>}
+                            </div>
+                        </ScrollArea>
+                        <DialogFooter className="pt-4 border-t shrink-0">
+                            <Button variant="outline" className="flex-1" onClick={() => setIsEditorOpen(false)}>Cancelar</Button>
+                            <Button className="flex-1" onClick={saveTemplate} disabled={isSavingTemplate}>
+                                {isSavingTemplate ? <Loader2 className="animate-spin w-4 h-4 mr-2"/> : <Save className="w-4 h-4 mr-2"/>}
+                                Guardar {activeTemplateTab === 'template1' ? 'Plantilla 1' : 'Plantilla 2'}
+                            </Button>
+                        </DialogFooter>
                     </div>
-                   </DndContext>
+
+                    {/* --- CANVAS --- */}
+                    <div className="col-span-9 bg-muted relative overflow-hidden rounded-lg flex items-center justify-center min-h-0" ref={canvasRef} onClick={() => setActiveEditorField(null)}>
+                        <DndContext onDragEnd={handleDragEnd}>
+                            <div 
+                                className="relative origin-top-left transition-transform duration-200"
+                                style={{ transform: `scale(${zoom})`, padding: '20px' }}
+                            >
+                                {[currentTemplate.page1Image, currentTemplate.page2Image].map((imageUrl, pageIndex) => {
+                                    const dims = pageIndex === 0 ? currentTemplate.page1ImageDimensions : currentTemplate.page2ImageDimensions;
+                                    const pageStyle: React.CSSProperties = {
+                                        width: dims?.width || 800,
+                                        height: dims?.height || 1100,
+                                        marginBottom: '20px',
+                                    };
+
+                                    return (
+                                        <div key={pageIndex} style={pageStyle} className="relative bg-white shadow-lg shrink-0">
+                                            { imageUrl && <img src={getDisplayUrl(imageUrl)} alt={`Fondo Página ${pageIndex + 1}`} className="absolute inset-0 w-full h-full object-cover" /> }
+                                            
+                                            {currentTemplate.fields.filter(f => f.page === pageIndex).map(field => (
+                                                <ResizableDraggableField
+                                                    key={field.id}
+                                                    id={field.id}
+                                                    isSelected={activeEditorField === field.id}
+                                                    isResizable={field.type === 'editableText'}
+                                                    width={field.width}
+                                                    height={field.height}
+                                                    zoom={zoom}
+                                                    onResize={handleFieldResize}
+                                                    onClick={() => setActiveEditorField(field.id)}
+                                                    style={{
+                                                        left: field.x,
+                                                        top: field.y,
+                                                        fontFamily: field.font,
+                                                        fontSize: `${field.size}px`,
+                                                        color: field.color,
+                                                        fontWeight: field.isBold ? 'bold' : 'normal',
+                                                        fontStyle: field.isItalic ? 'italic' : 'normal',
+                                                        whiteSpace: 'pre-wrap',
+                                                        lineHeight: '1.2',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'flex-start',
+                                                        overflow: 'hidden'
+                                                    }}
+                                                >
+                                                    {field.type === 'editableText' ? (
+                                                        <div className="w-full h-full flex items-center">{field.label}</div>
+                                                    ) : (
+                                                        field.label
+                                                    )}
+                                                </ResizableDraggableField>
+                                            ))}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </DndContext>
+                    </div>
                 </div>
-            </div>
+            </Tabs>
         </DialogContent>
     </Dialog>
 
-
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-            <h2 className="text-2xl font-bold">Generación de Recibos</h2>
-            <p className="text-muted-foreground">Selecciona una reserva para generar un recibo basado en tu plantilla.</p>
+          <h1 className="text-3xl font-bold flex items-center gap-2">
+            <ReceiptIcon className="w-8 h-8 text-primary" />
+            Recibos de Pago
+          </h1>
+          <p className="text-muted-foreground mt-1">Genera y descarga recibos para las reservas de tus clientes.</p>
         </div>
-        <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setIsEditorOpen(true)}><Pencil className="mr-2 h-4 w-4"/> Diseñar Plantilla</Button>
-            {selectedReservation && (
-              <>
-                <Button onClick={handleDownloadPdf}><Download className="mr-2 h-4 w-4"/> Descargar PDF</Button>
-                <Button onClick={handlePrint}><Printer className="mr-2 h-4 w-4"/> Imprimir Recibo</Button>
-              </>
-            )}
+        <div className="flex gap-2 w-full sm:w-auto">
+          <Button variant="outline" className="flex-1 sm:flex-none" onClick={() => setIsEditorOpen(true)}>
+            <Pencil className="w-4 h-4 mr-2" />
+            Configurar Plantillas
+          </Button>
         </div>
       </div>
 
-       <Card>
+      <Card>
         <CardHeader>
-            <CardTitle>Selección de Reserva</CardTitle>
-            <CardDescription>Elige el viaje y luego busca la reserva por nombre o DNI del pasajero.</CardDescription>
+          <CardTitle>Generador de Recibo</CardTitle>
+          <CardDescription>Selecciona un viaje y una reserva para visualizar el recibo. Usa la opción "Recibo Manual" para recibos libres.</CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-col sm:flex-row items-start gap-4">
-            <div className="space-y-2 w-full sm:w-1/2">
-                <Label htmlFor="trip-filter">1. Selecciona un Viaje</Label>
-                <Select onValueChange={(val) => { setSelectedTripId(val); setSelectedReservationId(""); }} value={selectedTripId || ''}>
-                    <SelectTrigger id="trip-filter"><SelectValue placeholder="Seleccionar viaje..." /></SelectTrigger>
-                    <SelectContent>
-                        <ScrollArea className="h-72">
-                           {activeTours.map(tour => <SelectItem key={tour.id} value={tour.id}>{tour.destination}</SelectItem>)}
-                        </ScrollArea>
-                    </SelectContent>
-                </Select>
-            </div>
-             <div className="space-y-2 w-full sm:w-1/2">
-                <Label htmlFor="reservation-filter">2. Selecciona una Reserva</Label>
-                 <SearchableSelect options={reservationOptions} value={selectedReservationId} onChange={setSelectedReservationId} placeholder="Buscar reserva..." disabled={!selectedTripId}/>
-            </div>
-        </CardContent>
-       </Card>
-
-        {selectedReservation && generatedReceiptData ? (
-             <div className="w-full overflow-x-auto py-4">
-                <div className="flex justify-center">
-                    <div
-                        style={{
-                            transform: `scale(${template.zoom || 1})`,
-                            transformOrigin: 'top center',
+        <CardContent className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>1. Seleccionar Viaje</Label>
+                <div className="space-y-2">
+                    <Button 
+                        variant={selectedTripId === 'MANUAL_RECEIPT' ? "secondary" : "outline"}
+                        className="w-full justify-start font-bold border-2"
+                        onClick={() => {
+                            setSelectedTripId('MANUAL_RECEIPT');
+                            setSelectedReservationId("");
                         }}
                     >
-                      <div ref={contentToPrintRef} className="flex flex-col items-center gap-4">
-                        {[0, 1].map(pageIndex => {
-                            const imageKey = pageIndex === 0 ? 'page1Image' : 'page2Image';
-                            const imageUrl = template[imageKey];
-                            const pageDimensions = pageIndex === 0 ? template.page1ImageDimensions : template.page2ImageDimensions;
-                            
-                            const pageStyle = pageDimensions
-                                ? { width: `${pageDimensions.width}px`, height: `${pageDimensions.height}px` }
-                                : {}; 
+                        <Pencil className="w-4 h-4 mr-2" />
+                        RECIBO MANUAL (Plantilla 2)
+                    </Button>
+                    <Separator className="my-2" />
+                    <Select value={selectedTripId || ""} onValueChange={(val) => {
+                        setSelectedTripId(val);
+                        setSelectedReservationId("");
+                    }}>
+                        <SelectTrigger><SelectValue placeholder="Seleccionar un viaje activo..." /></SelectTrigger>
+                        <SelectContent>
+                        {activeTours.map(tour => (
+                            <SelectItem key={tour.id} value={tour.id}>
+                            {tour.destination} - {new Date(tour.date).toLocaleDateString()}
+                            </SelectItem>
+                        ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+              </div>
 
-                            const hasContentForPage = (imageUrl || template.fields.some(f => f.page === pageIndex));
-                            
-                            if (!hasContentForPage) return null;
-                            
-                            return (
-                                <div key={pageIndex} style={pageStyle} className="relative bg-white shadow-lg shrink-0">
-                                    { imageUrl && <img src={getDisplayUrl(imageUrl)} alt={`Fondo Página ${pageIndex + 1}`} className="absolute inset-0 w-full h-full object-cover" /> }
-                                    
-                                    {template.fields.filter(f => f.page === pageIndex).map(field => {
-                                        const fieldStyle: React.CSSProperties = {
-                                            top: field.y,
-                                            left: field.x,
-                                            fontSize: `${field.size || 12}px`,
-                                            color: field.color,
-                                            fontFamily: field.font,
-                                            fontWeight: field.isBold ? 'bold' : 'normal',
-                                            fontStyle: field.isItalic ? 'italic' : 'normal',
-                                        };
-
-                                        if (field.type === 'editableText') {
-                                            return (
-                                                <Textarea
-                                                    key={field.id}
-                                                    rows={1}
-                                                    value={editableTexts[field.id] || ''}
-                                                    onChange={(e) => handleEditableTextChange(field.id, e.target.value)}
-                                                    placeholder="Escribe aquí..."
-                                                    style={{ ...fieldStyle, background: 'transparent', border: '1px dashed rgba(0,0,0,0.3)', outline: 'none', overflow: 'hidden', whiteSpace: 'nowrap' }}
-                                                    className="absolute p-0 m-0"
-                                                />
-                                            );
-                                        } else {
-                                            let textContent: string | number | undefined = '';
-                                            if (field.type === 'customText') {
-                                                textContent = field.customText;
-                                            } else if (field.type === 'customDate') {
-                                                textContent = field.customDate ? new Date(field.customDate).toLocaleDateString('es-AR') : '';
-                                            } else {
-                                                textContent = generatedReceiptData[field.type as keyof typeof generatedReceiptData];
-                                            }
-                                            return (
-                                                <div key={field.id} style={{...fieldStyle, whiteSpace: 'nowrap'}} className="absolute">
-                                                    {textContent}
-                                                </div>
-                                            );
-                                        }
-                                    })}
-                            </div>
-                            )
-                        })}
-                    </div>
+              {!isManualReceipt && (
+                <div className="space-y-2">
+                    <Label>2. Seleccionar Reserva</Label>
+                    <SearchableSelect
+                        options={reservationOptions}
+                        value={selectedReservationId}
+                        onChange={setSelectedReservationId}
+                        placeholder="Buscar por nombre o DNI..."
+                        disabled={!selectedTripId}
+                    />
+                </div>
+              )}
+              
+              {canShowReceipt && activeDisplayTemplate.fields.filter(f => f.type === 'editableText').length > 0 && (
+                <div className="space-y-4 border rounded-md p-4 bg-muted/30">
+                    <h4 className="font-semibold text-sm flex items-center gap-2"><Pencil className="w-4 h-4"/> Textos Editables para este Recibo</h4>
+                    <div className="space-y-3">
+                        {activeDisplayTemplate.fields
+                            .filter(f => f.type === 'editableText')
+                            .sort((a, b) => a.page === b.page ? a.y - b.y : a.page - b.page)
+                            .map(field => (
+                                <div key={field.id} className="space-y-1.5">
+                                    <Label className="text-xs text-muted-foreground">{field.label}</Label>
+                                    <Textarea 
+                                        placeholder={`Ingresa texto para: ${field.label}`}
+                                        value={editableTexts[field.id] || ''}
+                                        onChange={(e) => handleEditableTextChange(field.id, e.target.value)}
+                                        rows={2}
+                                    />
+                                </div>
+                            ))
+                        }
                     </div>
                 </div>
+              )}
+
+              {canShowReceipt && (
+                <div className="flex flex-col gap-2 pt-4">
+                  <Button className="w-full" size="lg" onClick={handlePrint}>
+                    <Printer className="w-4 h-4 mr-2" /> Imprimir Recibo
+                  </Button>
+                  <Button className="w-full" variant="outline" size="lg" onClick={handleDownloadPdf}>
+                    <Download className="w-4 h-4 mr-2" /> Descargar PDF
+                  </Button>
+                </div>
+              )}
             </div>
-        ) : (
-            <Card>
-                <CardContent className="p-12 text-center flex flex-col items-center gap-4">
-                    <ReceiptIcon className="w-16 h-16 text-muted-foreground/50"/>
-                    <p className="text-muted-foreground">Selecciona un viaje y una reserva para ver el recibo. Si no has creado una plantilla, ve a "Diseñar Plantilla".</p>
-                </CardContent>
-            </Card>
-        )}
+
+            <div className="border rounded-lg bg-muted flex flex-col min-h-[500px] overflow-hidden">
+              <div className="bg-background border-b p-2 flex justify-between items-center shrink-0">
+                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-2">Vista Previa</span>
+                <div className="flex gap-2">
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setZoom(prev => Math.max(0.1, prev - 0.1))}><ZoomOut className="w-4 h-4"/></Button>
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setZoom(prev => Math.min(2, prev + 0.1))}><ZoomIn className="w-4 h-4"/></Button>
+                </div>
+              </div>
+              <div className="flex-1 overflow-auto p-4 bg-gray-200/50 flex flex-col items-center">
+                {canShowReceipt ? (
+                  <div ref={contentToPrintRef} className="bg-white shadow-2xl origin-top transition-transform duration-200" style={{ transform: `scale(${zoom})`, padding: '0px' }}>
+                     {[activeDisplayTemplate.page1Image, activeDisplayTemplate.page2Image].map((imageUrl, pageIndex) => {
+                        const dims = pageIndex === 0 ? activeDisplayTemplate.page1ImageDimensions : activeDisplayTemplate.page2ImageDimensions;
+                        if (pageIndex === 1 && activeDisplayTemplate.fields.filter(f => f.page === 1).length === 0 && !activeDisplayTemplate.page2Image) return null;
+                        
+                        return (
+                            <div 
+                                key={pageIndex} 
+                                className="relative bg-white shrink-0"
+                                style={{
+                                    width: dims?.width || 800,
+                                    height: dims?.height || 1100,
+                                    marginBottom: pageIndex === 0 ? '1px' : '0',
+                                }}
+                            >
+                                { imageUrl && <img src={getDisplayUrl(imageUrl)} alt={`Página ${pageIndex + 1}`} className="absolute inset-0 w-full h-full object-cover" /> }
+                                
+                                {activeDisplayTemplate.fields.filter(f => f.page === pageIndex).map(field => {
+                                    let content: string | number = '';
+                                    
+                                    if (field.type === 'editableText') {
+                                        content = editableTexts[field.id] || '';
+                                    } else if (field.type === 'customText') {
+                                        content = field.customText || '';
+                                    } else if (field.type === 'customDate') {
+                                        content = field.customDate ? new Date(field.customDate).toLocaleDateString('es-AR') : '';
+                                    } else if (generatedReceiptData) {
+                                        content = (generatedReceiptData as any)[field.type] || '';
+                                    }
+
+                                    return (
+                                        <div 
+                                            key={field.id}
+                                            className="absolute"
+                                            style={{
+                                                left: field.x,
+                                                top: field.y,
+                                                width: field.width ? `${field.width}px` : 'auto',
+                                                height: field.height ? `${field.height}px` : 'auto',
+                                                fontFamily: field.font,
+                                                fontSize: `${field.size}px`,
+                                                color: field.color,
+                                                fontWeight: field.isBold ? 'bold' : 'normal',
+                                                fontStyle: field.isItalic ? 'italic' : 'normal',
+                                                whiteSpace: 'pre-wrap',
+                                                lineHeight: '1.2',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'flex-start',
+                                                overflow: 'hidden'
+                                            }}
+                                        >
+                                            {content}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        );
+                     })}
+                  </div>
+                ) : (
+                  <div className="h-full w-full flex flex-col items-center justify-center text-muted-foreground gap-3 pt-20">
+                    <ReceiptIcon className="w-16 h-16 opacity-20" />
+                    <p className="text-center max-w-[200px]">Selecciona una reserva para ver el recibo</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
     </>
   )
