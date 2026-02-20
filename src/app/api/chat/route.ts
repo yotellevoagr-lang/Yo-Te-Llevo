@@ -112,11 +112,8 @@ async function getAllToursAdmin(): Promise<TourData[]> {
         };
       })
       .filter(tour => {
-        const tourDate = new Date(tour.date);
-        // Set both to start of day for fair comparison
-        const compareDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        const tourCompareDate = new Date(tourDate.getFullYear(), tourDate.getMonth(), tourDate.getDate());
-        return tourCompareDate >= compareDate;
+        // No filtering here, filter in getAllTours for consistency
+        return true;
       })
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   } catch (error) {
@@ -173,11 +170,8 @@ async function getAllToursREST(): Promise<TourData[]> {
         };
       })
       .filter((tour: TourData | null): tour is TourData => {
-        if (!tour) return false;
-        const tourDate = new Date(tour.date);
-        const compareDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        const tourCompareDate = new Date(tourDate.getFullYear(), tourDate.getMonth(), tourDate.getDate());
-        return tourCompareDate >= compareDate;
+        // No filtering here, filter in getAllTours for consistency
+        return !!tour;
       })
       .sort((a: TourData, b: TourData) => new Date(a.date).getTime() - new Date(b.date).getTime());
   } catch (error) {
@@ -236,11 +230,25 @@ async function getContactInfoREST(): Promise<ContactData | null> {
 
 async function getAllTours(): Promise<TourData[]> {
   const hasAdmin = initializeFirebaseAdmin();
+  let tours: TourData[] = [];
+  
   if (hasAdmin && db) {
-    const tours = await getAllToursAdmin();
-    if (tours.length > 0) return tours;
+    tours = await getAllToursAdmin();
   }
-  return getAllToursREST();
+  
+  if (tours.length === 0) {
+    tours = await getAllToursREST();
+  }
+  
+  // FINAL SAFETY FILTER: Remove only tours that are strictly in the past
+  // But allow anything from "today" onwards
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  
+  return tours.filter(t => {
+    const tourDate = new Date(t.date).getTime();
+    return tourDate >= todayStart;
+  });
 }
 
 async function getContactInfo(): Promise<ContactData | null> {
@@ -252,57 +260,37 @@ async function getContactInfo(): Promise<ContactData | null> {
   return getContactInfoREST();
 }
 
-const SYSTEM_PROMPT = `Eres el asistente virtual de "YO TE LLEVO", una agencia de viajes argentina. Eres amigable, entusiasta y el mejor asistente de IA que existe. Respondes siempre en español.
+const SYSTEM_PROMPT = `Eres el asistente virtual oficial y experto de la agencia de viajes "YO TE LLEVO". Tu misión es ser el mejor asistente de IA: servicial, detallista y proactivo. Respondes siempre en español.
 
-DATOS DE VIAJES DISPONIBLES:
+VIAJES DISPONIBLES ACTUALMENTE (Usa esta lista como única fuente de verdad):
 {{TOURS_DATA}}
 
-DATOS DE CONTACTO:
+INFORMACIÓN DE CONTACTO:
 {{CONTACT_DATA}}
 
-INSTRUCCIONES DE RESPUESTA:
-Debes responder SIEMPRE en formato JSON válido con esta estructura:
+REGLAS CRÍTICAS DE VISIBILIDAD:
+1. DEBES MOSTRAR TODOS LOS VIAJES: Si el usuario pregunta "qué viajes hay", "cuáles son los destinos" o similares, TIENES que listar CADA UNO de los viajes que aparecen arriba en la sección "VIAJES DISPONIBLES ACTUALMENTE". No resumas, muéstralos todos.
+2. NUNCA DIGAS QUE NO HAY VIAJES si hay al menos uno en la lista superior.
+3. IDs DE VIAJES: Para la acción "showTours", incluye TODOS los IDs de la lista si el usuario pide ver todo el catálogo.
+
+GUÍA DETALLADA DE RESERVA (Explica esto siempre que pregunten "cómo reservar"):
+- Paso 1: Revisa nuestra lista de viajes y elige tu destino favorito.
+- Paso 2: Haz clic en el botón "Reservar" del viaje elegido.
+- Paso 3: Elige la fecha en la que deseas viajar.
+- Paso 4: Carga los datos de los pasajeros (Nombre y DNI).
+- Paso 5: Selecciona tu lugar de subida (punto de embarque).
+- Paso 6: Elige si quieres pagar una seña o el total del viaje.
+- Paso 7: ¡Confirmas y listo! Podrás ver tu comprobante en tu perfil.
+
+FORMATO DE RESPUESTA (ESTRICTO JSON):
 {
-  "message": "Tu respuesta amigable y detallada aquí",
+  "message": "Tu respuesta detallada y entusiasta aquí",
   "action": "none" | "showTours" | "showContact" | "showLinks",
-  "tourIds": ["id1", "id2"],
+  "tourIds": ["id1", "id2", ...],
   "links": [{"text": "texto", "url": "/url", "icon": "whatsapp|instagram|facebook|email|phone|map|web"}]
 }
 
-REGLAS DE ORO:
-1. MOSTRAR TODOS LOS VIAJES: Si el usuario pide "ver todos los viajes", "qué viajes hay", o similares sin filtros específicos, DEBES incluir los IDs de TODOS los viajes disponibles en el campo "tourIds". No te limites a 5 si el usuario quiere ver todo el catálogo.
-2. GUÍA PASO A PASO PARA RESERVAS: Cuando alguien pregunte "cómo reservar", "cómo hago una reserva" o similar, NO solo los redirijas. Debes explicarles el proceso detalladamente:
-   - Paso 1: Explora nuestros destinos en la sección de "Viajes" o pídeme que te muestre las opciones.
-   - Paso 2: Elige el viaje que más te guste y haz clic en el botón "Reservar" o "Ver Detalles".
-   - Paso 3: Selecciona la fecha de salida (si hay varias disponibles).
-   - Paso 4: Completa los datos de los pasajeros (Nombre, DNI, etc.).
-   - Paso 5: Elige tu punto de embarque.
-   - Paso 6: Selecciona el método de pago (Seña o Pago Total).
-   - Paso 7: ¡Listo! Recibirás la confirmación y podrás ver tu reserva en tu perfil.
-3. EXCELENCIA: Sé proactivo. Si un viaje está marcado como "Destacado", menciónalo con entusiasmo. Si preguntan por contacto, ofrece todos los medios disponibles.
-
-REGLAS DE ACCIÓN:
-1. Si preguntan por viajes, tours, destinos, o quieren ver opciones:
-   - action: "showTours"
-   - tourIds: IDs de los viajes relevantes. Si piden "todos", incluye todos. Si piden específicos, filtra.
-   - Filtra según lo que pidan: más baratos, más caros, por destino, por fecha, destacados, etc.
-
-2. Si preguntan por contacto, teléfono, WhatsApp, email, redes sociales, dirección:
-   - action: "showContact"
-   - links: array con los enlaces relevantes.
-
-3. Si mencionan algo que requiere un enlace (reservar, ver tours, registrarse):
-   - action: "showLinks"
-   - links: con las URLs correspondientes.
-
-URLs DISPONIBLES:
-- Ver todos los tours: /tours
-- Reservar viaje específico: /booking/[id]
-- Registrarse: /login?mode=register
-- Iniciar sesión: /login
-- Perfil: /profile
-
-Responde SOLO con JSON válido, sin texto adicional ni markdown.`;
+Responde SOLO con el objeto JSON, sin texto adicional.`;
 
 export async function POST(request: NextRequest) {
   try {
@@ -320,13 +308,18 @@ export async function POST(request: NextRequest) {
     const toursDataStr = allTours.length > 0 
       ? allTours.map(t => {
           const date = new Date(t.date);
-          return `ID: ${t.id}, Destino: ${t.destination}, Fecha: ${date.toLocaleDateString('es-AR')}, Precio: ${t.currency === 'USD' ? 'USD ' : ''}$${t.price}, Días: ${t.days || 'N/A'}, Noches: ${t.nights || 'N/A'}, Destacado: ${t.isFeatured ? 'Sí' : 'No'}`;
+          return `- VIAJE: ${t.destination} | FECHA: ${date.toLocaleDateString('es-AR')} | PRECIO: ${t.currency === 'USD' ? 'USD ' : ''}$${t.price} | ID: ${t.id} | DESTACADO: ${t.isFeatured ? 'SÍ' : 'NO'}`;
         }).join('\n')
       : 'No hay viajes disponibles actualmente.';
 
     const contactDataStr = contactInfo 
       ? `WhatsApp: ${contactInfo.whatsapp || 'N/A'}, Teléfono: ${contactInfo.phone || 'N/A'}, Email: ${contactInfo.email || 'N/A'}, Instagram: ${contactInfo.instagram || 'N/A'}, Facebook: ${contactInfo.facebook || 'N/A'}, Dirección: ${contactInfo.address || 'N/A'}, Horario: ${contactInfo.hours || 'N/A'}`
       : 'Información de contacto no disponible.';
+
+    console.log('--- DEBUG INFO ---');
+    console.log('Total tours encontrados:', allTours.length);
+    console.log('Tours enviando al prompt:', toursDataStr);
+    console.log('------------------');
 
     const systemPrompt = SYSTEM_PROMPT
       .replace('{{TOURS_DATA}}', toursDataStr)
@@ -338,12 +331,14 @@ export async function POST(request: NextRequest) {
     }));
 
     const response = await ai.generate({
-      model: 'googleai/gemini-2.0-flash',
+      model: 'googleai/gemini-1.5-flash',
       system: systemPrompt,
       messages: conversationHistory,
       config: {
-        temperature: 0.7,
-        maxOutputTokens: 1000,
+        temperature: 0.1,
+        maxOutputTokens: 2000,
+        topK: 1,
+        topP: 0.1,
       }
     });
 
