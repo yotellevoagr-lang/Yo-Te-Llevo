@@ -86,23 +86,37 @@ async function getAllToursAdmin(): Promise<TourData[]> {
     return toursSnapshot.docs
       .map(doc => {
         const data = doc.data();
-        const date = data.date?.toDate ? data.date.toDate() : new Date(data.date);
+        let dateValue: Date;
+        
+        if (data.date?.toDate) {
+          dateValue = data.date.toDate();
+        } else if (data.date instanceof Date) {
+          dateValue = data.date;
+        } else if (typeof data.date === 'string' || typeof data.date === 'number') {
+          dateValue = new Date(data.date);
+        } else {
+          dateValue = new Date();
+        }
+
         return {
           id: doc.id,
-          destination: data.destination,
-          date: date.toISOString(),
-          price: data.price,
+          destination: data.destination || 'Sin destino',
+          date: dateValue.toISOString(),
+          price: Number(data.price) || 0,
           currency: data.currency || 'ARS',
           days: data.days,
           nights: data.nights,
           backgroundImage: data.backgroundImage,
-          isFeatured: data.isFeatured,
+          isFeatured: data.isFeatured || false,
           isPublic: data.isPublic ?? true
         };
       })
       .filter(tour => {
-        // Only show future tours
-        return new Date(tour.date) >= now;
+        const tourDate = new Date(tour.date);
+        // Set both to start of day for fair comparison
+        const compareDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const tourCompareDate = new Date(tourDate.getFullYear(), tourDate.getMonth(), tourDate.getDate());
+        return tourCompareDate >= compareDate;
       })
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   } catch (error) {
@@ -140,15 +154,17 @@ async function getAllToursREST(): Promise<TourData[]> {
           dateValue = new Date(fields.date.timestampValue);
         } else if (fields.date?.stringValue) {
           dateValue = new Date(fields.date.stringValue);
+        } else if (fields.date?.integerValue) {
+          dateValue = new Date(Number(fields.date.integerValue));
         } else {
           dateValue = new Date();
         }
         
         return {
           id,
-          destination: fields.destination?.stringValue || '',
+          destination: fields.destination?.stringValue || 'Sin destino',
           date: dateValue.toISOString(),
-          price: parseInt(fields.price?.integerValue || fields.price?.doubleValue || '0'),
+          price: Number(fields.price?.integerValue || fields.price?.doubleValue || '0'),
           currency: fields.currency?.stringValue || 'ARS',
           days: parseInt(fields.days?.integerValue || '0') || undefined,
           nights: parseInt(fields.nights?.integerValue || '0') || undefined,
@@ -158,7 +174,10 @@ async function getAllToursREST(): Promise<TourData[]> {
       })
       .filter((tour: TourData | null): tour is TourData => {
         if (!tour) return false;
-        return new Date(tour.date) >= now;
+        const tourDate = new Date(tour.date);
+        const compareDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const tourCompareDate = new Date(tourDate.getFullYear(), tourDate.getMonth(), tourDate.getDate());
+        return tourCompareDate >= compareDate;
       })
       .sort((a: TourData, b: TourData) => new Date(a.date).getTime() - new Date(b.date).getTime());
   } catch (error) {
