@@ -101,8 +101,8 @@ async function getAllToursAdmin(): Promise<TourData[]> {
         };
       })
       .filter(tour => {
-        const isPublic = tour.isPublic !== false;
-        return isPublic && new Date(tour.date) >= now;
+        // Only show future tours
+        return new Date(tour.date) >= now;
       })
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   } catch (error) {
@@ -143,9 +143,6 @@ async function getAllToursREST(): Promise<TourData[]> {
         } else {
           dateValue = new Date();
         }
-        
-        const isPublic = fields.isPublic?.booleanValue ?? true;
-        if (!isPublic) return null;
         
         return {
           id,
