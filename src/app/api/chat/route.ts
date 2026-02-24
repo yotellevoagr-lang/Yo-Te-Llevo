@@ -65,7 +65,7 @@ async function fetchFromFirestoreREST(path: string) {
     const response = await fetch(url, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
-      next: { revalidate: 60 }
+      next: { revalidate: 0 }
     });
     
     if (!response.ok) return null;
@@ -131,7 +131,7 @@ async function getAllToursREST(): Promise<TourData[]> {
     const response = await fetch(url, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
-      next: { revalidate: 60 }
+      next: { revalidate: 0 }
     });
     
     if (!response.ok) return [];
@@ -336,9 +336,7 @@ export async function POST(request: NextRequest) {
       messages: conversationHistory,
       config: {
         temperature: 0.1,
-        maxOutputTokens: 2000,
-        topK: 1,
-        topP: 0.1,
+        maxOutputTokens: 2048,
       }
     });
 
