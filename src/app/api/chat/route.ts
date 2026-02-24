@@ -229,19 +229,9 @@ async function getContactInfoREST(): Promise<ContactData | null> {
 }
 
 async function getAllTours(): Promise<TourData[]> {
-  const hasAdmin = initializeFirebaseAdmin();
-  let tours: TourData[] = [];
+  // Use REST directly to avoid Admin auth issues in this environment
+  const tours = await getAllToursREST();
   
-  if (hasAdmin && db) {
-    tours = await getAllToursAdmin();
-  }
-  
-  if (tours.length === 0) {
-    tours = await getAllToursREST();
-  }
-  
-  // FINAL SAFETY FILTER: Remove only tours that are strictly in the past
-  // But allow anything from "today" onwards
   const now = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
   
@@ -252,11 +242,7 @@ async function getAllTours(): Promise<TourData[]> {
 }
 
 async function getContactInfo(): Promise<ContactData | null> {
-  const hasAdmin = initializeFirebaseAdmin();
-  if (hasAdmin && db) {
-    const contact = await getContactInfoAdmin();
-    if (contact) return contact;
-  }
+  // Use REST directly
   return getContactInfoREST();
 }
 
@@ -300,10 +286,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Messages array required' }, { status: 400 });
     }
 
-    const [allTours, contactInfo] = await Promise.all([
-      getAllTours(),
-      getContactInfo()
-    ]);
+    const allTours = await getAllTours();
+    const contactInfo = await getContactInfo();
 
     const toursDataStr = allTours.length > 0 
       ? allTours.map(t => {
@@ -331,7 +315,7 @@ export async function POST(request: NextRequest) {
     }));
 
     const response = await ai.generate({
-      model: 'googleai/gemini-1.5-flash',
+      model: 'googleai/gemini-2.0-flash',
       system: systemPrompt,
       messages: conversationHistory,
       config: {
