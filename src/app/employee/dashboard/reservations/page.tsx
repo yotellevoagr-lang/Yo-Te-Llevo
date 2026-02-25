@@ -449,7 +449,10 @@ export default function ReservationsPage() {
     setEditingReservation(prev => {
       if (!prev.reservation) return prev;
       const installments = prev.reservation.installments || { count: 1, details: [] };
-      const newDetails = Array.from({ length: newCount }, (_, i) => installments.details[i] || { amount: 0, isPaid: false });
+      const newDetails = Array.from({ length: newCount }, (_, i) => {
+          const existing = installments.details[i];
+          return existing || { amount: 0, isPaid: false };
+      });
       return {
         ...prev,
         reservation: {
@@ -731,8 +734,7 @@ export default function ReservationsPage() {
                                  if (checked && !newDetails[index].paidAt) {
                                      newDetails[index].paidAt = new Date();
                                  } else if (!checked) {
-                                     newDetails[index].paidAt = undefined;
-                                     newDetails[index].paymentMethod = undefined;
+                                     // User requested not to clear dates
                                  }
                                  setEditingReservation(prev => ({...prev, reservation: {...prev.reservation!, installments: { ...installments, details: newDetails }}}))
                               }}/>
@@ -1048,9 +1050,9 @@ export default function ReservationsPage() {
                                                         <Card><CardHeader><CardTitle className="text-lg flex items-center gap-2"><Tag className="w-5 h-5 text-primary"/>Detalles de Reserva</CardTitle></CardHeader><CardContent className="space-y-3 text-sm"><InfoRow label="ID Reserva" value={generateDisplayID('R', res, tour, passengers.find(p => p.id === res.passengerIds[0]))} /><InfoRow label="Cantidad" value={`${res.paxCount} pasajero(s)`}/><InfoRow label="Embarque" value={boardingPointName}/><InfoRow label="Ubicación" value={[(res.assignedSeats || []).map(s => s.seatId),(res.assignedCabins || []).map(c => c.cabinId)].flat().join(', ')}/><InfoRow label="Vendedor/a" value={sellers.find(s => s.id === res.sellerId)?.name} icon={<PercentSquare className="w-4 h-4 text-purple-600"/>}/></CardContent></Card>
                                                         <Card><CardHeader><CardTitle className="text-lg flex items-center gap-2"><CreditCard className="w-5 h-5 text-primary"/>Información de Pago</CardTitle></CardHeader><CardContent className="space-y-3 text-sm"><InfoRow label="Monto Total" value={`$${(calculatedPrice).toLocaleString('es-AR')}`} /><InfoRow label="Pagado" value={`$${(paidAmount).toLocaleString('es-AR')}`} /><InfoRow label="Saldo" value={`$${(balance).toLocaleString('es-AR')}`} /><Separator className="my-2" /><div className="space-y-2">{(res.installments?.details || []).map((inst, idx) => {
                                                         const paidAtRaw = inst.paidAt;
-                                                        const paidAtDate = paidAtRaw instanceof Date ? paidAtRaw : paidAtRaw && (paidAtRaw as any).toDate ? (paidAtRaw as any).toDate() : null;
+                                                        const paidAtDate = paidAtRaw instanceof Date ? paidAtRaw : (paidAtRaw && (paidAtRaw as any).toDate ? (paidAtRaw as any).toDate() : (paidAtRaw ? new Date(paidAtRaw) : null));
                                                         const isValidDate = paidAtDate instanceof Date && !isNaN(paidAtDate.getTime());
-                                                        return (<div key={idx} className="flex justify-between items-center text-xs"><div className="flex items-center gap-2">{inst.isPaid ? <CheckCircle className="w-4 h-4 text-green-600"/> : <Clock className="w-4 h-4 text-muted-foreground"/>}<span>Cuota {idx + 1}</span></div><div className="flex items-center gap-1 font-mono">{inst.isPaid && inst.paymentMethod && <Badge variant="outline" className="text-[10px] p-0.5 px-1">{paymentMethodAbbreviations[inst.paymentMethod]}</Badge>}{inst.isPaid && isValidDate && <span className="text-muted-foreground">{format(paidAtDate, 'dd/MM/yy')}</span>}<span>${(inst.amount || 0).toLocaleString('es-AR')}</span></div></div>);})}</div></CardContent></Card>
+                                                        return (<div key={idx} className="flex justify-between items-center text-xs"><div className="flex items-center gap-2">{inst.isPaid ? <CheckCircle className="w-4 h-4 text-green-600"/> : <Clock className="w-4 h-4 text-muted-foreground"/>}<span>Cuota {idx + 1}</span></div><div className="flex flex-col items-end gap-0.5"><div className="flex items-center gap-1 font-mono">{inst.isPaid && inst.paymentMethod && <Badge variant="outline" className="text-[10px] p-0.5 px-1">{paymentMethodAbbreviations[inst.paymentMethod]}</Badge>}<span>${(inst.amount || 0).toLocaleString('es-AR')}</span></div>{isValidDate && <span className="text-[10px] text-muted-foreground flex items-center gap-1"><Calendar className="w-3 h-3"/>{format(paidAtDate, 'dd/MM/yy')}</span>}</div></div>);})}</div></CardContent></Card>
                                                          <Card><CardHeader><CardTitle className="text-lg flex items-center gap-2"><Home className="w-5 h-5 text-primary"/>Detalles del Viaje</CardTitle></CardHeader><CardContent className="space-y-3 text-sm"><InfoRow label="Seguro" value={(res.insuredPassengerIds?.length || 0) > 0 ? `Sí (${res.insuredPassengerIds?.length})` : 'No'} icon={<ShieldCheck className="w-4 h-4 text-green-600"/>}/><InfoRow label="Liberados" value={(res.releasedPassengerIds?.length || 0) > 0 ? `Sí (${res.releasedPassengerIds?.length})` : 'No'} icon={<BadgePercent className="w-4 h-4 text-blue-600"/>}/><InfoRow label="Pensión" value={pensions.find(p => p.id === res.pensionId)?.name || 'No incluida'} icon={<Utensils className="w-4 h-4 text-orange-600"/>}/><InfoRow label="Tipo de Hab." value={roomTypes.find(rt => rt.id === res.roomTypeId)?.name} icon={<BedDouble className="w-4 h-4 text-blue-600"/>}/></CardContent></Card>
                                                     </div>
                                                      <div className="flex justify-end gap-2 mt-4">
