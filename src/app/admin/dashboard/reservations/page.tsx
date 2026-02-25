@@ -722,49 +722,51 @@ export default function ReservationsPage() {
                               />
                               <Checkbox checked={inst.isPaid} onCheckedChange={(checked) => {
                                  const newDetails = [...installments.details];
-                                 newDetails[index].isPaid = !!checked;
+                                 newDetails[index] = { ...inst, isPaid: !!checked };
                                  if (checked && !newDetails[index].paidAt) {
                                      newDetails[index].paidAt = new Date();
-                                 } else if (!checked) {
-                                     // Keep the date even if unpaid, as requested by user to "not delete every time I enter"
-                                     // but logic-wise usually we might want to clear it. 
-                                     // However, the user specifically said "no que se borre cada que yo entre en gestionar"
-                                     // The issue is likely that it's being cleared somewhere else or the state isn't preserving it.
                                  }
                                  setEditingReservation(prev => ({...prev, reservation: {...prev.reservation!, installments: { ...installments, details: newDetails }}}))
                               }}/>
                               <Label>Pagada</Label>
                            </div>
-                            {inst.isPaid && (
-                                <div className="pl-8 flex gap-4 items-center">
-                                    <Select 
-                                        value={inst.paymentMethod} 
-                                        onValueChange={(method: PaymentMethod) => {
-                                            const newDetails = [...installments.details];
-                                            newDetails[index].paymentMethod = method;
-                                            setEditingReservation(prev => ({...prev, reservation: {...prev.reservation!, installments: { ...installments, details: newDetails }}}))
-                                        }}
-                                    >
-                                        <SelectTrigger className="h-8">
-                                            <SelectValue placeholder="Método de pago..."/>
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="Tarjeta">Tarjeta</SelectItem>
-                                            <SelectItem value="Transferencia">Transferencia</SelectItem>
-                                            <SelectItem value="Efectivo">Efectivo</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                    <DatePicker
-                                        date={inst.paidAt ? (inst.paidAt instanceof Date ? inst.paidAt : (inst.paidAt as any).toDate ? (inst.paidAt as any).toDate() : new Date(inst.paidAt as any)) : undefined}
-                                        setDate={(d) => {
-                                            const newDetails = [...installments.details];
-                                            newDetails[index].paidAt = d;
-                                            setEditingReservation(prev => ({...prev, reservation: {...prev.reservation!, installments: { ...installments, details: newDetails }}}))
-                                        }}
-                                        className="h-8"
-                                    />
+                                <div className="space-y-3 pt-2">
+                                    <div className="flex gap-2 items-center">
+                                        <div className="flex-1">
+                                            <Label className="text-[10px] text-muted-foreground">Método de Pago</Label>
+                                            <Select 
+                                                value={inst.paymentMethod} 
+                                                onValueChange={(method: PaymentMethod) => {
+                                                    const newDetails = [...installments.details];
+                                                    newDetails[index] = { ...inst, paymentMethod: method };
+                                                    setEditingReservation(prev => ({...prev, reservation: {...prev.reservation!, installments: { ...installments, details: newDetails }}}))
+                                                }}
+                                            >
+                                                <SelectTrigger className="h-8">
+                                                    <SelectValue placeholder="Método..."/>
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="Tarjeta">Tarjeta</SelectItem>
+                                                    <SelectItem value="Transferencia">Transferencia</SelectItem>
+                                                    <SelectItem value="Efectivo">Efectivo</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div className="flex-1">
+                                            <Label className="text-[10px] text-muted-foreground">Fecha de Pago</Label>
+                                            <DatePicker
+                                                date={inst.paidAt ? (inst.paidAt instanceof Date ? inst.paidAt : (inst.paidAt as any).toDate ? (inst.paidAt as any).toDate() : new Date(inst.paidAt as any)) : undefined}
+                                                setDate={(d) => {
+                                                    const newDetails = [...installments.details];
+                                                    newDetails[index] = { ...inst, paidAt: d };
+                                                    setEditingReservation(prev => ({...prev, reservation: {...prev.reservation!, installments: { ...installments, details: newDetails }}}))
+                                                }}
+                                                className="h-8"
+                                                placeholder="Seleccionar fecha"
+                                            />
+                                        </div>
+                                    </div>
                                 </div>
-                            )}
                        </div>
                     ))}
                   </div>
