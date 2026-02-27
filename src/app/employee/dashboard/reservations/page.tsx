@@ -758,7 +758,15 @@ export default function ReservationsPage() {
                                         </SelectContent>
                                     </Select>
                                     <DatePicker
-                                        date={inst.paidAt ? (inst.paidAt instanceof Date ? inst.paidAt : (inst.paidAt as any).toDate ? (inst.paidAt as any).toDate() : new Date(inst.paidAt as any)) : undefined}
+                                        date={(() => {
+                                            const paidAt = inst.paidAt;
+                                            if (!paidAt) return undefined;
+                                            if (paidAt instanceof Date) return paidAt;
+                                            if (typeof paidAt === 'object' && (paidAt as any).toDate) return (paidAt as any).toDate();
+                                            if (typeof paidAt === 'object' && (paidAt as any).seconds !== undefined) return new Date((paidAt as any).seconds * 1000);
+                                            const d = new Date(paidAt as any);
+                                            return isNaN(d.getTime()) ? undefined : d;
+                                        })()}
                                         setDate={(d) => {
                                             const newDetails = [...installments.details];
                                             newDetails[index] = { ...inst, paidAt: d };
