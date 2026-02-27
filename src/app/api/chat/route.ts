@@ -146,6 +146,8 @@ async function getAllToursREST(): Promise<TourData[]> {
         const fields = doc.fields;
         const id = doc.name.split('/').pop();
         
+        const isPublic = fields.isPublic?.booleanValue ?? true;
+        
         let dateValue: Date;
         if (fields.date?.timestampValue) {
           dateValue = new Date(fields.date.timestampValue);
@@ -167,6 +169,7 @@ async function getAllToursREST(): Promise<TourData[]> {
           nights: parseInt(fields.nights?.integerValue || '0') || undefined,
           backgroundImage: fields.backgroundImage?.stringValue,
           isFeatured: fields.isFeatured?.booleanValue || false,
+          isPublic: isPublic
         };
       })
       .filter((tour: TourData | null): tour is TourData => {
@@ -237,7 +240,9 @@ async function getAllTours(): Promise<TourData[]> {
   
   return tours.filter(t => {
     const tourDate = new Date(t.date).getTime();
-    return tourDate >= todayStart;
+    // Only filter by date, matching the client's public view logic
+    // but ensuring we only show public tours if they have that flag
+    return tourDate >= todayStart && t.isPublic !== false;
   });
 }
 
