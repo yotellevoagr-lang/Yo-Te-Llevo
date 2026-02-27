@@ -765,6 +765,7 @@ export default function ReservationsPage() {
                                             setEditingReservation(prev => ({...prev, reservation: {...prev.reservation!, installments: { ...installments, details: newDetails }}}))
                                         }}
                                         className="h-8"
+                                        placeholder="Fecha de pago"
                                     />
                                 </div>
                             )}
