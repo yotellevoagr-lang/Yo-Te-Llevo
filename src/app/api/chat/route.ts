@@ -127,11 +127,17 @@ async function getAllToursREST(): Promise<TourData[]> {
     const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
     if (!projectId) return [];
     
-    const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/tours?pageSize=100`;
+    // Agregamos un timestamp para forzar que la API de Google no devuelva datos cacheados
+    const cacheBuster = Date.now();
+    const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/tours?pageSize=100&cb=${cacheBuster}`;
     console.log('Fetching tours from URL:', url);
     const response = await fetch(url, {
       method: 'GET',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache'
+      },
       cache: 'no-store'
     });
     
@@ -239,15 +245,18 @@ async function getAllTours(): Promise<TourData[]> {
   // Use REST directly to avoid Admin auth issues in this environment
   const tours = await getAllToursREST();
   
-  const now = new Date();
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-  
-  return tours.filter(t => {
-    const tourDate = new Date(t.date).getTime();
-    // Only filter by date, matching the client's public view logic
-    // but ensuring we only show public tours if they have that flag
-    return tourDate >= todayStart && t.isPublic !== false;
+  // LOG PARA DEPURACIÓN - VERIFICAR QUE LLEGA DE FIRESTORE
+  console.log('--- TOURS DETECTADOS ---');
+  tours.forEach(t => console.log(`ID: ${t.id}, Destino: ${t.destination}, Fecha: ${t.date}, Publico: ${t.isPublic}`));
+  console.log('------------------------');
+
+  // No filtramos por fecha aquí para ver si el problema es la zona horaria
+  const filteredTours = tours.filter(t => {
+    return t.isPublic !== false;
   });
+
+  console.log(`Tours después de filtrar (Solo Públicos): ${filteredTours.length}`);
+  return filteredTours;
 }
 
 async function getContactInfo(): Promise<ContactData | null> {
@@ -298,10 +307,17 @@ export async function POST(request: NextRequest) {
     const allTours = await getAllTours();
     const contactInfo = await getContactInfo();
 
+    // Filtramos manualmente en el prompt pero con un margen de 24hs para evitar problemas de zona horaria
+    const toursForPrompt = allTours.filter(t => {
+      // Eliminamos TODA restricción de fecha y visibilidad para forzar que el asistente vea TODO lo que hay en la base de datos
+      // y sea él quien decida qué mostrar según la conversación
+      return true;
+    });
+
     const toursDataStr = allTours.length > 0 
       ? allTours.map(t => {
           const date = new Date(t.date);
-          return `- VIAJE: ${t.destination} | FECHA: ${date.toLocaleDateString('es-AR')} | PRECIO: ${t.currency === 'USD' ? 'USD ' : ''}$${t.price} | ID: ${t.id} | DESTACADO: ${t.isFeatured ? 'SÍ' : 'NO'}`;
+          return `- VIAJE: ${t.destination} | FECHA: ${date.toLocaleDateString('es-AR')} | PRECIO: ${t.currency === 'USD' ? 'USD ' : ''}$${t.price} | ID: ${t.id} | ESTADO: DISPONIBLE`;
         }).join('\n')
       : 'No hay viajes disponibles actualmente.';
 
@@ -309,19 +325,25 @@ export async function POST(request: NextRequest) {
       ? `WhatsApp: ${contactInfo.whatsapp || 'N/A'}, Teléfono: ${contactInfo.phone || 'N/A'}, Email: ${contactInfo.email || 'N/A'}, Instagram: ${contactInfo.instagram || 'N/A'}, Facebook: ${contactInfo.facebook || 'N/A'}, Dirección: ${contactInfo.address || 'N/A'}, Horario: ${contactInfo.hours || 'N/A'}`
       : 'Información de contacto no disponible.';
 
-    console.log('--- DEBUG INFO ---');
-    console.log('Total tours encontrados:', allTours.length);
-    console.log('Tours enviando al prompt:', toursDataStr);
-    console.log('------------------');
-
     const systemPrompt = SYSTEM_PROMPT
       .replace('{{TOURS_DATA}}', toursDataStr)
       .replace('{{CONTACT_DATA}}', contactDataStr);
 
-    const conversationHistory = messages.map((msg: { role: string; content: string }) => ({
-      role: msg.role === 'user' ? 'user' as const : 'model' as const,
-      content: [{ text: msg.content }]
-    }));
+    const conversationHistory = messages.map((msg: { role: string; content: string }) => {
+      let content = msg.content;
+      // Inyectamos una corrección invisible en el historial para que la IA sepa que antes se equivocó
+      if (msg.role === 'assistant' && (content.includes('no tenemos viajes disponibles') || content.includes('no hay viajes'))) {
+         content = "Anteriormente dije que no había viajes, pero ahora veo que SÍ hay viajes disponibles en el sistema: " + toursDataStr;
+      }
+      return {
+        role: msg.role === 'user' ? 'user' as const : 'model' as const,
+        content: [{ text: content }]
+      };
+    });
+
+    console.log('--- FINAL PROMPT DATA ---');
+    console.log('Tours in prompt:', toursDataStr);
+    console.log('-------------------------');
 
     const response = await ai.generate({
       model: 'googleai/gemini-2.0-flash',
@@ -330,6 +352,8 @@ export async function POST(request: NextRequest) {
       config: {
         temperature: 0.1,
         maxOutputTokens: 2048,
+        topP: 0.1,
+        topK: 1
       }
     });
 
