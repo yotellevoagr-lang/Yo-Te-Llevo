@@ -48,6 +48,7 @@ interface Message {
   content: string;
   tours?: TourData[];
   links?: LinkData[];
+  media?: { type: 'image' | 'video'; url: string };
 }
 
 const getLinkIcon = (icon?: string) => {
@@ -123,7 +124,8 @@ export default function AIChatbot() {
           role: "assistant", 
           content: data.message,
           tours: data.tours || undefined,
-          links: data.links || undefined
+          links: data.links || undefined,
+          media: data.media || undefined
         }]);
       } else {
         setMessages(prev => [...prev, { 
@@ -273,6 +275,16 @@ export default function AIChatbot() {
                       <p className="whitespace-pre-wrap">{message.content}</p>
                     </div>
                   </div>
+
+                  {message.media && (
+                    <div className="ml-11 rounded-lg overflow-hidden border shadow-sm max-w-[280px]">
+                      {message.media.type === 'video' ? (
+                        <video src={message.media.url} controls className="w-full h-auto" />
+                      ) : (
+                        <img src={message.media.url} alt="Media del asistente" className="w-full h-auto object-cover" />
+                      )}
+                    </div>
+                  )}
 
                   {message.tours && message.tours.length > 0 && (
                     <div className="ml-11 space-y-3">

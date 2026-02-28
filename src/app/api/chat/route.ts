@@ -317,7 +317,7 @@ export async function POST(request: NextRequest) {
     const toursDataStr = allTours.length > 0 
       ? allTours.map(t => {
           const date = new Date(t.date);
-          return `- VIAJE: ${t.destination} | FECHA: ${date.toLocaleDateString('es-AR')} | PRECIO: ${t.currency === 'USD' ? 'USD ' : ''}$${t.price} | ID: ${t.id} | ESTADO: DISPONIBLE`;
+          return `- DESTINO: ${t.destination} | FECHA: ${date.toLocaleDateString('es-AR')} | PRECIO: ${t.currency === 'USD' ? 'USD ' : ''}$${t.price} | ID: ${t.id} | IMAGEN: ${t.backgroundImage || 'N/A'} | VIDEO: ${t.gallery?.find(g => g.type === 'video')?.url || 'N/A'}`;
         }).join('\n')
       : 'No hay viajes disponibles actualmente.';
 
@@ -325,7 +325,32 @@ export async function POST(request: NextRequest) {
       ? `WhatsApp: ${contactInfo.whatsapp || 'N/A'}, Teléfono: ${contactInfo.phone || 'N/A'}, Email: ${contactInfo.email || 'N/A'}, Instagram: ${contactInfo.instagram || 'N/A'}, Facebook: ${contactInfo.facebook || 'N/A'}, Dirección: ${contactInfo.address || 'N/A'}, Horario: ${contactInfo.hours || 'N/A'}`
       : 'Información de contacto no disponible.';
 
-    const systemPrompt = SYSTEM_PROMPT
+    const SYSTEM_PROMPT_ENHANCED = `Eres el asistente virtual premium de "YO TE LLEVO". Tu lenguaje es neutro, profesional y entusiasta.
+    
+VIAJES DISPONIBLES (Única fuente de verdad):
+{{TOURS_DATA}}
+
+INFORMACIÓN DE CONTACTO:
+{{CONTACT_DATA}}
+
+TU MISIÓN:
+1. Responde dudas sobre viajes, reservas y la empresa.
+2. Si el usuario pregunta por viajes, USA la acción "showTours" e incluye los IDs.
+3. Si piden ver fotos o videos de un viaje específico, USA la acción "showMedia" e incluye la URL.
+4. Si piden contacto, USA "showContact".
+5. Sé proactivo: si alguien pregunta por un destino, muéstrale la tarjeta del viaje.
+
+FORMATO DE RESPUESTA (ESTRICTO JSON):
+{
+  "message": "Tu respuesta aquí",
+  "action": "none" | "showTours" | "showContact" | "showMedia",
+  "tourIds": ["id1", ...],
+  "media": {"type": "image" | "video", "url": "url"},
+  "links": [{"text": "texto", "url": "url", "icon": "whatsapp|instagram|facebook|email|phone|map"}]
+}
+Responde SOLO con el objeto JSON.`;
+
+    const systemPrompt = SYSTEM_PROMPT_ENHANCED
       .replace('{{TOURS_DATA}}', toursDataStr)
       .replace('{{CONTACT_DATA}}', contactDataStr);
 
@@ -409,6 +434,7 @@ export async function POST(request: NextRequest) {
       message: parsedResponse.message || text,
       tours: tours,
       links: links,
+      media: parsedResponse.action === 'showMedia' ? parsedResponse.media : null,
       success: true 
     });
 
