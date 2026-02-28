@@ -128,10 +128,11 @@ async function getAllToursREST(): Promise<TourData[]> {
     if (!projectId) return [];
     
     const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/tours?pageSize=100`;
+    console.log('Fetching tours from URL:', url);
     const response = await fetch(url, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
-      next: { revalidate: 0 }
+      cache: 'no-store'
     });
     
     if (!response.ok) return [];
@@ -146,7 +147,7 @@ async function getAllToursREST(): Promise<TourData[]> {
         const fields = doc.fields;
         const id = doc.name.split('/').pop();
         
-        const isPublic = fields.isPublic?.booleanValue ?? true;
+        const isPublic = fields.isPublic?.booleanValue ?? (fields.isPublic?.stringValue === 'true' || true);
         
         let dateValue: Date;
         if (fields.date?.timestampValue) {
@@ -155,6 +156,9 @@ async function getAllToursREST(): Promise<TourData[]> {
           dateValue = new Date(fields.date.stringValue);
         } else if (fields.date?.integerValue) {
           dateValue = new Date(Number(fields.date.integerValue));
+        } else if (fields.date?.mapValue?.fields?.seconds?.integerValue) {
+          // Handle Firestore Timestamp as Map
+          dateValue = new Date(Number(fields.date.mapValue.fields.seconds.integerValue) * 1000);
         } else {
           dateValue = new Date();
         }
