@@ -495,6 +495,10 @@ export default function SettingsPage() {
         try {
             const currentSettings = await getDocumentById<GeneralSettings>('settings', 'general') || {};
             const newSettings = { ...currentSettings, ...generalSettings };
+            // Aseguramos que whatsappApiNumber se guarde si existe en el estado local
+            if ((generalSettings as any).whatsappApiNumber !== undefined) {
+                newSettings.whatsappApiNumber = (generalSettings as any).whatsappApiNumber;
+            }
             await saveDocument('settings', newSettings, 'general');
             window.dispatchEvent(new Event('storage'));
             toast({ title: "Ajustes guardados", description: "Los ajustes generales han sido actualizados." });
@@ -510,6 +514,10 @@ export default function SettingsPage() {
         try {
             const currentSettings = await getDocumentById<GeneralSettings>('settings', 'general') || {};
             const newSettings = { ...currentSettings, contact: contactSettings };
+            // Aseguramos que whatsappApiNumber se guarde si existe en el estado local
+            if ((generalSettings as any).whatsappApiNumber !== undefined) {
+                newSettings.whatsappApiNumber = (generalSettings as any).whatsappApiNumber;
+            }
             await saveDocument('settings', newSettings, 'general');
             window.dispatchEvent(new Event('storage'));
             toast({ title: "Contacto guardado", description: "Los datos de contacto han sido actualizados." });
@@ -874,7 +882,23 @@ export default function SettingsPage() {
                     <AccordionTrigger className="w-full px-6 text-left hover:no-underline text-xl">Ajustes Generales</AccordionTrigger>
                     <AccordionContent className="p-6 pt-2">
                         <div className="space-y-4">
-                            <div className="space-y-2"><Label htmlFor="main-whatsapp">Número de WhatsApp Principal</Label><Input id="main-whatsapp" type="tel" placeholder="Ej: 5491122334455" value={generalSettings.mainWhatsappNumber || ''} onChange={(e) => handleGeneralSettingsChange('mainWhatsappNumber', e.target.value)} /><p className="text-xs text-muted-foreground">Este número se usará si un vendedor no tiene uno asignado.</p></div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="main-whatsapp">Número de WhatsApp Principal (Ventas)</Label>
+                                    <Input id="main-whatsapp" type="tel" placeholder="Ej: 5491122334455" value={generalSettings.mainWhatsappNumber || ''} onChange={(e) => handleGeneralSettingsChange('mainWhatsappNumber', e.target.value)} />
+                                    <p className="text-xs text-muted-foreground">Este número se usará si un vendedor no tiene uno asignado.</p>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="whatsapp-api-number">Número WhatsApp API (Asistente IA)</Label>
+                                    <Input 
+                                        id="whatsapp-api-number" 
+                                        placeholder="Ej: 5491122334455" 
+                                        value={generalSettings.whatsappApiNumber || ""} 
+                                        onChange={e => handleGeneralSettingsChange('whatsappApiNumber', e.target.value)} 
+                                    />
+                                    <p className="text-[10px] text-muted-foreground">Número vinculado a la API de WhatsApp para respuestas automáticas.</p>
+                                </div>
+                            </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div className="space-y-2"><Label htmlFor="calendar-folder" className="flex items-center gap-2"><Folder/> Nombre Carpeta Calendarios</Label><Input id="calendar-folder" value={generalSettings.calendarDownloadFolder || ''} onChange={(e) => handleGeneralSettingsChange('calendarDownloadFolder', e.target.value)} /></div><div className="space-y-2"><Label htmlFor="report-folder" className="flex items-center gap-2"><Folder/> Nombre Carpeta Reportes</Label><Input id="report-folder" value={generalSettings.reportDownloadFolder || ''} onChange={(e) => handleGeneralSettingsChange('reportDownloadFolder', e.target.value)} /></div></div>
                             <Button onClick={handleSaveMainSettings} disabled={!!isSaving}>{isSaving === 'main' && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}Guardar Ajustes</Button>
                         </div>

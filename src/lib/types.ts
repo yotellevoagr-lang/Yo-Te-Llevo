@@ -95,6 +95,7 @@ export interface DomainSettings {
 
 export interface GeneralSettings {
     mainWhatsappNumber?: string;
+    whatsappApiNumber?: string;
     contact?: ContactSettings;
     calendarDownloadFolder?: string;
     reportDownloadFolder?: string;
