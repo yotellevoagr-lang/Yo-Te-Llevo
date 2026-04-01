@@ -325,9 +325,19 @@ export function TripForm({ isOpen, onOpenChange, onSave, tour, boardingPoints }:
     URL.revokeObjectURL(fileToRemove.previewUrl);
     setNewGalleryFiles(updatedNewFiles);
     if (wasBackgroundImage) {
-        setBackgroundImageFile(null);
         const nextImage = [...(formData.gallery || []), ...updatedNewFiles].find(item => item.type === 'image');
-        setBackgroundImagePreview(nextImage ? ('url' in nextImage ? getDisplayUrl(nextImage.url) : (nextImage as GalleryFile).previewUrl) : null);
+        if (nextImage && 'file' in nextImage) {
+            // Es un archivo nuevo: guardar también el File object para el upload
+            setBackgroundImageFile((nextImage as GalleryFile).file);
+            setBackgroundImagePreview((nextImage as GalleryFile).previewUrl);
+        } else if (nextImage && 'url' in nextImage) {
+            // Es un item existente con URL de Storage
+            setBackgroundImageFile(null);
+            setBackgroundImagePreview(getDisplayUrl(nextImage.url));
+        } else {
+            setBackgroundImageFile(null);
+            setBackgroundImagePreview(null);
+        }
     }
   }
   
@@ -341,9 +351,20 @@ export function TripForm({ isOpen, onOpenChange, onSave, tour, boardingPoints }:
         setDeletedStorageUrls(prev => [...prev, itemToRemove.url]);
     }
     if (wasBackgroundImage) {
-        setBackgroundImageFile(null);
         const nextImage = [...updatedGallery, ...newGalleryFiles].find(item => item.type === 'image');
-        setBackgroundImagePreview(nextImage ? ('url' in nextImage ? getDisplayUrl(nextImage.url) : (nextImage as GalleryFile).previewUrl) : null);
+        if (nextImage && 'file' in nextImage) {
+            // Es un archivo nuevo pendiente de subir
+            setBackgroundImageFile((nextImage as GalleryFile).file);
+            setBackgroundImagePreview((nextImage as GalleryFile).previewUrl);
+        } else if (nextImage && 'url' in nextImage) {
+            // Es un item existente con URL de Storage
+            setBackgroundImageFile(null);
+            setBackgroundImagePreview(getDisplayUrl(nextImage.url));
+            handleFormChange('backgroundImage', nextImage.url);
+        } else {
+            setBackgroundImageFile(null);
+            setBackgroundImagePreview(null);
+        }
     }
   }
   
@@ -392,13 +413,31 @@ export function TripForm({ isOpen, onOpenChange, onSave, tour, boardingPoints }:
             finalBackgroundImageUrl = backgroundImagePreview ?? undefined;
         }
         
+        // Usamos el id original del GalleryFile para poder matchear después del upload
         const filesToUpload = newGalleryFiles.map(gf => ({
             file: gf.file,
-            id: `G-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+            id: gf.id,
             type: gf.type
         }));
         
         const uploadedGalleryItems = await uploadMultipleFilesToStorage(filesToUpload, 'gallery');
+        
+        // CORRECCIÓN CRÍTICA: Si el background image quedó como blob: URL 
+        // (ocurre cuando se elimina la imagen principal y hay otra imagen pendiente de subir),
+        // buscamos el item subido correspondiente y usamos su URL de Storage real.
+        if (finalBackgroundImageUrl?.startsWith('blob:')) {
+            const matchingGalleryFile = newGalleryFiles.find(gf => gf.previewUrl === finalBackgroundImageUrl);
+            if (matchingGalleryFile) {
+                const matchingUploaded = uploadedGalleryItems.find(item => item.id === matchingGalleryFile.id);
+                if (matchingUploaded) {
+                    finalBackgroundImageUrl = matchingUploaded.url;
+                }
+            }
+            // Si no se pudo resolver, dejarlo como undefined para no guardar una URL rota
+            if (finalBackgroundImageUrl?.startsWith('blob:')) {
+                finalBackgroundImageUrl = uploadedGalleryItems.find(u => u.type === 'image')?.url ?? undefined;
+            }
+        }
         
         const combinedGallery = [...(formData.gallery || []), ...uploadedGalleryItems];
         
