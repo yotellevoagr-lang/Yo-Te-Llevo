@@ -18,6 +18,8 @@ import {
   Trash2,
   ListPlus,
   PlusCircle,
+  Save,
+  Loader2,
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Switch } from "../ui/switch";
@@ -62,6 +64,8 @@ export function Calendar({ onDateChange }: CalendarProps) {
     handleMultiSelectDayClick,
     createBubbleFromMultiSelect,
     calendarRef,
+    handleManualSave,
+    isSaving,
   } = useCalendarBubbles();
   
   useEffect(() => {
@@ -219,6 +223,14 @@ export function Calendar({ onDateChange }: CalendarProps) {
             )}
         </div>
         <div className="flex items-center gap-2 no-print">
+          <Button onClick={handleManualSave} disabled={isSaving}>
+            {isSaving ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Save className="mr-2 h-4 w-4" />
+            )}
+            {isSaving ? 'Guardando...' : 'Guardar Calendario'}
+          </Button>
           <Button variant="outline" onClick={handlePrint}>
             <Printer className="mr-2 h-4 w-4" />
             Imprimir Mes

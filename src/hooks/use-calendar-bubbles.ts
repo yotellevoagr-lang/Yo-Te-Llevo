@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { saveDocument, getDocumentById } from "@/lib/firestore-services";
+import { useToast } from "./use-toast";
 
 export interface Bubble {
   id: string;
@@ -17,10 +18,17 @@ export const useCalendarBubbles = () => {
   const [bubbles, setBubbles] = useState<Bubble[]>([]);
   const [selection, setSelection] = useState<{ start: Date | null; end: Date | null }>({ start: null, end: null });
   const [isSelecting, setIsSelecting] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const mouseDownRef = useRef(false);
   const [multiSelectMode, setMultiSelectMode] = useState(false);
   const [multiSelectedDays, setMultiSelectedDays] = useState<string[]>([]);
   const calendarRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
+  const bubblesRef = useRef<Bubble[]>(bubbles);
+  
+  useEffect(() => {
+    bubblesRef.current = bubbles;
+  }, [bubbles]);
 
 
   useEffect(() => {
@@ -34,7 +42,8 @@ export const useCalendarBubbles = () => {
   }, []);
 
   const saveBubblesToFirestore = useCallback(async (updatedBubbles: Bubble[]) => {
-      await saveDocument('settings', { id: 'calendarBubbles', bubbles: updatedBubbles });
+      // Guardamos en settings/calendarBubbles (docId como tercer argumento)
+      await saveDocument('settings', { bubbles: updatedBubbles }, 'calendarBubbles');
   }, []);
 
   useEffect(() => {
@@ -197,6 +206,18 @@ export const useCalendarBubbles = () => {
     setMultiSelectedDays([]);
   };
 
+  const handleManualSave = useCallback(async () => {
+    setIsSaving(true);
+    try {
+      await saveBubblesToFirestore(bubblesRef.current);
+      toast({ title: "Calendario guardado", description: "Todos los datos del calendario han sido guardados correctamente." });
+    } catch (error) {
+      toast({ title: "Error al guardar", description: "No se pudo guardar el calendario. Intenta de nuevo.", variant: "destructive" });
+    } finally {
+      setIsSaving(false);
+    }
+  }, [saveBubblesToFirestore, toast]);
+
   return {
     currentDate,
     setCurrentDate,
@@ -216,5 +237,7 @@ export const useCalendarBubbles = () => {
     handleMultiSelectDayClick,
     createBubbleFromMultiSelect,
     calendarRef,
+    handleManualSave,
+    isSaving,
   };
 };
