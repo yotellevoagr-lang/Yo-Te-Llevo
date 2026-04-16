@@ -416,6 +416,35 @@ export default function SettingsPage() {
         }
     };
 
+    const handleSaveThemeColors = async () => {
+        setIsSaving('theme-colors');
+        try {
+            const currentSettings = await getDocumentById<GeneralSettings>('settings', 'general') || {};
+            await saveDocument('settings', { ...currentSettings, themeColors: generalSettings.themeColors || {} }, 'general');
+            localStorage.setItem('ytl_general_settings', JSON.stringify({ ...currentSettings, themeColors: generalSettings.themeColors || {} }));
+            window.dispatchEvent(new Event('storage'));
+            toast({ title: "Colores guardados", description: "El esquema de colores ha sido actualizado." });
+        } catch {
+            toast({ title: "Error", description: "No se pudo guardar los colores.", variant: "destructive" });
+        } finally {
+            setIsSaving(null);
+        }
+    };
+
+    const handleSaveAboutUsStyle = async () => {
+        setIsSaving('about-us-style');
+        try {
+            const currentSettings = await getDocumentById<GeneralSettings>('settings', 'general') || {};
+            await saveDocument('settings', { ...currentSettings, aboutUsStyle: generalSettings.aboutUsStyle || {} }, 'general');
+            window.dispatchEvent(new Event('storage'));
+            toast({ title: "Estilo guardado", description: "El fondo de 'Sobre Nosotros' ha sido actualizado." });
+        } catch {
+            toast({ title: "Error", description: "No se pudo guardar el estilo.", variant: "destructive" });
+        } finally {
+            setIsSaving(null);
+        }
+    };
+
     const handleContactSettingsChange = (field: keyof ContactSettings, value: string) => {
         setContactSettings(prev => ({ ...prev, [field]: value }));
     }
@@ -1064,6 +1093,155 @@ export default function SettingsPage() {
                             <Button onClick={handleSaveAboutUsText} disabled={!!isSaving}>
                                 {isSaving === 'about-us-text' && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
                                 Guardar Texto
+                            </Button>
+                        </div>
+                        <Separator/>
+                        <div className="space-y-4">
+                            <h3 className="font-semibold text-lg flex items-center gap-2">🎨 Fondo de 'Sobre Nosotros'</h3>
+                            <p className="text-sm text-muted-foreground">Personaliza el fondo de la sección "Sobre Nosotros" en la página de inicio.</p>
+                            <div className="space-y-3">
+                                <div className="space-y-2">
+                                    <Label>Tipo de fondo</Label>
+                                    <div className="flex flex-wrap gap-2">
+                                        {(['none', 'color', 'gradient'] as const).map(type => (
+                                            <Button
+                                                key={type}
+                                                variant={generalSettings.aboutUsStyle?.bgType === type || (!generalSettings.aboutUsStyle?.bgType && type === 'none') ? 'default' : 'outline'}
+                                                size="sm"
+                                                onClick={() => setGeneralSettings(prev => ({ ...prev, aboutUsStyle: { ...prev.aboutUsStyle, bgType: type } }))}
+                                            >
+                                                {type === 'none' ? 'Sin fondo' : type === 'color' ? 'Color sólido' : 'Gradiente'}
+                                            </Button>
+                                        ))}
+                                    </div>
+                                </div>
+                                {(generalSettings.aboutUsStyle?.bgType === 'color' || generalSettings.aboutUsStyle?.bgType === 'gradient') && (
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <div className="space-y-1">
+                                            <Label>{generalSettings.aboutUsStyle?.bgType === 'gradient' ? 'Color inicial' : 'Color de fondo'}</Label>
+                                            <div className="flex items-center gap-2">
+                                                <input
+                                                    type="color"
+                                                    value={generalSettings.aboutUsStyle?.bgColor || '#ffffff'}
+                                                    onChange={e => setGeneralSettings(prev => ({ ...prev, aboutUsStyle: { ...prev.aboutUsStyle, bgColor: e.target.value } }))}
+                                                    className="w-10 h-10 rounded cursor-pointer border border-input p-0.5 bg-transparent"
+                                                />
+                                                <Input
+                                                    value={generalSettings.aboutUsStyle?.bgColor || ''}
+                                                    onChange={e => setGeneralSettings(prev => ({ ...prev, aboutUsStyle: { ...prev.aboutUsStyle, bgColor: e.target.value } }))}
+                                                    placeholder="#ffffff"
+                                                    className="font-mono text-sm"
+                                                />
+                                            </div>
+                                        </div>
+                                        {generalSettings.aboutUsStyle?.bgType === 'gradient' && (
+                                            <div className="space-y-1">
+                                                <Label>Color final</Label>
+                                                <div className="flex items-center gap-2">
+                                                    <input
+                                                        type="color"
+                                                        value={generalSettings.aboutUsStyle?.bgColorTo || '#f0f0f0'}
+                                                        onChange={e => setGeneralSettings(prev => ({ ...prev, aboutUsStyle: { ...prev.aboutUsStyle, bgColorTo: e.target.value } }))}
+                                                        className="w-10 h-10 rounded cursor-pointer border border-input p-0.5 bg-transparent"
+                                                    />
+                                                    <Input
+                                                        value={generalSettings.aboutUsStyle?.bgColorTo || ''}
+                                                        onChange={e => setGeneralSettings(prev => ({ ...prev, aboutUsStyle: { ...prev.aboutUsStyle, bgColorTo: e.target.value } }))}
+                                                        placeholder="#f0f0f0"
+                                                        className="font-mono text-sm"
+                                                    />
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                                {generalSettings.aboutUsStyle?.bgType === 'gradient' && (
+                                    <div className="space-y-2">
+                                        <Label>Dirección del gradiente</Label>
+                                        <div className="flex flex-wrap gap-2">
+                                            {[
+                                                { value: 'to right', label: '→ Derecha' },
+                                                { value: 'to bottom', label: '↓ Abajo' },
+                                                { value: 'to bottom right', label: '↘ Diagonal' },
+                                                { value: 'to bottom left', label: '↙ Diagonal' },
+                                            ].map(opt => (
+                                                <Button
+                                                    key={opt.value}
+                                                    variant={generalSettings.aboutUsStyle?.bgDirection === opt.value ? 'default' : 'outline'}
+                                                    size="sm"
+                                                    onClick={() => setGeneralSettings(prev => ({ ...prev, aboutUsStyle: { ...prev.aboutUsStyle, bgDirection: opt.value } }))}
+                                                >
+                                                    {opt.label}
+                                                </Button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                            <Button onClick={handleSaveAboutUsStyle} disabled={!!isSaving}>
+                                {isSaving === 'about-us-style' && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                                Guardar Estilo de Fondo
+                            </Button>
+                        </div>
+                        <Separator/>
+                        <div className="space-y-4">
+                            <h3 className="font-semibold text-lg flex items-center gap-2">🎨 Esquema de Colores</h3>
+                            <p className="text-sm text-muted-foreground">
+                                Personaliza el color principal del sitio web. Este color afecta botones, íconos, enlaces y más. Los cambios se aplican al instante en toda la app.
+                            </p>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label>Color principal (modo claro)</Label>
+                                    <div className="flex items-center gap-3">
+                                        <input
+                                            type="color"
+                                            value={generalSettings.themeColors?.primaryHex || '#e05580'}
+                                            onChange={e => setGeneralSettings(prev => ({ ...prev, themeColors: { ...prev.themeColors, primaryHex: e.target.value } }))}
+                                            className="w-12 h-12 rounded-lg cursor-pointer border border-input p-0.5 bg-transparent"
+                                        />
+                                        <div>
+                                            <p className="text-xs text-muted-foreground mb-1">Vista previa:</p>
+                                            <div className="flex gap-2">
+                                                <div className="w-8 h-8 rounded-full shadow" style={{ backgroundColor: generalSettings.themeColors?.primaryHex || '#e05580' }}/>
+                                                <div className="w-8 h-8 rounded" style={{ backgroundColor: generalSettings.themeColors?.primaryHex || '#e05580', opacity: 0.3 }}/>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <Input
+                                        value={generalSettings.themeColors?.primaryHex || ''}
+                                        onChange={e => setGeneralSettings(prev => ({ ...prev, themeColors: { ...prev.themeColors, primaryHex: e.target.value } }))}
+                                        placeholder="#e05580"
+                                        className="font-mono text-sm"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Color principal (modo oscuro, opcional)</Label>
+                                    <div className="flex items-center gap-3">
+                                        <input
+                                            type="color"
+                                            value={generalSettings.themeColors?.darkPrimaryHex || generalSettings.themeColors?.primaryHex || '#e05580'}
+                                            onChange={e => setGeneralSettings(prev => ({ ...prev, themeColors: { ...prev.themeColors, darkPrimaryHex: e.target.value } }))}
+                                            className="w-12 h-12 rounded-lg cursor-pointer border border-input p-0.5 bg-transparent"
+                                        />
+                                        <div>
+                                            <p className="text-xs text-muted-foreground mb-1">Vista previa:</p>
+                                            <div className="flex gap-2">
+                                                <div className="w-8 h-8 rounded-full shadow border border-border" style={{ backgroundColor: generalSettings.themeColors?.darkPrimaryHex || generalSettings.themeColors?.primaryHex || '#e05580' }}/>
+                                                <div className="w-8 h-8 rounded" style={{ backgroundColor: generalSettings.themeColors?.darkPrimaryHex || generalSettings.themeColors?.primaryHex || '#e05580', opacity: 0.3 }}/>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <Input
+                                        value={generalSettings.themeColors?.darkPrimaryHex || ''}
+                                        onChange={e => setGeneralSettings(prev => ({ ...prev, themeColors: { ...prev.themeColors, darkPrimaryHex: e.target.value } }))}
+                                        placeholder="Igual al modo claro si está vacío"
+                                        className="font-mono text-sm"
+                                    />
+                                </div>
+                            </div>
+                            <Button onClick={handleSaveThemeColors} disabled={!!isSaving}>
+                                {isSaving === 'theme-colors' && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                                Guardar Colores
                             </Button>
                         </div>
                     </AccordionContent>

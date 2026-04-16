@@ -118,6 +118,16 @@ export interface GeneralSettings {
         feature1?: string;
         feature2?: string;
     };
+    aboutUsStyle?: {
+        bgType?: 'none' | 'color' | 'gradient';
+        bgColor?: string;
+        bgColorTo?: string;
+        bgDirection?: string;
+    };
+    themeColors?: {
+        primaryHex?: string;
+        darkPrimaryHex?: string;
+    };
 }
 
 export interface AboutUsBlock {

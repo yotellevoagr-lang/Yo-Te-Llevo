@@ -8,6 +8,7 @@ import { AuthProvider } from '@/components/auth/auth-provider';
 import { ThemeProvider } from '@/components/theme-provider';
 import { I18nProvider } from '@/components/i18n-provider';
 import { FixedActionButtons } from '@/components/fixed-action-buttons';
+import { DynamicTheme } from '@/components/dynamic-theme';
 import { FirebaseMessaging } from '@/components/firebase-messaging';
 import { getDocumentById } from '@/lib/firestore-services';
 import type { GeneralSettings } from '@/lib/types';
@@ -63,6 +64,7 @@ export default function RootLayout({
         <I18nProvider>
           <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false} storageKey="ytl-theme-client">
             <AuthProvider>
+              <DynamicTheme />
               <FirebaseMessaging />
               {children}
               <FixedActionButtons />

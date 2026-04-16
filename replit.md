@@ -41,6 +41,17 @@ The project uses Firebase configuration stored in `.env`:
 - `FIREBASE_SERVICE_ACCOUNT_KEY` - For server-side Firebase Admin
 
 ## Recent Changes
+- 2026-04-16: Mejoras visuales completas
+  - Hero: gradiente con color primario cuando no hay imágenes de slideshow
+  - Barra de búsqueda: etiqueta "¿A dónde querés ir?" + botón "Buscar" con mejor diseño tipo card
+  - Tour cards: badge "DESTACADO" (estrella), precio overlay en imagen, chips de tags, hover mejorado
+  - Sección "Sobre Nosotros": fondo personalizable (color sólido o gradiente) desde el panel admin
+  - Botones flotantes: rediseñados con tooltips de etiqueta al hover, colores de marca (Instagram, FB, WhatsApp), estructura más limpia
+  - Footer: 3 columnas (logo+redes, navegación, contacto), iconos de redes sociales con colores de marca, info de contacto desde Firestore
+  - Esquema de colores: nuevo componente DynamicTheme que inyecta CSS custom properties (HSL) desde Firestore; admin puede cambiar color principal modo claro y oscuro con color picker
+  - Nuevo campo `themeColors` y `aboutUsStyle` en GeneralSettings (types.ts)
+  - Nuevos handlers en settings admin: handleSaveThemeColors, handleSaveAboutUsStyle
+
 - 2026-04-16: Editor de texto enriquecido en sección "Sobre Nosotros"
   - Instalado Tiptap (@tiptap/react, starter-kit, extension-text-style, extension-underline)
   - Nuevo componente RichTextEditor con barra de herramientas (negrita, subrayado, color de texto, quitar formato)

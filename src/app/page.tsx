@@ -51,14 +51,7 @@ const Slideshow = ({ items }: { items: { id: string; image: string; destination:
 
     if (items.length === 0) {
       return (
-         <Image
-            src="https://placehold.co/1920x1080/000000/FFFFFF.png?text=YO+TE+LLEVO"
-            alt="YO TE LLEVO"
-            fill
-            className="brightness-[0.6] object-cover"
-            data-ai-hint="travel agency hero"
-            priority
-          />
+        <div className="absolute inset-0 z-[-1] bg-gradient-to-br from-primary/90 via-primary/70 to-primary/40" />
       );
     }
 
@@ -173,17 +166,25 @@ export default function Home() {
             <p className="max-w-3xl mx-auto mt-4 text-lg md:text-xl text-white/90 drop-shadow-lg animate-fade-in-down " style={{ animationDelay: '0.2s' }}>
               {t('hero.subtitle')}
             </p>
-            <div className="max-w-xl mx-auto mt-8 animate-fade-in-up overflow-visible" style={{ animationDelay: '0.4s' }}>
-              <div className="flex flex-col gap-4 p-4 rounded-2xl shadow-2xl bg-background/80 backdrop-blur-lg border border-white/20">
-                 <div className="relative">
-                    <MapPinIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-primary" />
+            <div className="max-w-lg mx-auto mt-8 animate-fade-in-up overflow-visible" style={{ animationDelay: '0.4s' }}>
+              <div className="p-2 rounded-2xl shadow-2xl bg-background/85 backdrop-blur-xl border border-white/25">
+                <p className="text-xs font-semibold text-muted-foreground px-3 pt-2 pb-1 uppercase tracking-wider">¿A dónde querés ir?</p>
+                <div className="flex gap-2 items-center px-1 pb-1">
+                  <div className="relative flex-1">
+                    <MapPinIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-primary z-10 pointer-events-none" />
                     <SearchableSelect
                       options={destinationOptions}
                       value={""}
                       onChange={handleDestinationSelect}
                       placeholder={t('hero.destination_placeholder')}
+                      className="pl-3"
                     />
-                 </div>
+                  </div>
+                  <Button size="default" className="rounded-xl shrink-0 gap-2 px-5">
+                    <MapPinIcon className="w-4 h-4" />
+                    Buscar
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
@@ -222,7 +223,17 @@ export default function Home() {
             </section>
         )}
 
-        <section className="container py-16 md:py-24">
+        <section
+            className="w-full py-16 md:py-24"
+            style={(() => {
+                const s = generalSettings?.aboutUsStyle;
+                if (!s || !s.bgType || s.bgType === 'none') return {};
+                if (s.bgType === 'color' && s.bgColor) return { backgroundColor: s.bgColor };
+                if (s.bgType === 'gradient' && s.bgColor) return { background: `linear-gradient(${s.bgDirection || 'to bottom right'}, ${s.bgColor}, ${s.bgColorTo || s.bgColor})` };
+                return {};
+            })()}
+        >
+            <div className="container px-4 md:px-6">
             <div className="grid items-center gap-12 md:grid-cols-2">
                 <div className="animate-fade-in-up">
                     <div className="inline-block px-4 py-1 text-sm font-semibold tracking-wider rounded-full bg-primary/10 text-primary">
@@ -287,6 +298,7 @@ export default function Home() {
                         <Image src="https://placehold.co/600x400.png" alt="Grupo de amigos viajando" className="object-cover rounded-2xl shadow-2xl" fill data-ai-hint="friends traveling" />
                     )}
                 </div>
+            </div>
             </div>
         </section>
 
