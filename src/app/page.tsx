@@ -169,21 +169,15 @@ export default function Home() {
             <div className="max-w-lg mx-auto mt-8 animate-fade-in-up overflow-visible" style={{ animationDelay: '0.4s' }}>
               <div className="p-2 rounded-2xl shadow-2xl bg-background/85 backdrop-blur-xl border border-white/25">
                 <p className="text-xs font-semibold text-muted-foreground px-3 pt-2 pb-1 uppercase tracking-wider">¿A dónde querés ir?</p>
-                <div className="flex gap-2 items-center px-1 pb-1">
-                  <div className="relative flex-1">
-                    <MapPinIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-primary z-10 pointer-events-none" />
-                    <SearchableSelect
-                      options={destinationOptions}
-                      value={""}
-                      onChange={handleDestinationSelect}
-                      placeholder={t('hero.destination_placeholder')}
-                      className="pl-3"
-                    />
-                  </div>
-                  <Button size="default" className="rounded-xl shrink-0 gap-2 px-5">
-                    <MapPinIcon className="w-4 h-4" />
-                    Buscar
-                  </Button>
+                <div className="px-1 pb-1">
+                  <SearchableSelect
+                    options={destinationOptions}
+                    value={""}
+                    onChange={handleDestinationSelect}
+                    placeholder={t('hero.destination_placeholder')}
+                    readOnly
+                    listHeight="h-72"
+                  />
                 </div>
               </div>
             </div>

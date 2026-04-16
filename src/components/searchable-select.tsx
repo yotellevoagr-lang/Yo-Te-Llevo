@@ -5,7 +5,7 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
-import { X } from 'lucide-react';
+import { X, ChevronDown } from 'lucide-react';
 import { Button } from './ui/button';
 
 interface SearchableSelectOption {
@@ -24,9 +24,10 @@ interface SearchableSelectProps {
     listHeight?: string;
     disabled?: boolean;
     className?: string;
+    readOnly?: boolean;
 }
 
-export function SearchableSelect({ options, value, onChange, placeholder, listHeight = 'h-60', disabled = false, className }: SearchableSelectProps) {
+export function SearchableSelect({ options, value, onChange, placeholder, listHeight = 'h-60', disabled = false, className, readOnly = false }: SearchableSelectProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
     const wrapperRef = useRef<HTMLDivElement>(null);
@@ -80,6 +81,7 @@ export function SearchableSelect({ options, value, onChange, placeholder, listHe
     };
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (readOnly) return;
         const newValue = e.target.value;
         setSearchTerm(newValue);
         if (!isOpen) setIsOpen(true);
@@ -103,11 +105,13 @@ export function SearchableSelect({ options, value, onChange, placeholder, listHe
                     placeholder={placeholder}
                     value={searchTerm}
                     onChange={handleInputChange}
-                    onFocus={() => setIsOpen(true)}
+                    onFocus={() => { if (!readOnly) setIsOpen(true); }}
+                    onClick={() => { if (readOnly) setIsOpen(prev => !prev); }}
                     disabled={disabled}
-                    className="h-10 text-base"
+                    readOnly={readOnly}
+                    className={cn("h-10 text-base", readOnly && "cursor-pointer select-none")}
                 />
-                {value && !disabled && (
+                {value && !disabled ? (
                     <Button
                         variant="ghost"
                         size="icon"
@@ -117,7 +121,12 @@ export function SearchableSelect({ options, value, onChange, placeholder, listHe
                     >
                         <X className="w-4 h-4" />
                     </Button>
-                )}
+                ) : readOnly ? (
+                    <ChevronDown className={cn(
+                        "absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none transition-transform duration-200",
+                        isOpen && "rotate-180"
+                    )} />
+                ) : null}
             </div>
 
             {isOpen && !disabled && (
