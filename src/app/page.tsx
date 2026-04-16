@@ -226,18 +226,18 @@ export default function Home() {
             <div className="grid items-center gap-12 md:grid-cols-2">
                 <div className="animate-fade-in-up">
                     <div className="inline-block px-4 py-1 text-sm font-semibold tracking-wider rounded-full bg-primary/10 text-primary">
-                        {t('about.badge')}
+                        {generalSettings?.aboutUsText?.badge || t('about.badge')}
                     </div>
-                    <h2 className="mt-4 text-3xl md:text-4xl font-bold tracking-tighter font-headline text-primary sm:text-5xl">{t('about.title')}</h2>
+                    <h2 className="mt-4 text-3xl md:text-4xl font-bold tracking-tighter font-headline text-primary sm:text-5xl">{generalSettings?.aboutUsText?.title || t('about.title')}</h2>
                     <p className="mt-4 text-lg text-muted-foreground">
-                        {t('about.p1')}
+                        {generalSettings?.aboutUsText?.p1 || t('about.p1')}
                     </p>
                      <p className="mt-4 text-lg text-muted-foreground">
-                        {t('about.p2')}
+                        {generalSettings?.aboutUsText?.p2 || t('about.p2')}
                     </p>
                     <div className="mt-8 flex flex-col sm:flex-row gap-4">
-                        <div className="flex items-center gap-2"><PlaneIcon className="w-5 h-5 text-primary" /><span>{t('about.feature1')}</span></div>
-                        <div className="flex items-center gap-2"><SparklesIcon className="w-5 h-5 text-primary" /><span>{t('about.feature2')}</span></div>
+                        <div className="flex items-center gap-2"><PlaneIcon className="w-5 h-5 text-primary" /><span>{generalSettings?.aboutUsText?.feature1 || t('about.feature1')}</span></div>
+                        <div className="flex items-center gap-2"><SparklesIcon className="w-5 h-5 text-primary" /><span>{generalSettings?.aboutUsText?.feature2 || t('about.feature2')}</span></div>
                     </div>
                 </div>
                 <div className="relative w-full h-80 lg:h-96 animate-fade-in-up" style={{ animationDelay: "0.2s"}}>

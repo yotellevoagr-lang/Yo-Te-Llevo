@@ -109,6 +109,14 @@ export interface GeneralSettings {
         url: string;
         type: 'image' | 'video';
     };
+    aboutUsText?: {
+        badge?: string;
+        title?: string;
+        p1?: string;
+        p2?: string;
+        feature1?: string;
+        feature2?: string;
+    };
 }
 
 export interface GeoSettings {

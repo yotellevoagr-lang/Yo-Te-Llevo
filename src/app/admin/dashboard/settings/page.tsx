@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
-import { Settings as SettingsIcon, Bus, Trash2, Edit, PlusCircle, Ship, Plane, Save, Contact, Utensils, BedDouble, Folder, ShieldCheck, KeyRound, Mail, Eye, EyeOff, Image as ImageIcon, Globe, AppWindow, Loader2, Tag, Pin } from "lucide-react"
+import { Settings as SettingsIcon, Bus, Trash2, Edit, PlusCircle, Ship, Plane, Save, Contact, Utensils, BedDouble, Folder, ShieldCheck, KeyRound, Mail, Eye, EyeOff, Image as ImageIcon, Globe, AppWindow, Loader2, Tag, Pin, AlignLeft } from "lucide-react"
 import type { CustomLayoutConfig, LayoutCategory, GeneralSettings, ContactSettings, Pension, RoomType, Employee, DomainSettings, BoardingPoint, Tour, GeoSettings } from "@/lib/types"
 import { LayoutEditor } from "@/components/admin/layout-editor"
 import { updatePassword, updateEmail, reauthenticateWithCredential, EmailAuthProvider } from "firebase/auth"
@@ -35,6 +35,7 @@ import { GeoSettingsCard } from "@/components/admin/settings/geo-settings-card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Separator } from "@/components/ui/separator"
 import { arrayRemove, writeBatch, doc } from "firebase/firestore"
+import { Textarea } from "@/components/ui/textarea"
 import { db } from "@/lib/firebase"
 import { uploadFileToStorage, deleteFileFromStorage, isStorageUrl } from "@/lib/storage-service"
 
@@ -342,6 +343,27 @@ export default function SettingsPage() {
     const handleGeneralSettingsChange = (field: keyof GeneralSettings, value: any) => {
         setGeneralSettings(prev => ({ ...prev, [field]: value }));
     }
+
+    const handleAboutUsTextChange = (field: keyof NonNullable<GeneralSettings['aboutUsText']>, value: string) => {
+        setGeneralSettings(prev => ({
+            ...prev,
+            aboutUsText: { ...prev.aboutUsText, [field]: value }
+        }));
+    }
+
+    const handleSaveAboutUsText = async () => {
+        setIsSaving('about-us-text');
+        try {
+            const currentSettings = await getDocumentById<GeneralSettings>('settings', 'general') || {};
+            await saveDocument('settings', { ...currentSettings, aboutUsText: generalSettings.aboutUsText }, 'general');
+            window.dispatchEvent(new Event('storage'));
+            toast({ title: "Texto guardado", description: "El texto de 'Sobre Nosotros' ha sido actualizado." });
+        } catch (error) {
+            toast({ title: "Error", description: "No se pudo guardar el texto.", variant: "destructive" });
+        } finally {
+            setIsSaving(null);
+        }
+    };
 
     const handleContactSettingsChange = (field: keyof ContactSettings, value: string) => {
         setContactSettings(prev => ({ ...prev, [field]: value }));
@@ -872,6 +894,75 @@ export default function SettingsPage() {
                             <Input id="aboutUsMedia" type="file" accept="image/*,video/*" onChange={handleAboutUsMediaChange} className="file:text-primary-foreground file:font-bold file:mr-4 file:px-4 file:py-2 file:rounded-full file:border-0 file:bg-primary hover:file:bg-primary/90"/>
                             {aboutUsMediaPreview && <div className="space-y-2"><Label>Vista previa</Label><div className="flex items-center justify-center p-4 border rounded-md bg-muted">{aboutUsMediaPreview.type === 'video' ? <video src={getDisplayUrl(aboutUsMediaPreview.url)} controls className="max-h-60 rounded-md" /> : <Image src={getDisplayUrl(aboutUsMediaPreview.url)} alt="Vista previa" width={300} height={200} className="rounded-md object-contain max-h-60"/>}</div></div>}
                             <Button onClick={handleSaveAboutUsMedia} disabled={isSaving === 'about-us' || !aboutUsMediaFile}>{isSaving === 'about-us' && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}Guardar Multimedia</Button>
+                        </div>
+                        <Separator/>
+                        <div className="space-y-4">
+                            <h3 className="font-semibold text-lg flex items-center gap-2"><AlignLeft className="w-5 h-5"/> Texto 'Sobre Nosotros'</h3>
+                            <p className="text-sm text-muted-foreground">Editá el texto que aparece en la sección "Sobre Nosotros" de la página de inicio. Si lo dejás vacío, se usa el texto por defecto.</p>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="about-badge">Etiqueta (Badge)</Label>
+                                    <Input
+                                        id="about-badge"
+                                        placeholder="SOBRE NOSOTROS"
+                                        value={generalSettings.aboutUsText?.badge || ''}
+                                        onChange={e => handleAboutUsTextChange('badge', e.target.value)}
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="about-title">Título</Label>
+                                    <Input
+                                        id="about-title"
+                                        placeholder="Viajes grupales, experiencias únicas"
+                                        value={generalSettings.aboutUsText?.title || ''}
+                                        onChange={e => handleAboutUsTextChange('title', e.target.value)}
+                                    />
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="about-p1">Párrafo 1</Label>
+                                <Textarea
+                                    id="about-p1"
+                                    placeholder="En 'YO TE LLEVO' creemos que viajar es más que visitar un lugar..."
+                                    value={generalSettings.aboutUsText?.p1 || ''}
+                                    onChange={e => handleAboutUsTextChange('p1', e.target.value)}
+                                    rows={3}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="about-p2">Párrafo 2</Label>
+                                <Textarea
+                                    id="about-p2"
+                                    placeholder="Con nosotros, no solo descubrís un destino..."
+                                    value={generalSettings.aboutUsText?.p2 || ''}
+                                    onChange={e => handleAboutUsTextChange('p2', e.target.value)}
+                                    rows={2}
+                                />
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="about-feature1">Característica 1 ✈</Label>
+                                    <Input
+                                        id="about-feature1"
+                                        placeholder="Coordinación Permanente"
+                                        value={generalSettings.aboutUsText?.feature1 || ''}
+                                        onChange={e => handleAboutUsTextChange('feature1', e.target.value)}
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="about-feature2">Característica 2 ✨</Label>
+                                    <Input
+                                        id="about-feature2"
+                                        placeholder="La Mejor Onda"
+                                        value={generalSettings.aboutUsText?.feature2 || ''}
+                                        onChange={e => handleAboutUsTextChange('feature2', e.target.value)}
+                                    />
+                                </div>
+                            </div>
+                            <Button onClick={handleSaveAboutUsText} disabled={!!isSaving}>
+                                {isSaving === 'about-us-text' && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                                Guardar Texto
+                            </Button>
                         </div>
                     </AccordionContent>
                 </Card>
