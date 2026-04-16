@@ -10,7 +10,7 @@ import { SiteFooter } from "@/components/site-footer"
 import { Button } from "@/components/ui/button"
 import { TourCard } from "@/components/tour-card"
 import { MapPinIcon, ArrowRight, PlaneIcon, SparklesIcon, Search } from "lucide-react"
-import type { Tour, GeneralSettings, GalleryItem } from "@/lib/types"
+import type { Tour, GeneralSettings, GalleryItem, AboutUsBlock } from "@/lib/types"
 import {
   Dialog,
   DialogContent,
@@ -229,16 +229,33 @@ export default function Home() {
                         {generalSettings?.aboutUsText?.badge || t('about.badge')}
                     </div>
                     <h2 className="mt-4 text-3xl md:text-4xl font-bold tracking-tighter font-headline text-primary sm:text-5xl">{generalSettings?.aboutUsText?.title || t('about.title')}</h2>
-                    <p className="mt-4 text-lg text-muted-foreground">
-                        {generalSettings?.aboutUsText?.p1 || t('about.p1')}
-                    </p>
-                     <p className="mt-4 text-lg text-muted-foreground">
-                        {generalSettings?.aboutUsText?.p2 || t('about.p2')}
-                    </p>
-                    <div className="mt-8 flex flex-col sm:flex-row gap-4">
-                        <div className="flex items-center gap-2"><PlaneIcon className="w-5 h-5 text-primary" /><span>{generalSettings?.aboutUsText?.feature1 || t('about.feature1')}</span></div>
-                        <div className="flex items-center gap-2"><SparklesIcon className="w-5 h-5 text-primary" /><span>{generalSettings?.aboutUsText?.feature2 || t('about.feature2')}</span></div>
-                    </div>
+                    {generalSettings?.aboutUsText?.blocks && generalSettings.aboutUsText.blocks.length > 0 ? (
+                        <div className="mt-4 space-y-3">
+                            {generalSettings.aboutUsText.blocks.map((block: AboutUsBlock) =>
+                                block.type === 'paragraph' ? (
+                                    <p key={block.id} className="text-lg text-muted-foreground">{block.text}</p>
+                                ) : (
+                                    <div key={block.id} className="flex items-center gap-2">
+                                        {block.icon && <span className="text-xl">{block.icon}</span>}
+                                        {block.text && <span className="font-medium">{block.text}</span>}
+                                    </div>
+                                )
+                            )}
+                        </div>
+                    ) : (
+                        <>
+                            <p className="mt-4 text-lg text-muted-foreground">
+                                {generalSettings?.aboutUsText?.p1 || t('about.p1')}
+                            </p>
+                            <p className="mt-4 text-lg text-muted-foreground">
+                                {generalSettings?.aboutUsText?.p2 || t('about.p2')}
+                            </p>
+                            <div className="mt-8 flex flex-col sm:flex-row gap-4">
+                                <div className="flex items-center gap-2"><PlaneIcon className="w-5 h-5 text-primary" /><span>{generalSettings?.aboutUsText?.feature1 || t('about.feature1')}</span></div>
+                                <div className="flex items-center gap-2"><SparklesIcon className="w-5 h-5 text-primary" /><span>{generalSettings?.aboutUsText?.feature2 || t('about.feature2')}</span></div>
+                            </div>
+                        </>
+                    )}
                 </div>
                 <div className="relative w-full h-80 lg:h-96 animate-fade-in-up" style={{ animationDelay: "0.2s"}}>
                     {generalSettings?.aboutUsMedia && getDisplayUrl(generalSettings.aboutUsMedia.url) ? (

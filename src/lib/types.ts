@@ -112,11 +112,19 @@ export interface GeneralSettings {
     aboutUsText?: {
         badge?: string;
         title?: string;
+        blocks?: AboutUsBlock[];
         p1?: string;
         p2?: string;
         feature1?: string;
         feature2?: string;
     };
+}
+
+export interface AboutUsBlock {
+    id: string;
+    type: 'paragraph' | 'feature';
+    text: string;
+    icon?: string;
 }
 
 export interface GeoSettings {

@@ -8,8 +8,8 @@ import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
-import { Settings as SettingsIcon, Bus, Trash2, Edit, PlusCircle, Ship, Plane, Save, Contact, Utensils, BedDouble, Folder, ShieldCheck, KeyRound, Mail, Eye, EyeOff, Image as ImageIcon, Globe, AppWindow, Loader2, Tag, Pin, AlignLeft } from "lucide-react"
-import type { CustomLayoutConfig, LayoutCategory, GeneralSettings, ContactSettings, Pension, RoomType, Employee, DomainSettings, BoardingPoint, Tour, GeoSettings } from "@/lib/types"
+import { Settings as SettingsIcon, Bus, Trash2, Edit, PlusCircle, Ship, Plane, Save, Contact, Utensils, BedDouble, Folder, ShieldCheck, KeyRound, Mail, Eye, EyeOff, Image as ImageIcon, Globe, AppWindow, Loader2, Tag, Pin, AlignLeft, ChevronUp, ChevronDown, Type, Smile } from "lucide-react"
+import type { CustomLayoutConfig, LayoutCategory, GeneralSettings, ContactSettings, Pension, RoomType, Employee, DomainSettings, BoardingPoint, Tour, GeoSettings, AboutUsBlock } from "@/lib/types"
 import { LayoutEditor } from "@/components/admin/layout-editor"
 import { updatePassword, updateEmail, reauthenticateWithCredential, EmailAuthProvider } from "firebase/auth"
 import {
@@ -350,6 +350,56 @@ export default function SettingsPage() {
             aboutUsText: { ...prev.aboutUsText, [field]: value }
         }));
     }
+
+    const addAboutUsBlock = (type: 'paragraph' | 'feature') => {
+        const newBlock: AboutUsBlock = {
+            id: Date.now().toString(),
+            type,
+            text: '',
+            icon: type === 'feature' ? '✈' : undefined,
+        };
+        setGeneralSettings(prev => ({
+            ...prev,
+            aboutUsText: {
+                ...prev.aboutUsText,
+                blocks: [...(prev.aboutUsText?.blocks || []), newBlock],
+            }
+        }));
+    };
+
+    const updateAboutUsBlock = (id: string, field: keyof AboutUsBlock, value: string) => {
+        setGeneralSettings(prev => ({
+            ...prev,
+            aboutUsText: {
+                ...prev.aboutUsText,
+                blocks: (prev.aboutUsText?.blocks || []).map(b =>
+                    b.id === id ? { ...b, [field]: value } : b
+                ),
+            }
+        }));
+    };
+
+    const removeAboutUsBlock = (id: string) => {
+        setGeneralSettings(prev => ({
+            ...prev,
+            aboutUsText: {
+                ...prev.aboutUsText,
+                blocks: (prev.aboutUsText?.blocks || []).filter(b => b.id !== id),
+            }
+        }));
+    };
+
+    const moveAboutUsBlock = (id: string, direction: 'up' | 'down') => {
+        setGeneralSettings(prev => {
+            const blocks = [...(prev.aboutUsText?.blocks || [])];
+            const index = blocks.findIndex(b => b.id === id);
+            if (index === -1) return prev;
+            const newIndex = direction === 'up' ? index - 1 : index + 1;
+            if (newIndex < 0 || newIndex >= blocks.length) return prev;
+            [blocks[index], blocks[newIndex]] = [blocks[newIndex], blocks[index]];
+            return { ...prev, aboutUsText: { ...prev.aboutUsText, blocks } };
+        });
+    };
 
     const handleSaveAboutUsText = async () => {
         setIsSaving('about-us-text');
@@ -898,7 +948,7 @@ export default function SettingsPage() {
                         <Separator/>
                         <div className="space-y-4">
                             <h3 className="font-semibold text-lg flex items-center gap-2"><AlignLeft className="w-5 h-5"/> Texto 'Sobre Nosotros'</h3>
-                            <p className="text-sm text-muted-foreground">Editá el texto que aparece en la sección "Sobre Nosotros" de la página de inicio. Si lo dejás vacío, se usa el texto por defecto.</p>
+                            <p className="text-sm text-muted-foreground">Editá el badge, título y el contenido libre (párrafos e íconos con texto). Podés agregar y reordenar bloques en cualquier orden.</p>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                     <Label htmlFor="about-badge">Etiqueta (Badge)</Label>
@@ -919,46 +969,74 @@ export default function SettingsPage() {
                                     />
                                 </div>
                             </div>
+
                             <div className="space-y-2">
-                                <Label htmlFor="about-p1">Párrafo 1</Label>
-                                <Textarea
-                                    id="about-p1"
-                                    placeholder="En 'YO TE LLEVO' creemos que viajar es más que visitar un lugar..."
-                                    value={generalSettings.aboutUsText?.p1 || ''}
-                                    onChange={e => handleAboutUsTextChange('p1', e.target.value)}
-                                    rows={3}
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="about-p2">Párrafo 2</Label>
-                                <Textarea
-                                    id="about-p2"
-                                    placeholder="Con nosotros, no solo descubrís un destino..."
-                                    value={generalSettings.aboutUsText?.p2 || ''}
-                                    onChange={e => handleAboutUsTextChange('p2', e.target.value)}
-                                    rows={2}
-                                />
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <Label className="text-sm font-semibold">Bloques de contenido</Label>
+                                <p className="text-xs text-muted-foreground">Podés mezclar párrafos e ítems con ícono en el orden que quieras.</p>
+                                {(generalSettings.aboutUsText?.blocks || []).length === 0 && (
+                                    <div className="text-sm text-muted-foreground italic border rounded-md p-4 text-center">
+                                        No hay bloques. Agregá uno abajo.
+                                    </div>
+                                )}
                                 <div className="space-y-2">
-                                    <Label htmlFor="about-feature1">Característica 1 ✈</Label>
-                                    <Input
-                                        id="about-feature1"
-                                        placeholder="Coordinación Permanente"
-                                        value={generalSettings.aboutUsText?.feature1 || ''}
-                                        onChange={e => handleAboutUsTextChange('feature1', e.target.value)}
-                                    />
+                                    {(generalSettings.aboutUsText?.blocks || []).map((block, index, arr) => (
+                                        <div key={block.id} className="border rounded-lg p-3 bg-muted/30 space-y-2">
+                                            <div className="flex items-center justify-between">
+                                                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${block.type === 'paragraph' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>
+                                                    {block.type === 'paragraph' ? '¶ Párrafo' : '✦ Ícono + Texto'}
+                                                </span>
+                                                <div className="flex items-center gap-1">
+                                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => moveAboutUsBlock(block.id, 'up')} disabled={index === 0}><ChevronUp className="w-4 h-4"/></Button>
+                                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => moveAboutUsBlock(block.id, 'down')} disabled={index === arr.length - 1}><ChevronDown className="w-4 h-4"/></Button>
+                                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => removeAboutUsBlock(block.id)}><Trash2 className="w-4 h-4"/></Button>
+                                                </div>
+                                            </div>
+                                            {block.type === 'feature' && (
+                                                <div className="flex items-center gap-2">
+                                                    <div className="space-y-1 w-24">
+                                                        <Label className="text-xs">Ícono (emoji)</Label>
+                                                        <Input
+                                                            className="text-center text-lg h-9"
+                                                            value={block.icon || ''}
+                                                            onChange={e => updateAboutUsBlock(block.id, 'icon', e.target.value)}
+                                                            placeholder="✈"
+                                                            maxLength={4}
+                                                        />
+                                                    </div>
+                                                    <div className="flex-1 space-y-1">
+                                                        <Label className="text-xs">Texto (opcional)</Label>
+                                                        <Input
+                                                            value={block.text}
+                                                            onChange={e => updateAboutUsBlock(block.id, 'text', e.target.value)}
+                                                            placeholder="Coordinación Permanente"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            )}
+                                            {block.type === 'paragraph' && (
+                                                <div className="space-y-1">
+                                                    <Label className="text-xs">Texto del párrafo</Label>
+                                                    <Textarea
+                                                        value={block.text}
+                                                        onChange={e => updateAboutUsBlock(block.id, 'text', e.target.value)}
+                                                        placeholder="Escribí el contenido del párrafo..."
+                                                        rows={2}
+                                                    />
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
                                 </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="about-feature2">Característica 2 ✨</Label>
-                                    <Input
-                                        id="about-feature2"
-                                        placeholder="La Mejor Onda"
-                                        value={generalSettings.aboutUsText?.feature2 || ''}
-                                        onChange={e => handleAboutUsTextChange('feature2', e.target.value)}
-                                    />
+                                <div className="flex gap-2 pt-1">
+                                    <Button variant="outline" size="sm" onClick={() => addAboutUsBlock('paragraph')}>
+                                        <Type className="w-4 h-4 mr-2"/> Agregar párrafo
+                                    </Button>
+                                    <Button variant="outline" size="sm" onClick={() => addAboutUsBlock('feature')}>
+                                        <Smile className="w-4 h-4 mr-2"/> Agregar ícono + texto
+                                    </Button>
                                 </div>
                             </div>
+
                             <Button onClick={handleSaveAboutUsText} disabled={!!isSaving}>
                                 {isSaving === 'about-us-text' && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
                                 Guardar Texto
