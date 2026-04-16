@@ -251,3 +251,29 @@ body {
     display: none !important;
   }
 }
+
+/* Rich text content rendered from the editor */
+.rich-text strong {
+  font-weight: 700;
+}
+.rich-text u {
+  text-decoration: underline;
+}
+.rich-text em {
+  font-style: italic;
+}
+.rich-text p {
+  display: inline;
+}
+
+/* Tiptap editor styles */
+.ProseMirror {
+  outline: none;
+}
+.ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: hsl(var(--muted-foreground));
+  pointer-events: none;
+  height: 0;
+}

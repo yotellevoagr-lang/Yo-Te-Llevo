@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
-import { Settings as SettingsIcon, Bus, Trash2, Edit, PlusCircle, Ship, Plane, Save, Contact, Utensils, BedDouble, Folder, ShieldCheck, KeyRound, Mail, Eye, EyeOff, Image as ImageIcon, Globe, AppWindow, Loader2, Tag, Pin, AlignLeft, ChevronUp, ChevronDown, Type, Smile } from "lucide-react"
+import { Settings as SettingsIcon, Bus, Trash2, Edit, PlusCircle, Ship, Plane, Save, Contact, Utensils, BedDouble, Folder, ShieldCheck, KeyRound, Mail, Eye, EyeOff, Image as ImageIcon, Globe, AppWindow, Loader2, Tag, Pin, AlignLeft, ChevronUp, ChevronDown, Type, Smile, Heading2 } from "lucide-react"
 import type { CustomLayoutConfig, LayoutCategory, GeneralSettings, ContactSettings, Pension, RoomType, Employee, DomainSettings, BoardingPoint, Tour, GeoSettings, AboutUsBlock } from "@/lib/types"
 import { LayoutEditor } from "@/components/admin/layout-editor"
 import { updatePassword, updateEmail, reauthenticateWithCredential, EmailAuthProvider } from "firebase/auth"
@@ -36,6 +36,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Separator } from "@/components/ui/separator"
 import { arrayRemove, writeBatch, doc } from "firebase/firestore"
 import { Textarea } from "@/components/ui/textarea"
+import { RichTextEditor } from "@/components/rich-text-editor"
 import { db } from "@/lib/firebase"
 import { uploadFileToStorage, deleteFileFromStorage, isStorageUrl } from "@/lib/storage-service"
 
@@ -351,7 +352,7 @@ export default function SettingsPage() {
         }));
     }
 
-    const addAboutUsBlock = (type: 'paragraph' | 'feature') => {
+    const addAboutUsBlock = (type: 'paragraph' | 'feature' | 'subtitle') => {
         const newBlock: AboutUsBlock = {
             id: Date.now().toString(),
             type,
@@ -982,18 +983,35 @@ export default function SettingsPage() {
                                     {(generalSettings.aboutUsText?.blocks || []).map((block, index, arr) => (
                                         <div key={block.id} className="border rounded-lg p-3 bg-muted/30 space-y-2">
                                             <div className="flex items-center justify-between">
-                                                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${block.type === 'paragraph' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>
-                                                    {block.type === 'paragraph' ? '¶ Párrafo' : '✦ Ícono + Texto'}
+                                                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                                                    block.type === 'paragraph' ? 'bg-blue-100 text-blue-700' :
+                                                    block.type === 'subtitle' ? 'bg-purple-100 text-purple-700' :
+                                                    'bg-amber-100 text-amber-700'
+                                                }`}>
+                                                    {block.type === 'paragraph' ? '¶ Párrafo' : block.type === 'subtitle' ? 'H Subtítulo' : '✦ Ícono + Texto'}
                                                 </span>
                                                 <div className="flex items-center gap-1">
+                                                    <div className="flex items-center gap-1 mr-1" title="Color del bloque">
+                                                        <label className="text-xs text-muted-foreground">Color:</label>
+                                                        <input
+                                                            type="color"
+                                                            value={block.color || '#000000'}
+                                                            onChange={e => updateAboutUsBlock(block.id, 'color', e.target.value)}
+                                                            className="w-6 h-6 rounded cursor-pointer border border-input p-0.5 bg-transparent"
+                                                            title="Color del bloque completo"
+                                                        />
+                                                        {block.color && (
+                                                            <Button variant="ghost" size="sm" className="h-5 px-1 text-xs" onClick={() => updateAboutUsBlock(block.id, 'color', '')}>✕</Button>
+                                                        )}
+                                                    </div>
                                                     <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => moveAboutUsBlock(block.id, 'up')} disabled={index === 0}><ChevronUp className="w-4 h-4"/></Button>
                                                     <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => moveAboutUsBlock(block.id, 'down')} disabled={index === arr.length - 1}><ChevronDown className="w-4 h-4"/></Button>
                                                     <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => removeAboutUsBlock(block.id)}><Trash2 className="w-4 h-4"/></Button>
                                                 </div>
                                             </div>
                                             {block.type === 'feature' && (
-                                                <div className="flex items-center gap-2">
-                                                    <div className="space-y-1 w-24">
+                                                <div className="flex items-start gap-2">
+                                                    <div className="space-y-1 w-24 shrink-0">
                                                         <Label className="text-xs">Ícono (emoji)</Label>
                                                         <Input
                                                             className="text-center text-lg h-9"
@@ -1004,32 +1022,38 @@ export default function SettingsPage() {
                                                         />
                                                     </div>
                                                     <div className="flex-1 space-y-1">
-                                                        <Label className="text-xs">Texto (opcional)</Label>
-                                                        <Input
+                                                        <Label className="text-xs">Texto (opcional, soporta negrita/color)</Label>
+                                                        <RichTextEditor
                                                             value={block.text}
-                                                            onChange={e => updateAboutUsBlock(block.id, 'text', e.target.value)}
+                                                            onChange={val => updateAboutUsBlock(block.id, 'text', val)}
                                                             placeholder="Coordinación Permanente"
+                                                            minRows={1}
                                                         />
                                                     </div>
                                                 </div>
                                             )}
-                                            {block.type === 'paragraph' && (
+                                            {(block.type === 'paragraph' || block.type === 'subtitle') && (
                                                 <div className="space-y-1">
-                                                    <Label className="text-xs">Texto del párrafo</Label>
-                                                    <Textarea
+                                                    <Label className="text-xs">
+                                                        {block.type === 'subtitle' ? 'Texto del subtítulo (soporta negrita/color)' : 'Texto del párrafo (soporta negrita/color)'}
+                                                    </Label>
+                                                    <RichTextEditor
                                                         value={block.text}
-                                                        onChange={e => updateAboutUsBlock(block.id, 'text', e.target.value)}
-                                                        placeholder="Escribí el contenido del párrafo..."
-                                                        rows={2}
+                                                        onChange={val => updateAboutUsBlock(block.id, 'text', val)}
+                                                        placeholder={block.type === 'subtitle' ? 'Ej: Nuestra Misión' : 'Escribí el contenido del párrafo...'}
+                                                        minRows={block.type === 'subtitle' ? 1 : 2}
                                                     />
                                                 </div>
                                             )}
                                         </div>
                                     ))}
                                 </div>
-                                <div className="flex gap-2 pt-1">
+                                <div className="flex flex-wrap gap-2 pt-1">
                                     <Button variant="outline" size="sm" onClick={() => addAboutUsBlock('paragraph')}>
                                         <Type className="w-4 h-4 mr-2"/> Agregar párrafo
+                                    </Button>
+                                    <Button variant="outline" size="sm" onClick={() => addAboutUsBlock('subtitle')}>
+                                        <Heading2 className="w-4 h-4 mr-2"/> Agregar subtítulo
                                     </Button>
                                     <Button variant="outline" size="sm" onClick={() => addAboutUsBlock('feature')}>
                                         <Smile className="w-4 h-4 mr-2"/> Agregar ícono + texto

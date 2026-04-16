@@ -122,9 +122,10 @@ export interface GeneralSettings {
 
 export interface AboutUsBlock {
     id: string;
-    type: 'paragraph' | 'feature';
+    type: 'paragraph' | 'feature' | 'subtitle';
     text: string;
     icon?: string;
+    color?: string;
 }
 
 export interface GeoSettings {

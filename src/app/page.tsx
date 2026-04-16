@@ -232,12 +232,24 @@ export default function Home() {
                     {generalSettings?.aboutUsText?.blocks && generalSettings.aboutUsText.blocks.length > 0 ? (
                         <div className="mt-4 space-y-3">
                             {generalSettings.aboutUsText.blocks.map((block: AboutUsBlock) =>
-                                block.type === 'paragraph' ? (
-                                    <p key={block.id} className="text-lg text-muted-foreground">{block.text}</p>
+                                block.type === 'subtitle' ? (
+                                    <h3
+                                        key={block.id}
+                                        className="text-xl font-bold text-primary mt-5"
+                                        style={block.color ? { color: block.color } : undefined}
+                                        dangerouslySetInnerHTML={{ __html: block.text }}
+                                    />
+                                ) : block.type === 'paragraph' ? (
+                                    <div
+                                        key={block.id}
+                                        className="text-lg text-muted-foreground rich-text"
+                                        style={block.color ? { color: block.color } : undefined}
+                                        dangerouslySetInnerHTML={{ __html: block.text }}
+                                    />
                                 ) : (
-                                    <div key={block.id} className="flex items-center gap-2">
+                                    <div key={block.id} className="flex items-center gap-2" style={block.color ? { color: block.color } : undefined}>
                                         {block.icon && <span className="text-xl">{block.icon}</span>}
-                                        {block.text && <span className="font-medium">{block.text}</span>}
+                                        {block.text && <span className="font-medium rich-text" dangerouslySetInnerHTML={{ __html: block.text }} />}
                                     </div>
                                 )
                             )}

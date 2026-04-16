@@ -41,6 +41,17 @@ The project uses Firebase configuration stored in `.env`:
 - `FIREBASE_SERVICE_ACCOUNT_KEY` - For server-side Firebase Admin
 
 ## Recent Changes
+- 2026-04-16: Editor de texto enriquecido en sección "Sobre Nosotros"
+  - Instalado Tiptap (@tiptap/react, starter-kit, extension-text-style, extension-underline)
+  - Nuevo componente RichTextEditor con barra de herramientas (negrita, subrayado, color de texto, quitar formato)
+  - Ctrl+B para negrita, Ctrl+U para subrayado funcionan dentro del editor
+  - Nuevo tipo de bloque "subtítulo" (se renderiza como h3 en la página de inicio)
+  - Color de bloque completo (selector nativo) + color de palabras individuales (paleta en el editor)
+  - Bloques de íconos también usan el editor enriquecido para el texto
+  - Los bloques se guardan como HTML en Firestore y se renderizan con dangerouslySetInnerHTML
+  - Agregado localPatterns en next.config.ts para permitir imágenes locales con query strings
+
+
 - 2025-12-22: Sistema de Comunidad y Beneficios
   - Nueva sección "Comunidad" para publicaciones sociales con feed, reacciones (like/love) y comentarios
   - Soporte multimedia (fotos/videos) en publicaciones
