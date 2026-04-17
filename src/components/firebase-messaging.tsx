@@ -12,7 +12,6 @@ export function FirebaseMessaging() {
     if (typeof window !== "undefined" && "serviceWorker" in navigator) {
       const messaging = getMessaging(app);
       const unsubscribe = onMessage(messaging, (payload) => {
-        console.log("Foreground message received.", payload);
         toast({
           title: payload.notification?.title,
           description: payload.notification?.body,

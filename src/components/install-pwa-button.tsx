@@ -56,10 +56,8 @@ export function InstallPwaButton() {
     }
     await installPrompt.prompt();
     const { outcome } = await installPrompt.userChoice;
-    if (outcome === 'accepted') {
-      console.log('User accepted the A2HS prompt');
-    } else {
-      console.log('User dismissed the A2HS prompt');
+    if (outcome !== 'accepted') {
+      // User dismissed the install prompt
     }
     setInstallPrompt(null);
   };

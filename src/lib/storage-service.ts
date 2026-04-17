@@ -22,11 +22,8 @@ export async function uploadFileToStorage(
       contentType: file.type,
     };
     
-    console.log('Uploading file to Storage:', folder, fileName, file.size);
     await uploadBytes(storageRef, file, metadata);
-    console.log('File uploaded, getting download URL...');
     const downloadUrl = await getDownloadURL(storageRef);
-    console.log('Download URL obtained:', downloadUrl);
     
     return downloadUrl;
   } catch (error: any) {

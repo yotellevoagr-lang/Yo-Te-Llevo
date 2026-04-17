@@ -130,7 +130,6 @@ async function getAllToursREST(): Promise<TourData[]> {
     // Agregamos un timestamp para forzar que la API de Google no devuelva datos cacheados
     const cacheBuster = Date.now();
     const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/tours?pageSize=100&cb=${cacheBuster}`;
-    console.log('Fetching tours from URL:', url);
     const response = await fetch(url, {
       method: 'GET',
       headers: { 
@@ -245,17 +244,7 @@ async function getAllTours(): Promise<TourData[]> {
   // Use REST directly to avoid Admin auth issues in this environment
   const tours = await getAllToursREST();
   
-  // LOG PARA DEPURACIÓN - VERIFICAR QUE LLEGA DE FIRESTORE
-  console.log('--- TOURS DETECTADOS ---');
-  tours.forEach(t => console.log(`ID: ${t.id}, Destino: ${t.destination}, Fecha: ${t.date}, Publico: ${t.isPublic}`));
-  console.log('------------------------');
-
-  // No filtramos por fecha aquí para ver si el problema es la zona horaria
-  const filteredTours = tours.filter(t => {
-    return t.isPublic !== false;
-  });
-
-  console.log(`Tours después de filtrar (Solo Públicos): ${filteredTours.length}`);
+  const filteredTours = tours.filter(t => t.isPublic !== false);
   return filteredTours;
 }
 
@@ -365,10 +354,6 @@ Responde SOLO con el objeto JSON.`;
         content: [{ text: content }]
       };
     });
-
-    console.log('--- FINAL PROMPT DATA ---');
-    console.log('Tours in prompt:', toursDataStr);
-    console.log('-------------------------');
 
     const response = await ai.generate({
       model: 'googleai/gemini-2.0-flash',

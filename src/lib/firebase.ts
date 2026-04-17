@@ -1,6 +1,6 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { getFirestore, enableIndexedDbPersistence } from "firebase/firestore";
+import { initializeFirestore, persistentLocalCache, getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import { getMessaging } from "firebase/messaging";
 
@@ -13,7 +13,6 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
 };
 
-// Initialize Firebase
 let app;
 if (!getApps().length) {
   app = initializeApp(firebaseConfig);
@@ -22,17 +21,19 @@ if (!getApps().length) {
 }
 
 const auth = getAuth(app);
-const db = getFirestore(app);
 
-// Enable offline persistence for better performance (v9/v10 compat mode)
+// Use persistent cache for offline support (modern API, no deprecation warning)
+let db;
 if (typeof window !== 'undefined') {
-  enableIndexedDbPersistence(db).catch((err) => {
-    if (err.code === 'failed-precondition') {
-      console.warn('Firestore persistence failed: multiple tabs');
-    } else if (err.code === 'unimplemented') {
-      console.warn('Firestore persistence failed: browser not supported');
-    }
-  });
+  try {
+    db = initializeFirestore(app, {
+      localCache: persistentLocalCache()
+    });
+  } catch {
+    db = getFirestore(app);
+  }
+} else {
+  db = getFirestore(app);
 }
 
 const storage = getStorage(app);

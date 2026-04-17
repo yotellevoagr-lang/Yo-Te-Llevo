@@ -286,10 +286,10 @@ export default function Home() {
                                 className="w-full h-full object-cover rounded-2xl shadow-2xl"
                             />
                         ) : (
-                            <Image src={getDisplayUrl(generalSettings.aboutUsMedia.url)} alt="Sobre Nosotros" className="object-cover rounded-2xl shadow-2xl" fill data-ai-hint="happy travelers" />
+                            <Image src={getDisplayUrl(generalSettings.aboutUsMedia.url)} alt="Sobre Nosotros" className="object-cover rounded-2xl shadow-2xl" fill sizes="(max-width: 768px) 100vw, 50vw" data-ai-hint="happy travelers" />
                         )
                     ) : (
-                        <Image src="https://placehold.co/600x400.png" alt="Grupo de amigos viajando" className="object-cover rounded-2xl shadow-2xl" fill data-ai-hint="friends traveling" />
+                        <Image src="https://placehold.co/600x400.png" alt="Grupo de amigos viajando" className="object-cover rounded-2xl shadow-2xl" fill sizes="(max-width: 768px) 100vw, 50vw" data-ai-hint="friends traveling" />
                     )}
                 </div>
             </div>

@@ -1,7 +1,7 @@
 
 
 import { db, auth } from './firebase';
-import { collection, doc, getDoc, getDocs, setDoc, deleteDoc, query, where, writeBatch, addDoc, updateDoc, enableIndexedDbPersistence, terminate } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, setDoc, deleteDoc, query, where, writeBatch, addDoc, updateDoc } from 'firebase/firestore';
 import { createUserWithEmailAndPassword, sendEmailVerification, signInWithEmailAndPassword, User as FirebaseAuthUser } from 'firebase/auth';
 import type { Tour, Passenger, Reservation, Seller, Employee, CommissionSettings, GeneralSettings, ChatbotNode } from "./types";
 import { getLayoutForType } from './layouts';
@@ -366,17 +366,13 @@ export async function seedInitialAdmin() {
     const adminSnapshot = await getDocs(q);
 
     if (adminSnapshot.empty) {
-        console.log("No admin found, seeding initial administrator placeholder...");
         try {
             const adminData: Partial<Employee> = {
                 name: 'Administrador',
                 username: 'admin',
                 email: adminEmail,
             };
-            
             await addDoc(collection(db, "admin"), adminData);
-            console.log("Admin placeholder document seeded. The first admin user will need to be created in Firebase Console and then log in.");
-
         } catch (error) {
             console.error("Error seeding admin user:", error);
         }

@@ -49,18 +49,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (permission === 'granted') {
             const currentToken = await getToken(messaging, { vapidKey: 'BMD30s-1GFp0f1nCqcFg4J9b139Nff2XgnJj34Sg0gEwIza_I9lQ4lMhA13h1UirYyagESpI52xH1WzmsC5Tey0' });
             if (currentToken) {
-                console.log('FCM Token:', currentToken);
                 // Save the token to Firestore
                 await saveDocument('fcmTokens', { 
                     token: currentToken, 
                     createdAt: new Date(),
                     userId: currentUserId || null // Associate with user if logged in
                 }, currentToken);
-            } else {
-                console.log('No registration token available. Request permission to generate one.');
             }
-        } else {
-            console.log('Unable to get permission to notify.');
         }
     } catch (error) {
         console.error('An error occurred while retrieving token. ', error);
