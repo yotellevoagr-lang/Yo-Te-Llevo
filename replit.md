@@ -41,6 +41,17 @@ The project uses Firebase configuration stored in `.env`:
 - `FIREBASE_SERVICE_ACCOUNT_KEY` - For server-side Firebase Admin
 
 ## Recent Changes
+- 2026-04-19: Panel de Programador y mejoras de seguridad
+  - Nuevo panel de programador en `/dev/panel` protegido con contraseña `@Vector2016`
+  - Botón escudo (Shield) oculto al final de la página de configuración abre diálogo de contraseña
+  - Comunidad y Beneficios ahora ocultos del admin por defecto; se habilitan desde el panel dev
+  - Nueva sección de Facturación ARCA en el panel dev (placeholder, sin activar para admin aún)
+  - Badge y Título de "Sobre Nosotros" ahora usan RichTextEditor (negrita, subrayado, color)
+  - Gradiente "Sobre Nosotros" soporta 3 colores (inicio, medio opcional, final) y 8 direcciones
+  - Auditoría de seguridad: proxy de imágenes restringido a dominios permitidos (Firebase Storage, etc.) para prevenir SSRF
+  - Eliminados todos los console.log de debug del lado cliente que exponían mensajes de error
+  - Limpieza de WhatsApp route: ya no expone respuestas IA en logs del servidor
+
 - 2026-04-16: Mejoras visuales completas
   - Hero: gradiente con color primario cuando no hay imágenes de slideshow
   - Barra de búsqueda: etiqueta "¿A dónde querés ir?" + botón "Buscar" con mejor diseño tipo card

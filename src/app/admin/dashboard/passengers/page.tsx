@@ -131,8 +131,7 @@ export default function PassengersPage() {
     try {
         try {
             await deleteUser(passengerToDelete.id);
-        } catch (authError: any) {
-            console.log("Auth deletion skipped or failed:", authError.message);
+        } catch {
         }
         
         await deleteDocument('passengers', passengerToDelete.id);

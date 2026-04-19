@@ -223,17 +223,24 @@ export default function Home() {
                 const s = generalSettings?.aboutUsStyle;
                 if (!s || !s.bgType || s.bgType === 'none') return {};
                 if (s.bgType === 'color' && s.bgColor) return { backgroundColor: s.bgColor };
-                if (s.bgType === 'gradient' && s.bgColor) return { background: `linear-gradient(${s.bgDirection || 'to bottom right'}, ${s.bgColor}, ${s.bgColorTo || s.bgColor})` };
+                if (s.bgType === 'gradient' && s.bgColor) {
+                    const stops = [s.bgColor, s.bgColorMid, s.bgColorTo || s.bgColor].filter(Boolean).join(', ');
+                    return { background: `linear-gradient(${s.bgDirection || 'to bottom right'}, ${stops})` };
+                }
                 return {};
             })()}
         >
             <div className="container px-4 md:px-6">
             <div className="grid items-center gap-12 md:grid-cols-2">
                 <div className="animate-fade-in-up">
-                    <div className="inline-block px-4 py-1 text-sm font-semibold tracking-wider rounded-full bg-primary/10 text-primary">
-                        {generalSettings?.aboutUsText?.badge || t('about.badge')}
-                    </div>
-                    <h2 className="mt-4 text-3xl md:text-4xl font-bold tracking-tighter font-headline text-primary sm:text-5xl">{generalSettings?.aboutUsText?.title || t('about.title')}</h2>
+                    <div
+                        className="inline-block px-4 py-1 text-sm font-semibold tracking-wider rounded-full bg-primary/10 text-primary rich-text"
+                        dangerouslySetInnerHTML={{ __html: generalSettings?.aboutUsText?.badge || t('about.badge') }}
+                    />
+                    <h2
+                        className="mt-4 text-3xl md:text-4xl font-bold tracking-tighter font-headline text-primary sm:text-5xl rich-text"
+                        dangerouslySetInnerHTML={{ __html: generalSettings?.aboutUsText?.title || t('about.title') }}
+                    />
                     {generalSettings?.aboutUsText?.blocks && generalSettings.aboutUsText.blocks.length > 0 ? (
                         <div className="mt-4 space-y-3">
                             {generalSettings.aboutUsText.blocks.map((block: AboutUsBlock) =>

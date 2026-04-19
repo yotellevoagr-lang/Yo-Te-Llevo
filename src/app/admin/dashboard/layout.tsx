@@ -1,10 +1,9 @@
 
-
 "use client";
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
   Settings,
   Ticket,
@@ -26,6 +25,8 @@ import {
   MessageCircle,
   Gift
 } from "lucide-react";
+import type { GeneralSettings } from "@/lib/types";
+import { getDocumentById } from "@/lib/firestore-services";
 
 import {
   SidebarProvider,
@@ -59,8 +60,23 @@ export default function DashboardLayout({
   const router = useRouter();
   const { user, userRole, loading } = useAuth();
   const { t } = useTranslation();
+  const [devFeatures, setDevFeatures] = useState<GeneralSettings['devFeatures']>({});
 
-  const navItems = [
+  useEffect(() => {
+    const load = async () => {
+        try {
+            const cached = localStorage.getItem('ytl_general_settings');
+            const settings: GeneralSettings | null = cached ? JSON.parse(cached) : await getDocumentById<GeneralSettings>('settings', 'general');
+            if (settings?.devFeatures) setDevFeatures(settings.devFeatures);
+        } catch {}
+    };
+    load();
+    const handler = () => load();
+    window.addEventListener('storage', handler);
+    return () => window.removeEventListener('storage', handler);
+  }, []);
+
+  const baseNavItems = [
     { href: "/admin/dashboard", label: t('admin_nav.dashboard'), icon: LayoutDashboard },
     { href: "/admin/dashboard/trips", label: t('admin_nav.trips'), icon: Plane },
     { href: "/admin/dashboard/flyers", label: t('admin_nav.flyers'), icon: ImageIcon },
@@ -68,8 +84,8 @@ export default function DashboardLayout({
     { href: "/admin/dashboard/passengers", label: t('admin_nav.passengers'), icon: Users },
     { href: "/admin/dashboard/employees", label: t('admin_nav.employees'), icon: Briefcase },
     { href: "/admin/dashboard/sellers", label: t('admin_nav.sellers'), icon: PercentSquare },
-    { href: "/admin/dashboard/community", label: "Comunidad", icon: MessageCircle },
-    { href: "/admin/dashboard/benefits", label: "Beneficios", icon: Gift },
+    { href: "/admin/dashboard/community", label: "Comunidad", icon: MessageCircle, devKey: 'showCommunity' as const },
+    { href: "/admin/dashboard/benefits", label: "Beneficios", icon: Gift, devKey: 'showBenefits' as const },
     { href: "/admin/dashboard/votes", label: "Votos por Zona", icon: ThumbsUp },
     { href: "/admin/dashboard/tickets", label: t('admin_nav.tickets'), icon: TicketCheck },
     { href: "/admin/dashboard/receipts", label: t('admin_nav.receipts'), icon: Receipt },
@@ -77,6 +93,11 @@ export default function DashboardLayout({
     { href: "/admin/dashboard/calendar", label: t('admin_nav.calendar'), icon: Calendar },
     { href: "/admin/dashboard/settings", label: t('admin_nav.settings'), icon: Settings },
   ];
+
+  const navItems = baseNavItems.filter(item => {
+    if (!item.devKey) return true;
+    return devFeatures?.[item.devKey] === true;
+  });
 
   useEffect(() => {
     if (!loading && userRole !== 'admin') {

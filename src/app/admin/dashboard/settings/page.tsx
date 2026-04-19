@@ -3,12 +3,13 @@
 
 import { useState, useEffect, useMemo } from "react"
 import Image from "next/image"
+import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
-import { Settings as SettingsIcon, Bus, Trash2, Edit, PlusCircle, Ship, Plane, Save, Contact, Utensils, BedDouble, Folder, ShieldCheck, KeyRound, Mail, Eye, EyeOff, Image as ImageIcon, Globe, AppWindow, Loader2, Tag, Pin, AlignLeft, ChevronUp, ChevronDown, Type, Smile, Heading2 } from "lucide-react"
+import { Settings as SettingsIcon, Bus, Trash2, Edit, PlusCircle, Ship, Plane, Save, Contact, Utensils, BedDouble, Folder, ShieldCheck, KeyRound, Mail, Eye, EyeOff, Image as ImageIcon, Globe, AppWindow, Loader2, Tag, Pin, AlignLeft, ChevronUp, ChevronDown, Type, Smile, Heading2, Shield } from "lucide-react"
 import type { CustomLayoutConfig, LayoutCategory, GeneralSettings, ContactSettings, Pension, RoomType, Employee, DomainSettings, BoardingPoint, Tour, GeoSettings, AboutUsBlock } from "@/lib/types"
 import { LayoutEditor } from "@/components/admin/layout-editor"
 import { updatePassword, updateEmail, reauthenticateWithCredential, EmailAuthProvider } from "firebase/auth"
@@ -161,8 +162,13 @@ function ChangeCredentialsDialog({ adminUser, onUpdate, isOpen, onOpenChange }: 
 export default function SettingsPage() {
     const { toast } = useToast();
     const { user } = useAuth();
+    const router = useRouter();
 
     const [isClient, setIsClient] = useState(false);
+    const [showDevDialog, setShowDevDialog] = useState(false);
+    const [devPassword, setDevPassword] = useState('');
+    const [devPasswordError, setDevPasswordError] = useState(false);
+    const [showDevPassword, setShowDevPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState<string | null>(null);
     
@@ -979,23 +985,23 @@ export default function SettingsPage() {
                         <div className="space-y-4">
                             <h3 className="font-semibold text-lg flex items-center gap-2"><AlignLeft className="w-5 h-5"/> Texto 'Sobre Nosotros'</h3>
                             <p className="text-sm text-muted-foreground">Editá el badge, título y el contenido libre (párrafos e íconos con texto). Podés agregar y reordenar bloques en cualquier orden.</p>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 gap-4">
                                 <div className="space-y-2">
-                                    <Label htmlFor="about-badge">Etiqueta (Badge)</Label>
-                                    <Input
-                                        id="about-badge"
-                                        placeholder="SOBRE NOSOTROS"
+                                    <Label>Etiqueta (Badge) — soporta negrita, subrayado y color</Label>
+                                    <RichTextEditor
                                         value={generalSettings.aboutUsText?.badge || ''}
-                                        onChange={e => handleAboutUsTextChange('badge', e.target.value)}
+                                        onChange={val => handleAboutUsTextChange('badge', val)}
+                                        placeholder="SOBRE NOSOTROS"
+                                        minRows={1}
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="about-title">Título</Label>
-                                    <Input
-                                        id="about-title"
-                                        placeholder="Viajes grupales, experiencias únicas"
+                                    <Label>Título Principal — soporta negrita, subrayado y color</Label>
+                                    <RichTextEditor
                                         value={generalSettings.aboutUsText?.title || ''}
-                                        onChange={e => handleAboutUsTextChange('title', e.target.value)}
+                                        onChange={val => handleAboutUsTextChange('title', val)}
+                                        placeholder="Viajes grupales, experiencias únicas"
+                                        minRows={1}
                                     />
                                 </div>
                             </div>
@@ -1116,9 +1122,9 @@ export default function SettingsPage() {
                                     </div>
                                 </div>
                                 {(generalSettings.aboutUsStyle?.bgType === 'color' || generalSettings.aboutUsStyle?.bgType === 'gradient') && (
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                         <div className="space-y-1">
-                                            <Label>{generalSettings.aboutUsStyle?.bgType === 'gradient' ? 'Color inicial' : 'Color de fondo'}</Label>
+                                            <Label>{generalSettings.aboutUsStyle?.bgType === 'gradient' ? 'Color 1 (inicio)' : 'Color de fondo'}</Label>
                                             <div className="flex items-center gap-2">
                                                 <input
                                                     type="color"
@@ -1136,7 +1142,31 @@ export default function SettingsPage() {
                                         </div>
                                         {generalSettings.aboutUsStyle?.bgType === 'gradient' && (
                                             <div className="space-y-1">
-                                                <Label>Color final</Label>
+                                                <Label>Color 2 (medio, opcional)</Label>
+                                                <div className="flex items-center gap-2">
+                                                    <input
+                                                        type="color"
+                                                        value={generalSettings.aboutUsStyle?.bgColorMid || '#cccccc'}
+                                                        onChange={e => setGeneralSettings(prev => ({ ...prev, aboutUsStyle: { ...prev.aboutUsStyle, bgColorMid: e.target.value } }))}
+                                                        className="w-10 h-10 rounded cursor-pointer border border-input p-0.5 bg-transparent"
+                                                    />
+                                                    <div className="flex-1 flex flex-col gap-1">
+                                                        <Input
+                                                            value={generalSettings.aboutUsStyle?.bgColorMid || ''}
+                                                            onChange={e => setGeneralSettings(prev => ({ ...prev, aboutUsStyle: { ...prev.aboutUsStyle, bgColorMid: e.target.value } }))}
+                                                            placeholder="#cccccc"
+                                                            className="font-mono text-sm"
+                                                        />
+                                                        {generalSettings.aboutUsStyle?.bgColorMid && (
+                                                            <Button variant="ghost" size="sm" className="h-5 px-1 text-xs self-start" onClick={() => setGeneralSettings(prev => ({ ...prev, aboutUsStyle: { ...prev.aboutUsStyle, bgColorMid: '' } }))}>✕ Quitar</Button>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+                                        {generalSettings.aboutUsStyle?.bgType === 'gradient' && (
+                                            <div className="space-y-1">
+                                                <Label>Color 3 (final)</Label>
                                                 <div className="flex items-center gap-2">
                                                     <input
                                                         type="color"
@@ -1161,9 +1191,13 @@ export default function SettingsPage() {
                                         <div className="flex flex-wrap gap-2">
                                             {[
                                                 { value: 'to right', label: '→ Derecha' },
+                                                { value: 'to left', label: '← Izquierda' },
                                                 { value: 'to bottom', label: '↓ Abajo' },
-                                                { value: 'to bottom right', label: '↘ Diagonal' },
-                                                { value: 'to bottom left', label: '↙ Diagonal' },
+                                                { value: 'to top', label: '↑ Arriba' },
+                                                { value: 'to bottom right', label: '↘ Abajo-Der' },
+                                                { value: 'to bottom left', label: '↙ Abajo-Izq' },
+                                                { value: 'to top right', label: '↗ Arriba-Der' },
+                                                { value: 'to top left', label: '↖ Arriba-Izq' },
                                             ].map(opt => (
                                                 <Button
                                                     key={opt.value}
@@ -1450,7 +1484,70 @@ export default function SettingsPage() {
                 );
             })}
         </Accordion>
+
+        <div className="flex justify-end pt-4">
+            <Button
+                variant="ghost"
+                size="icon"
+                className="w-10 h-10 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                title="Acceso panel de programador"
+                onClick={() => { setShowDevDialog(true); setDevPassword(''); setDevPasswordError(false); }}
+            >
+                <Shield className="w-5 h-5" />
+            </Button>
+        </div>
+
       <ChangeCredentialsDialog adminUser={adminUser} onUpdate={handleAdminUserUpdate} isOpen={isCredentialsDialogOpen} onOpenChange={setIsCredentialsDialogOpen}/>
+
+      <Dialog open={showDevDialog} onOpenChange={open => { setShowDevDialog(open); if (!open) { setDevPassword(''); setDevPasswordError(false); } }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Shield className="w-5 h-5 text-primary"/> Panel de Programador</DialogTitle>
+            <DialogDescription>Ingresá la contraseña de acceso para continuar.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="relative">
+              <Input
+                type={showDevPassword ? 'text' : 'password'}
+                placeholder="Contraseña"
+                value={devPassword}
+                onChange={e => { setDevPassword(e.target.value); setDevPasswordError(false); }}
+                onKeyDown={e => {
+                    if (e.key === 'Enter') {
+                        if (devPassword === '@Vector2016') {
+                            sessionStorage.setItem('ytl_dev_access', '1');
+                            setShowDevDialog(false);
+                            router.push('/dev/panel');
+                        } else {
+                            setDevPasswordError(true);
+                        }
+                    }
+                }}
+                className={devPasswordError ? 'border-destructive' : ''}
+                autoFocus
+              />
+              <Button variant="ghost" size="icon" className="absolute right-1 top-1 h-7 w-7" onClick={() => setShowDevPassword(p => !p)}>
+                {showDevPassword ? <EyeOff className="w-4 h-4"/> : <Eye className="w-4 h-4"/>}
+              </Button>
+            </div>
+            {devPasswordError && <p className="text-sm text-destructive">Contraseña incorrecta.</p>}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDevDialog(false)}>Cancelar</Button>
+            <Button onClick={() => {
+                if (devPassword === '@Vector2016') {
+                    sessionStorage.setItem('ytl_dev_access', '1');
+                    setShowDevDialog(false);
+                    router.push('/dev/panel');
+                } else {
+                    setDevPasswordError(true);
+                }
+            }}>
+                <Shield className="w-4 h-4 mr-2"/> Ingresar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
     </>
   )

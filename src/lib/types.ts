@@ -121,8 +121,14 @@ export interface GeneralSettings {
     aboutUsStyle?: {
         bgType?: 'none' | 'color' | 'gradient';
         bgColor?: string;
+        bgColorMid?: string;
         bgColorTo?: string;
         bgDirection?: string;
+    };
+    devFeatures?: {
+        showCommunity?: boolean;
+        showBenefits?: boolean;
+        showBilling?: boolean;
     };
     themeColors?: {
         primaryHex?: string;

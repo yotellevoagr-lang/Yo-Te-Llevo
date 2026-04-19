@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
               console.error('Error enviando mensaje a WhatsApp:', errorData);
             }
           } else {
-            console.warn('WHATSAPP_API_TOKEN no configurado en secretos. Respuesta generada:', aiData.message);
+            console.warn('WHATSAPP_API_TOKEN no configurado en secretos.');
           }
         }
       } catch (aiError) {
