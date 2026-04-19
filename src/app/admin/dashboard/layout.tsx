@@ -23,7 +23,8 @@ import {
   Bot,
   ThumbsUp,
   MessageCircle,
-  Gift
+  Gift,
+  ReceiptText
 } from "lucide-react";
 import type { GeneralSettings } from "@/lib/types";
 import { getDocumentById } from "@/lib/firestore-services";
@@ -86,6 +87,7 @@ export default function DashboardLayout({
     { href: "/admin/dashboard/sellers", label: t('admin_nav.sellers'), icon: PercentSquare },
     { href: "/admin/dashboard/community", label: "Comunidad", icon: MessageCircle, devKey: 'showCommunity' as const },
     { href: "/admin/dashboard/benefits", label: "Beneficios", icon: Gift, devKey: 'showBenefits' as const },
+    { href: "/admin/dashboard/billing", label: "Facturación ARCA", icon: ReceiptText, devKey: 'showBilling' as const },
     { href: "/admin/dashboard/votes", label: "Votos por Zona", icon: ThumbsUp },
     { href: "/admin/dashboard/tickets", label: t('admin_nav.tickets'), icon: TicketCheck },
     { href: "/admin/dashboard/receipts", label: t('admin_nav.receipts'), icon: Receipt },

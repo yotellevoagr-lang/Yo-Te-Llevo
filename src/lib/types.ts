@@ -136,6 +136,52 @@ export interface GeneralSettings {
     };
 }
 
+export interface ArcaSettings {
+    razonSocial?: string;
+    cuit?: string;
+    domicilio?: string;
+    ciudad?: string;
+    provincia?: string;
+    ivaCondition?: string;
+    puntoVenta?: number;
+    defaultVoucherType?: number;
+    mode?: 'homo' | 'prod';
+    logoUrl?: string;
+}
+
+export interface ArcaInvoiceItem {
+    description: string;
+    quantity: number;
+    unitPrice: number;
+    ivaRate: number;
+    subtotal: number;
+}
+
+export interface ArcaInvoice {
+    id?: string;
+    invoiceNumber: number;
+    invoiceType: number;
+    invoiceTypeName: string;
+    puntoVenta: number;
+    cae: string;
+    caeExpiration: string;
+    clientName: string;
+    clientDocType: number;
+    clientDocTypeName: string;
+    clientDocNumber: string;
+    concept: number;
+    items: ArcaInvoiceItem[];
+    subtotal: number;
+    ivaAmount: number;
+    total: number;
+    date: string;
+    serviceFrom?: string;
+    serviceTo?: string;
+    mode: 'homo' | 'prod';
+    observations?: string;
+    createdAt?: string;
+}
+
 export interface AboutUsBlock {
     id: string;
     type: 'paragraph' | 'feature' | 'subtitle';
