@@ -224,17 +224,27 @@ async function getContactInfo(): Promise<ContactData | null> {
 
 const SYSTEM_PROMPT = `Sos el asistente virtual de "YO TE LLEVO", una agencia de viajes argentina. Respondés siempre en español, con tono cordial y entusiasta.
 
-VIAJES DISPONIBLES (fuente de verdad absoluta — usá ESTA lista para responder):
+VIAJES DISPONIBLES (fuente de verdad absoluta):
 {{TOURS_DATA}}
 
 CONTACTO:
 {{CONTACT_DATA}}
 
-INSTRUCCIONES:
-1. Si preguntan por viajes, listá TODOS los que aparecen arriba. NUNCA digas que no hay viajes si la lista no está vacía.
-2. Usá la acción "showTours" con los IDs cuando sea útil mostrar las tarjetas de viaje.
-3. Si piden contacto, usá "showContact".
-4. Para reservas: elegir viaje → clic en Reservar → cargar pasajeros → elegir punto de embarque → pagar seña o total → ¡listo!
+REGLA ABSOLUTA — TARJETAS DE VIAJE:
+Cada vez que mencionás o describís UNO o MÁS viajes específicos, SIEMPRE debés incluir en el JSON:
+  "action": "showTours"
+  "tourIds": [ IDs exactos de los viajes que mencionás ]
+
+Esto aplica SIN EXCEPCIÓN para:
+- "viajes destacados" → incluí todos los IDs marcados como DESTACADO
+- "viajes baratos" → incluí el ID del más barato
+- "viaje a X destino" → incluí el ID de ese destino
+- "mostrame todos los viajes" → incluí todos los IDs
+- Cualquier mención de 1 o más viajes en tu respuesta
+
+NUNCA respondas solo con texto cuando mencionás viajes. El usuario SIEMPRE necesita ver la tarjeta con imagen y botón de reserva.
+Si piden contacto: "action": "showContact".
+Para reservas: elegir viaje → clic en Reservar → datos de pasajeros → punto de embarque → pagar seña o total.
 
 RESPUESTA (SOLO JSON, sin texto extra):
 {
@@ -310,8 +320,34 @@ export async function POST(request: NextRequest) {
     }
 
     let tours = null;
-    if (parsed.action === 'showTours' && Array.isArray(parsed.tourIds) && parsed.tourIds.length > 0) {
+
+    // Caso 1: La IA usó showTours correctamente con IDs
+    if (Array.isArray(parsed.tourIds) && parsed.tourIds.length > 0) {
       tours = allTours.filter(t => parsed.tourIds.includes(t.id));
+    }
+
+    // Caso 2: La IA habló de viajes pero no usó showTours ni IDs — fallback por nombre de destino
+    if ((!tours || tours.length === 0) && parsed.message) {
+      const msgLower = parsed.message.toLowerCase();
+      // Detectar si habla de viajes destacados
+      if (msgLower.includes('destacado') || msgLower.includes('featured')) {
+        const featuredTours = allTours.filter(t => t.isFeatured);
+        if (featuredTours.length > 0) tours = featuredTours;
+      }
+      // Detectar destinos mencionados por nombre
+      if (!tours || tours.length === 0) {
+        const mentionedByName = allTours.filter(t =>
+          msgLower.includes(t.destination.toLowerCase().trim())
+        );
+        if (mentionedByName.length > 0) tours = mentionedByName;
+      }
+      // Si habla de "viajes" en general sin filtrar, mostrar todos
+      if (!tours || tours.length === 0) {
+        const tourKeywords = ['viajes disponibles', 'todos los viajes', 'viajes que tenemos', 'nuestros viajes', 'catálogo'];
+        if (tourKeywords.some(k => msgLower.includes(k))) {
+          tours = allTours;
+        }
+      }
     }
 
     let links = null;
