@@ -8,7 +8,7 @@ export async function POST(req: NextRequest) {
         const creds = getCertAndKey();
         if (!creds) {
             return NextResponse.json({
-                error: 'Certificado no configurado. Debés cargar ARCA_CERT y ARCA_PRIVATE_KEY en los secretos de Replit.',
+                error: 'Certificado no configurado. Debés crear los secretos ARCA_CERT y ARCA_PRIVATE_KEY en Google Cloud Secret Manager.',
                 code: 'NO_CERT',
             }, { status: 400 });
         }

@@ -531,9 +531,10 @@ export default function BillingPage() {
                                         <code className="text-xs bg-muted px-2 py-1 rounded block mt-1">cat certificado.crt | base64 -w0</code>
                                         <code className="text-xs bg-muted px-2 py-1 rounded block mt-1">cat clave_privada.key | base64 -w0</code>
                                     </li>
-                                    <li>En Replit, andá a <strong>Secrets</strong> y creá:<br />
+                                    <li>En <strong>Google Cloud Console</strong>, andá a <em>Secret Manager</em> y creá dos secretos:<br />
                                         <code className="text-xs bg-muted px-2 py-1 rounded block mt-1">ARCA_CERT = [base64 del certificado]</code>
                                         <code className="text-xs bg-muted px-2 py-1 rounded block mt-1">ARCA_PRIVATE_KEY = [base64 de la clave privada]</code>
+                                        <span className="text-xs text-muted-foreground block mt-1">Son variables de entorno del servidor — igual que <code>GOOGLE_GENAI_API_KEY</code>.</span>
                                     </li>
                                 </ol>
                             </div>

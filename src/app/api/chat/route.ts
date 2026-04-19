@@ -6,29 +6,26 @@ import { getFirestore, Firestore } from 'firebase-admin/firestore';
 export const runtime = 'nodejs';
 
 let adminApp: App | null = null;
-let db: Firestore | null = null;
+let adminDb: Firestore | null = null;
 
-function initializeFirebaseAdmin() {
-  if (adminApp) return true;
-  
+function initializeFirebaseAdmin(): boolean {
+  if (adminApp && adminDb) return true;
+
   try {
     const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
     if (!serviceAccountKey) return false;
-    
+
     const serviceAccount = JSON.parse(serviceAccountKey);
-    
+
     if (getApps().length === 0) {
-      adminApp = initializeApp({
-        credential: cert(serviceAccount),
-      });
+      adminApp = initializeApp({ credential: cert(serviceAccount) });
     } else {
       adminApp = getApps()[0];
     }
-    
-    db = getFirestore(adminApp);
+
+    adminDb = getFirestore(adminApp);
     return true;
-  } catch (e) {
-    console.error('Firebase Admin initialization error:', e);
+  } catch {
     return false;
   }
 }
@@ -43,6 +40,9 @@ interface TourData {
   nights?: number;
   backgroundImage?: string;
   isFeatured?: boolean;
+  isPublic?: boolean;
+  availableSeats?: number;
+  tags?: string[];
 }
 
 interface ContactData {
@@ -56,68 +56,41 @@ interface ContactData {
   hours?: string;
 }
 
-async function fetchFromFirestoreREST(path: string) {
-  const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
-  if (!projectId) return null;
-  
-  try {
-    const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/${path}`;
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: { 'Content-Type': 'application/json' },
-      next: { revalidate: 0 }
-    });
-    
-    if (!response.ok) return null;
-    return await response.json();
-  } catch (error) {
-    console.error('Firestore REST fetch error:', error);
-    return null;
-  }
-}
-
 async function getAllToursAdmin(): Promise<TourData[]> {
-  if (!db) return [];
-  
-  try {
-    const toursSnapshot = await db.collection('tours').get();
-    const now = new Date();
-    
-    return toursSnapshot.docs
-      .map(doc => {
-        const data = doc.data();
-        let dateValue: Date;
-        
-        if (data.date?.toDate) {
-          dateValue = data.date.toDate();
-        } else if (data.date instanceof Date) {
-          dateValue = data.date;
-        } else if (typeof data.date === 'string' || typeof data.date === 'number') {
-          dateValue = new Date(data.date);
-        } else {
-          dateValue = new Date();
-        }
+  if (!adminDb) return [];
 
-        return {
-          id: doc.id,
-          destination: data.destination || 'Sin destino',
-          date: dateValue.toISOString(),
-          price: Number(data.price) || 0,
-          currency: data.currency || 'ARS',
-          days: data.days,
-          nights: data.nights,
-          backgroundImage: data.backgroundImage,
-          isFeatured: data.isFeatured || false,
-          isPublic: data.isPublic ?? true
-        };
-      })
-      .filter(tour => {
-        // No filtering here, filter in getAllTours for consistency
-        return true;
-      })
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-  } catch (error) {
-    console.error('Error fetching tours with Admin:', error);
+  try {
+    const snap = await adminDb.collection('tours').get();
+    return snap.docs.map(doc => {
+      const data = doc.data();
+      let dateValue: Date;
+
+      if (data.date?.toDate) {
+        dateValue = data.date.toDate();
+      } else if (data.date instanceof Date) {
+        dateValue = data.date;
+      } else if (typeof data.date === 'string' || typeof data.date === 'number') {
+        dateValue = new Date(data.date);
+      } else {
+        dateValue = new Date();
+      }
+
+      return {
+        id: doc.id,
+        destination: data.destination || 'Sin destino',
+        date: dateValue.toISOString(),
+        price: Number(data.price) || 0,
+        currency: data.currency || 'ARS',
+        days: data.days || undefined,
+        nights: data.nights || undefined,
+        backgroundImage: data.backgroundImage || undefined,
+        isFeatured: data.isFeatured || false,
+        isPublic: data.isPublic ?? true,
+        availableSeats: data.availableSeats || undefined,
+        tags: Array.isArray(data.tags) ? data.tags : [],
+      };
+    }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  } catch {
     return [];
   }
 }
@@ -126,308 +99,242 @@ async function getAllToursREST(): Promise<TourData[]> {
   try {
     const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
     if (!projectId) return [];
-    
-    // Agregamos un timestamp para forzar que la API de Google no devuelva datos cacheados
-    const cacheBuster = Date.now();
-    const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/tours?pageSize=100&cb=${cacheBuster}`;
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache'
-      },
-      cache: 'no-store'
+
+    const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/tours?pageSize=300`;
+    const res = await fetch(url, {
+      headers: { 'Content-Type': 'application/json' },
+      cache: 'no-store',
     });
-    
-    if (!response.ok) return [];
-    const data = await response.json();
-    
+
+    if (!res.ok) return [];
+    const data = await res.json();
     if (!data.documents) return [];
-    
-    const now = new Date();
-    
-    return data.documents
-      .map((doc: any) => {
-        const fields = doc.fields;
-        const id = doc.name.split('/').pop();
-        
-        const isPublic = fields.isPublic?.booleanValue ?? (fields.isPublic?.stringValue === 'true' || true);
-        
-        let dateValue: Date;
-        if (fields.date?.timestampValue) {
-          dateValue = new Date(fields.date.timestampValue);
-        } else if (fields.date?.stringValue) {
-          dateValue = new Date(fields.date.stringValue);
-        } else if (fields.date?.integerValue) {
-          dateValue = new Date(Number(fields.date.integerValue));
-        } else if (fields.date?.mapValue?.fields?.seconds?.integerValue) {
-          // Handle Firestore Timestamp as Map
-          dateValue = new Date(Number(fields.date.mapValue.fields.seconds.integerValue) * 1000);
-        } else {
-          dateValue = new Date();
-        }
-        
-        return {
-          id,
-          destination: fields.destination?.stringValue || 'Sin destino',
-          date: dateValue.toISOString(),
-          price: Number(fields.price?.integerValue || fields.price?.doubleValue || '0'),
-          currency: fields.currency?.stringValue || 'ARS',
-          days: parseInt(fields.days?.integerValue || '0') || undefined,
-          nights: parseInt(fields.nights?.integerValue || '0') || undefined,
-          backgroundImage: fields.backgroundImage?.stringValue,
-          isFeatured: fields.isFeatured?.booleanValue || false,
-          isPublic: isPublic
-        };
-      })
-      .filter((tour: TourData | null): tour is TourData => {
-        // No filtering here, filter in getAllTours for consistency
-        return !!tour;
-      })
-      .sort((a: TourData, b: TourData) => new Date(a.date).getTime() - new Date(b.date).getTime());
-  } catch (error) {
-    console.error('Error fetching tours with REST:', error);
+
+    return data.documents.map((doc: any) => {
+      const fields = doc.fields || {};
+      const id = doc.name.split('/').pop();
+
+      const isPublic = fields.isPublic?.booleanValue ?? true;
+
+      let dateValue: Date;
+      if (fields.date?.timestampValue) {
+        dateValue = new Date(fields.date.timestampValue);
+      } else if (fields.date?.stringValue) {
+        dateValue = new Date(fields.date.stringValue);
+      } else if (fields.date?.integerValue) {
+        dateValue = new Date(Number(fields.date.integerValue));
+      } else if (fields.date?.mapValue?.fields?.seconds?.integerValue) {
+        dateValue = new Date(Number(fields.date.mapValue.fields.seconds.integerValue) * 1000);
+      } else {
+        dateValue = new Date();
+      }
+
+      const tagsArray = fields.tags?.arrayValue?.values?.map((v: any) => v.stringValue).filter(Boolean) || [];
+
+      return {
+        id,
+        destination: fields.destination?.stringValue || 'Sin destino',
+        date: dateValue.toISOString(),
+        price: Number(fields.price?.integerValue || fields.price?.doubleValue || 0),
+        currency: fields.currency?.stringValue || 'ARS',
+        days: parseInt(fields.days?.integerValue || '0') || undefined,
+        nights: parseInt(fields.nights?.integerValue || '0') || undefined,
+        backgroundImage: fields.backgroundImage?.stringValue || undefined,
+        isFeatured: fields.isFeatured?.booleanValue || false,
+        isPublic,
+        availableSeats: parseInt(fields.availableSeats?.integerValue || '0') || undefined,
+        tags: tagsArray,
+      };
+    }).sort((a: TourData, b: TourData) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  } catch {
     return [];
   }
 }
 
 async function getContactInfoAdmin(): Promise<ContactData | null> {
-  if (!db) return null;
-  
+  if (!adminDb) return null;
   try {
-    const settingsDoc = await db.collection('settings').doc('general').get();
-    if (!settingsDoc.exists) return null;
-    
-    const data = settingsDoc.data();
+    const doc = await adminDb.collection('settings').doc('general').get();
+    if (!doc.exists) return null;
+    const data = doc.data()!;
     return {
-      whatsapp: data?.mainWhatsappNumber,
-      phone: data?.contact?.phone,
-      email: data?.contact?.email,
-      address: data?.contact?.address,
-      addressLink: data?.contact?.addressLink,
-      instagram: data?.contact?.instagram,
-      facebook: data?.contact?.facebook,
-      hours: data?.contact?.hours,
+      whatsapp: data.mainWhatsappNumber,
+      phone: data.contact?.phone,
+      email: data.contact?.email,
+      address: data.contact?.address,
+      addressLink: data.contact?.addressLink,
+      instagram: data.contact?.instagram,
+      facebook: data.contact?.facebook,
+      hours: data.contact?.hours,
     };
-  } catch (error) {
-    console.error('Error fetching contact with Admin:', error);
+  } catch {
     return null;
   }
 }
 
 async function getContactInfoREST(): Promise<ContactData | null> {
   try {
-    const data = await fetchFromFirestoreREST('settings/general');
+    const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+    if (!projectId) return null;
+    const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/settings/general`;
+    const res = await fetch(url, { cache: 'no-store' });
+    if (!res.ok) return null;
+    const data = await res.json();
     if (!data?.fields) return null;
-    
-    const fields = data.fields;
-    const contact = fields.contact?.mapValue?.fields || {};
-    
+    const f = data.fields;
+    const c = f.contact?.mapValue?.fields || {};
     return {
-      whatsapp: fields.mainWhatsappNumber?.stringValue,
-      phone: contact.phone?.stringValue,
-      email: contact.email?.stringValue,
-      address: contact.address?.stringValue,
-      addressLink: contact.addressLink?.stringValue,
-      instagram: contact.instagram?.stringValue,
-      facebook: contact.facebook?.stringValue,
-      hours: contact.hours?.stringValue,
+      whatsapp: f.mainWhatsappNumber?.stringValue,
+      phone: c.phone?.stringValue,
+      email: c.email?.stringValue,
+      address: c.address?.stringValue,
+      addressLink: c.addressLink?.stringValue,
+      instagram: c.instagram?.stringValue,
+      facebook: c.facebook?.stringValue,
+      hours: c.hours?.stringValue,
     };
-  } catch (error) {
-    console.error('Error fetching contact with REST:', error);
+  } catch {
     return null;
   }
 }
 
 async function getAllTours(): Promise<TourData[]> {
-  // Use REST directly to avoid Admin auth issues in this environment
-  const tours = await getAllToursREST();
-  
-  const filteredTours = tours.filter(t => t.isPublic !== false);
-  return filteredTours;
+  // Intenta con Admin SDK (bypasses security rules)
+  const adminOk = initializeFirebaseAdmin();
+  if (adminOk) {
+    const adminTours = await getAllToursAdmin();
+    if (adminTours.length > 0) {
+      return adminTours.filter(t => t.isPublic !== false);
+    }
+  }
+
+  // Fallback: REST API pública (funciona cuando las reglas permiten lectura sin auth)
+  const restTours = await getAllToursREST();
+  return restTours.filter(t => t.isPublic !== false);
 }
 
 async function getContactInfo(): Promise<ContactData | null> {
-  // Use REST directly
+  const adminOk = initializeFirebaseAdmin();
+  if (adminOk) {
+    const info = await getContactInfoAdmin();
+    if (info) return info;
+  }
   return getContactInfoREST();
 }
 
-const SYSTEM_PROMPT = `Eres el asistente virtual oficial y experto de la agencia de viajes "YO TE LLEVO". Tu misión es ser el mejor asistente de IA: servicial, detallista y proactivo. Respondes siempre en español.
+const SYSTEM_PROMPT = `Sos el asistente virtual de "YO TE LLEVO", una agencia de viajes argentina. Respondés siempre en español, con tono cordial y entusiasta.
 
-VIAJES DISPONIBLES ACTUALMENTE (Usa esta lista como única fuente de verdad):
+VIAJES DISPONIBLES (fuente de verdad absoluta — usá ESTA lista para responder):
 {{TOURS_DATA}}
 
-INFORMACIÓN DE CONTACTO:
+CONTACTO:
 {{CONTACT_DATA}}
 
-REGLAS CRÍTICAS DE VISIBILIDAD:
-1. DEBES MOSTRAR TODOS LOS VIAJES: Si el usuario pregunta "qué viajes hay", "cuáles son los destinos" o similares, TIENES que listar CADA UNO de los viajes que aparecen arriba en la sección "VIAJES DISPONIBLES ACTUALMENTE". No resumas, muéstralos todos.
-2. NUNCA DIGAS QUE NO HAY VIAJES si hay al menos uno en la lista superior.
-3. IDs DE VIAJES: Para la acción "showTours", incluye TODOS los IDs de la lista si el usuario pide ver todo el catálogo.
+INSTRUCCIONES:
+1. Si preguntan por viajes, listá TODOS los que aparecen arriba. NUNCA digas que no hay viajes si la lista no está vacía.
+2. Usá la acción "showTours" con los IDs cuando sea útil mostrar las tarjetas de viaje.
+3. Si piden contacto, usá "showContact".
+4. Para reservas: elegir viaje → clic en Reservar → cargar pasajeros → elegir punto de embarque → pagar seña o total → ¡listo!
 
-GUÍA DETALLADA DE RESERVA (Explica esto siempre que pregunten "cómo reservar"):
-- Paso 1: Revisa nuestra lista de viajes y elige tu destino favorito.
-- Paso 2: Haz clic en el botón "Reservar" del viaje elegido.
-- Paso 3: Elige la fecha en la que deseas viajar.
-- Paso 4: Carga los datos de los pasajeros (Nombre y DNI).
-- Paso 5: Selecciona tu lugar de subida (punto de embarque).
-- Paso 6: Elige si quieres pagar una seña o el total del viaje.
-- Paso 7: ¡Confirmas y listo! Podrás ver tu comprobante en tu perfil.
-
-FORMATO DE RESPUESTA (ESTRICTO JSON):
+RESPUESTA (SOLO JSON, sin texto extra):
 {
-  "message": "Tu respuesta detallada y entusiasta aquí",
-  "action": "none" | "showTours" | "showContact" | "showLinks",
-  "tourIds": ["id1", "id2", ...],
-  "links": [{"text": "texto", "url": "/url", "icon": "whatsapp|instagram|facebook|email|phone|map|web"}]
-}
-
-Responde SOLO con el objeto JSON, sin texto adicional.`;
+  "message": "tu respuesta aquí",
+  "action": "none" | "showTours" | "showContact",
+  "tourIds": ["id1", "id2"],
+  "links": [{"text": "texto", "url": "/url", "icon": "whatsapp|instagram|facebook|email|phone|map"}]
+}`;
 
 export async function POST(request: NextRequest) {
   try {
     const { messages } = await request.json();
-    
+
     if (!messages || !Array.isArray(messages)) {
       return NextResponse.json({ error: 'Messages array required' }, { status: 400 });
     }
 
-    const allTours = await getAllTours();
-    const contactInfo = await getContactInfo();
+    const [allTours, contactInfo] = await Promise.all([getAllTours(), getContactInfo()]);
 
-    // Filtramos manualmente en el prompt pero con un margen de 24hs para evitar problemas de zona horaria
-    const toursForPrompt = allTours.filter(t => {
-      // Eliminamos TODA restricción de fecha y visibilidad para forzar que el asistente vea TODO lo que hay en la base de datos
-      // y sea él quien decida qué mostrar según la conversación
-      return true;
-    });
-
-    const toursDataStr = allTours.length > 0 
+    const toursDataStr = allTours.length > 0
       ? allTours.map(t => {
           const date = new Date(t.date);
-          return `- DESTINO: ${t.destination} | FECHA: ${date.toLocaleDateString('es-AR')} | PRECIO: ${t.currency === 'USD' ? 'USD ' : ''}$${t.price} | ID: ${t.id} | IMAGEN: ${t.backgroundImage || 'N/A'} | VIDEO: ${t.gallery?.find(g => g.type === 'video')?.url || 'N/A'}`;
+          const dateStr = date.toLocaleDateString('es-AR', { day: '2-digit', month: 'long', year: 'numeric' });
+          const price = t.currency === 'USD' ? `USD $${t.price}` : `$${t.price} ARS`;
+          const extras = [
+            t.days ? `${t.days} días` : null,
+            t.nights ? `${t.nights} noches` : null,
+            t.availableSeats ? `${t.availableSeats} lugares disp.` : null,
+            t.isFeatured ? 'DESTACADO' : null,
+            t.tags && t.tags.length > 0 ? t.tags.join(', ') : null,
+          ].filter(Boolean).join(' | ');
+          return `• ${t.destination} — ${dateStr} — ${price} — ID: ${t.id}${extras ? ` [${extras}]` : ''}`;
         }).join('\n')
-      : 'No hay viajes disponibles actualmente.';
+      : 'No hay viajes cargados en el sistema.';
 
-    const contactDataStr = contactInfo 
-      ? `WhatsApp: ${contactInfo.whatsapp || 'N/A'}, Teléfono: ${contactInfo.phone || 'N/A'}, Email: ${contactInfo.email || 'N/A'}, Instagram: ${contactInfo.instagram || 'N/A'}, Facebook: ${contactInfo.facebook || 'N/A'}, Dirección: ${contactInfo.address || 'N/A'}, Horario: ${contactInfo.hours || 'N/A'}`
-      : 'Información de contacto no disponible.';
+    const contactDataStr = contactInfo
+      ? [
+          contactInfo.whatsapp ? `WhatsApp: ${contactInfo.whatsapp}` : null,
+          contactInfo.phone ? `Tel: ${contactInfo.phone}` : null,
+          contactInfo.email ? `Email: ${contactInfo.email}` : null,
+          contactInfo.instagram ? `Instagram: ${contactInfo.instagram}` : null,
+          contactInfo.facebook ? `Facebook: ${contactInfo.facebook}` : null,
+          contactInfo.address ? `Dirección: ${contactInfo.address}` : null,
+          contactInfo.hours ? `Horario: ${contactInfo.hours}` : null,
+        ].filter(Boolean).join(' | ')
+      : 'Contacto no disponible.';
 
-    const SYSTEM_PROMPT_ENHANCED = `Eres el asistente virtual premium de "YO TE LLEVO". Tu lenguaje es neutro, profesional y entusiasta.
-    
-VIAJES DISPONIBLES (Única fuente de verdad):
-{{TOURS_DATA}}
-
-INFORMACIÓN DE CONTACTO:
-{{CONTACT_DATA}}
-
-TU MISIÓN:
-1. Responde dudas sobre viajes, reservas y la empresa.
-2. Si el usuario pregunta por viajes, USA la acción "showTours" e incluye los IDs.
-3. Si piden ver fotos o videos de un viaje específico, USA la acción "showMedia" e incluye la URL.
-4. Si piden contacto, USA "showContact".
-5. Sé proactivo: si alguien pregunta por un destino, muéstrale la tarjeta del viaje.
-
-FORMATO DE RESPUESTA (ESTRICTO JSON):
-{
-  "message": "Tu respuesta aquí",
-  "action": "none" | "showTours" | "showContact" | "showMedia",
-  "tourIds": ["id1", ...],
-  "media": {"type": "image" | "video", "url": "url"},
-  "links": [{"text": "texto", "url": "url", "icon": "whatsapp|instagram|facebook|email|phone|map"}]
-}
-Responde SOLO con el objeto JSON.`;
-
-    const systemPrompt = SYSTEM_PROMPT_ENHANCED
+    const systemPrompt = SYSTEM_PROMPT
       .replace('{{TOURS_DATA}}', toursDataStr)
       .replace('{{CONTACT_DATA}}', contactDataStr);
 
-    const conversationHistory = messages.map((msg: { role: string; content: string }) => {
-      let content = msg.content;
-      // Inyectamos una corrección invisible en el historial para que la IA sepa que antes se equivocó
-      if (msg.role === 'assistant' && (content.includes('no tenemos viajes disponibles') || content.includes('no hay viajes'))) {
-         content = "Anteriormente dije que no había viajes, pero ahora veo que SÍ hay viajes disponibles en el sistema: " + toursDataStr;
-      }
-      return {
-        role: msg.role === 'user' ? 'user' as const : 'model' as const,
-        content: [{ text: content }]
-      };
-    });
+    const conversationHistory = messages.map((msg: { role: string; content: string }) => ({
+      role: msg.role === 'user' ? 'user' as const : 'model' as const,
+      content: [{ text: msg.content }],
+    }));
 
     const response = await ai.generate({
       model: 'googleai/gemini-2.0-flash',
       system: systemPrompt,
       messages: conversationHistory,
-      config: {
-        temperature: 0.1,
-        maxOutputTokens: 2048,
-        topP: 0.1,
-        topK: 1
-      }
+      config: { temperature: 0.2, maxOutputTokens: 1024 },
     });
 
     let text = response.text;
-    let parsedResponse: any = { message: text, action: 'none' };
+    let parsed: any = { message: text, action: 'none' };
 
     try {
-      const cleanedText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-      const jsonMatch = cleanedText.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        parsedResponse = JSON.parse(jsonMatch[0]);
-      }
-    } catch (e) {
-      parsedResponse = { message: text, action: 'none' };
+      const clean = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      const match = clean.match(/\{[\s\S]*\}/);
+      if (match) parsed = JSON.parse(match[0]);
+    } catch {
+      parsed = { message: text, action: 'none' };
     }
 
     let tours = null;
-    if (parsedResponse.action === 'showTours' && parsedResponse.tourIds?.length > 0) {
-      // Allow showing more than 5 if explicitly requested or "all"
-      tours = allTours.filter(t => parsedResponse.tourIds.includes(t.id));
+    if (parsed.action === 'showTours' && Array.isArray(parsed.tourIds) && parsed.tourIds.length > 0) {
+      tours = allTours.filter(t => parsed.tourIds.includes(t.id));
     }
 
     let links = null;
-    if (parsedResponse.action === 'showContact' && contactInfo) {
+    if (parsed.action === 'showContact' && contactInfo) {
       links = [];
-      if (contactInfo.whatsapp) {
-        links.push({
-          text: 'WhatsApp',
-          url: `https://wa.me/${contactInfo.whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent('Hola! Quisiera hacer una consulta.')}`,
-          icon: 'whatsapp'
-        });
-      }
-      if (contactInfo.phone) {
-        links.push({ text: contactInfo.phone, url: `tel:${contactInfo.phone}`, icon: 'phone' });
-      }
-      if (contactInfo.email) {
-        links.push({ text: contactInfo.email, url: `mailto:${contactInfo.email}`, icon: 'email' });
-      }
-      if (contactInfo.instagram) {
-        links.push({ text: 'Instagram', url: contactInfo.instagram, icon: 'instagram' });
-      }
-      if (contactInfo.facebook) {
-        links.push({ text: 'Facebook', url: contactInfo.facebook, icon: 'facebook' });
-      }
-      if (contactInfo.address && contactInfo.addressLink) {
-        links.push({ text: contactInfo.address, url: contactInfo.addressLink, icon: 'map' });
-      }
-    } else if (parsedResponse.links?.length > 0) {
-      links = parsedResponse.links;
+      if (contactInfo.whatsapp) links.push({ text: 'WhatsApp', url: `https://wa.me/${contactInfo.whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent('Hola! Quisiera consultar sobre un viaje.')}`, icon: 'whatsapp' });
+      if (contactInfo.phone) links.push({ text: contactInfo.phone, url: `tel:${contactInfo.phone}`, icon: 'phone' });
+      if (contactInfo.email) links.push({ text: contactInfo.email, url: `mailto:${contactInfo.email}`, icon: 'email' });
+      if (contactInfo.instagram) links.push({ text: 'Instagram', url: contactInfo.instagram, icon: 'instagram' });
+      if (contactInfo.facebook) links.push({ text: 'Facebook', url: contactInfo.facebook, icon: 'facebook' });
+      if (contactInfo.address && contactInfo.addressLink) links.push({ text: contactInfo.address, url: contactInfo.addressLink, icon: 'map' });
+    } else if (Array.isArray(parsed.links) && parsed.links.length > 0) {
+      links = parsed.links;
     }
 
-    return NextResponse.json({ 
-      message: parsedResponse.message || text,
-      tours: tours,
-      links: links,
-      media: parsedResponse.action === 'showMedia' ? parsedResponse.media : null,
-      success: true 
+    return NextResponse.json({
+      message: parsed.message || text,
+      tours,
+      links,
+      success: true,
     });
 
   } catch (error) {
-    console.error('Error in chat API:', error);
-    return NextResponse.json({ 
-      error: 'Error al procesar tu mensaje. Por favor, intenta de nuevo.',
-      success: false 
-    }, { status: 500 });
+    return NextResponse.json({ error: 'Error al procesar tu mensaje. Por favor, intentá de nuevo.', success: false }, { status: 500 });
   }
 }
