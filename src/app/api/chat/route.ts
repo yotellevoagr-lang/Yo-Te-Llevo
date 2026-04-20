@@ -100,17 +100,26 @@ async function getAllToursREST(): Promise<TourData[]> {
     const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
     if (!projectId) return [];
 
-    const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/tours?pageSize=300`;
-    const res = await fetch(url, {
-      headers: { 'Content-Type': 'application/json' },
-      cache: 'no-store',
-    });
+    const baseUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/tours?pageSize=300`;
+    const allDocs: any[] = [];
 
-    if (!res.ok) return [];
-    const data = await res.json();
-    if (!data.documents) return [];
+    // Recorrer todas las páginas de resultados
+    let nextPageToken: string | null = null;
+    do {
+      const url = nextPageToken ? `${baseUrl}&pageToken=${nextPageToken}` : baseUrl;
+      const res = await fetch(url, {
+        headers: { 'Content-Type': 'application/json' },
+        cache: 'no-store',
+      });
+      if (!res.ok) break;
+      const data = await res.json();
+      if (data.documents) allDocs.push(...data.documents);
+      nextPageToken = data.nextPageToken || null;
+    } while (nextPageToken);
 
-    return data.documents.map((doc: any) => {
+    if (allDocs.length === 0) return [];
+
+    return allDocs.map((doc: any) => {
       const fields = doc.fields || {};
       const id = doc.name.split('/').pop();
 
