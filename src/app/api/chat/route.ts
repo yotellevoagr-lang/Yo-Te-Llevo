@@ -85,7 +85,7 @@ async function getAllToursAdmin(): Promise<TourData[]> {
         nights: data.nights || undefined,
         backgroundImage: data.backgroundImage || undefined,
         isFeatured: data.isFeatured || false,
-        isPublic: data.isPublic ?? true,
+        isPublic: data.isPublic === true,
         availableSeats: data.availableSeats || undefined,
         tags: Array.isArray(data.tags) ? data.tags : [],
       };
@@ -123,7 +123,7 @@ async function getAllToursREST(): Promise<TourData[]> {
       const fields = doc.fields || {};
       const id = doc.name.split('/').pop();
 
-      const isPublic = fields.isPublic?.booleanValue ?? true;
+      const isPublic = fields.isPublic?.booleanValue === true;
 
       let dateValue: Date;
       if (fields.date?.timestampValue) {
@@ -213,13 +213,13 @@ async function getAllTours(): Promise<TourData[]> {
   if (adminOk) {
     const adminTours = await getAllToursAdmin();
     if (adminTours.length > 0) {
-      return adminTours.filter(t => t.isPublic !== false);
+      return adminTours.filter(t => t.isPublic === true);
     }
   }
 
   // Fallback: REST API pública (funciona cuando las reglas permiten lectura sin auth)
   const restTours = await getAllToursREST();
-  return restTours.filter(t => t.isPublic !== false);
+  return restTours.filter(t => t.isPublic === true);
 }
 
 async function getContactInfo(): Promise<ContactData | null> {
