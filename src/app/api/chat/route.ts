@@ -213,11 +213,11 @@ function isTourUpcoming(tour: TourData): boolean {
   const argentinaOffset = -3 * 60; // minutos
   const utcMs = now.getTime() + now.getTimezoneOffset() * 60000;
   const argNow = new Date(utcMs + argentinaOffset * 60000);
-  // Comparar solo fecha (sin hora) para incluir viajes que salen hoy
+  // Comparar solo fecha (sin hora) — el día del viaje ya es historial
   const todayArg = new Date(argNow.getFullYear(), argNow.getMonth(), argNow.getDate());
   const tourDate = new Date(tour.date);
   const tourDay = new Date(tourDate.getFullYear(), tourDate.getMonth(), tourDate.getDate());
-  return tourDay >= todayArg;
+  return tourDay > todayArg;
 }
 
 async function getAllTours(): Promise<TourData[]> {
