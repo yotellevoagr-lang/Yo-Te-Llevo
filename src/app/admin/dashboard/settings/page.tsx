@@ -1126,18 +1126,29 @@ export default function SettingsPage() {
                                         <div className="space-y-1">
                                             <Label>{generalSettings.aboutUsStyle?.bgType === 'gradient' ? 'Color 1 (inicio)' : 'Color de fondo'}</Label>
                                             <div className="flex items-center gap-2">
-                                                <input
-                                                    type="color"
-                                                    value={generalSettings.aboutUsStyle?.bgColor || '#ffffff'}
-                                                    onChange={e => setGeneralSettings(prev => ({ ...prev, aboutUsStyle: { ...prev.aboutUsStyle, bgColor: e.target.value } }))}
-                                                    className="w-10 h-10 rounded cursor-pointer border border-input p-0.5 bg-transparent"
-                                                />
-                                                <Input
-                                                    value={generalSettings.aboutUsStyle?.bgColor || ''}
-                                                    onChange={e => setGeneralSettings(prev => ({ ...prev, aboutUsStyle: { ...prev.aboutUsStyle, bgColor: e.target.value } }))}
-                                                    placeholder="#ffffff"
-                                                    className="font-mono text-sm"
-                                                />
+                                                {generalSettings.aboutUsStyle?.bgColor && generalSettings.aboutUsStyle.bgColor !== 'transparent' ? (
+                                                    <input
+                                                        type="color"
+                                                        value={generalSettings.aboutUsStyle?.bgColor || '#ffffff'}
+                                                        onChange={e => setGeneralSettings(prev => ({ ...prev, aboutUsStyle: { ...prev.aboutUsStyle, bgColor: e.target.value } }))}
+                                                        className="w-10 h-10 rounded cursor-pointer border border-input p-0.5 bg-transparent"
+                                                    />
+                                                ) : (
+                                                    <div className="w-10 h-10 rounded border border-input flex items-center justify-center text-xs text-muted-foreground" style={{background:'repeating-linear-gradient(45deg,#ccc,#ccc 3px,#fff 3px,#fff 8px)'}}>∅</div>
+                                                )}
+                                                <div className="flex-1 flex flex-col gap-1">
+                                                    <Input
+                                                        value={generalSettings.aboutUsStyle?.bgColor || ''}
+                                                        onChange={e => setGeneralSettings(prev => ({ ...prev, aboutUsStyle: { ...prev.aboutUsStyle, bgColor: e.target.value } }))}
+                                                        placeholder="Sin color (transparente)"
+                                                        className="font-mono text-sm"
+                                                    />
+                                                    {generalSettings.aboutUsStyle?.bgColor && generalSettings.aboutUsStyle.bgColor !== 'transparent' ? (
+                                                        <Button variant="ghost" size="sm" className="h-5 px-1 text-xs self-start" onClick={() => setGeneralSettings(prev => ({ ...prev, aboutUsStyle: { ...prev.aboutUsStyle, bgColor: '' } }))}>✕ Sin color</Button>
+                                                    ) : (
+                                                        <Button variant="ghost" size="sm" className="h-5 px-1 text-xs self-start" onClick={() => setGeneralSettings(prev => ({ ...prev, aboutUsStyle: { ...prev.aboutUsStyle, bgColor: '#ffffff' } }))}>+ Agregar color</Button>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
                                         {generalSettings.aboutUsStyle?.bgType === 'gradient' && (
@@ -1168,18 +1179,29 @@ export default function SettingsPage() {
                                             <div className="space-y-1">
                                                 <Label>Color 3 (final)</Label>
                                                 <div className="flex items-center gap-2">
-                                                    <input
-                                                        type="color"
-                                                        value={generalSettings.aboutUsStyle?.bgColorTo || '#f0f0f0'}
-                                                        onChange={e => setGeneralSettings(prev => ({ ...prev, aboutUsStyle: { ...prev.aboutUsStyle, bgColorTo: e.target.value } }))}
-                                                        className="w-10 h-10 rounded cursor-pointer border border-input p-0.5 bg-transparent"
-                                                    />
-                                                    <Input
-                                                        value={generalSettings.aboutUsStyle?.bgColorTo || ''}
-                                                        onChange={e => setGeneralSettings(prev => ({ ...prev, aboutUsStyle: { ...prev.aboutUsStyle, bgColorTo: e.target.value } }))}
-                                                        placeholder="#f0f0f0"
-                                                        className="font-mono text-sm"
-                                                    />
+                                                    {generalSettings.aboutUsStyle?.bgColorTo && generalSettings.aboutUsStyle.bgColorTo !== 'transparent' ? (
+                                                        <input
+                                                            type="color"
+                                                            value={generalSettings.aboutUsStyle?.bgColorTo || '#f0f0f0'}
+                                                            onChange={e => setGeneralSettings(prev => ({ ...prev, aboutUsStyle: { ...prev.aboutUsStyle, bgColorTo: e.target.value } }))}
+                                                            className="w-10 h-10 rounded cursor-pointer border border-input p-0.5 bg-transparent"
+                                                        />
+                                                    ) : (
+                                                        <div className="w-10 h-10 rounded border border-input flex items-center justify-center text-xs text-muted-foreground" style={{background:'repeating-linear-gradient(45deg,#ccc,#ccc 3px,#fff 3px,#fff 8px)'}}>∅</div>
+                                                    )}
+                                                    <div className="flex-1 flex flex-col gap-1">
+                                                        <Input
+                                                            value={generalSettings.aboutUsStyle?.bgColorTo || ''}
+                                                            onChange={e => setGeneralSettings(prev => ({ ...prev, aboutUsStyle: { ...prev.aboutUsStyle, bgColorTo: e.target.value } }))}
+                                                            placeholder="Sin color (transparente)"
+                                                            className="font-mono text-sm"
+                                                        />
+                                                        {generalSettings.aboutUsStyle?.bgColorTo && generalSettings.aboutUsStyle.bgColorTo !== 'transparent' ? (
+                                                            <Button variant="ghost" size="sm" className="h-5 px-1 text-xs self-start" onClick={() => setGeneralSettings(prev => ({ ...prev, aboutUsStyle: { ...prev.aboutUsStyle, bgColorTo: '' } }))}>✕ Sin color</Button>
+                                                        ) : (
+                                                            <Button variant="ghost" size="sm" className="h-5 px-1 text-xs self-start" onClick={() => setGeneralSettings(prev => ({ ...prev, aboutUsStyle: { ...prev.aboutUsStyle, bgColorTo: '#f0f0f0' } }))}>+ Agregar color</Button>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </div>
                                         )}

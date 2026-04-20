@@ -180,5 +180,23 @@ service cloud.firestore {
       allow read: if true;
       allow write: if isAdmin();
     }
+
+    // ==========================================
+    // VOTOS POR ZONA
+    // ==========================================
+
+    match /location_votes/{voteId} {
+      allow read: if isAdminOrEmployee();
+      allow create: if isSignedIn();
+      allow update, delete: if isAdmin();
+    }
+
+    // ==========================================
+    // FACTURAS ARCA
+    // ==========================================
+
+    match /invoices/{invoiceId} {
+      allow read, write: if isAdmin();
+    }
   }
 }

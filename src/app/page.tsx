@@ -222,9 +222,11 @@ export default function Home() {
             style={(() => {
                 const s = generalSettings?.aboutUsStyle;
                 if (!s || !s.bgType || s.bgType === 'none') return {};
-                if (s.bgType === 'color' && s.bgColor) return { backgroundColor: s.bgColor };
-                if (s.bgType === 'gradient' && s.bgColor) {
-                    const stops = [s.bgColor, s.bgColorMid, s.bgColorTo || s.bgColor].filter(Boolean).join(', ');
+                if (s.bgType === 'color') return s.bgColor ? { backgroundColor: s.bgColor } : {};
+                if (s.bgType === 'gradient') {
+                    const c1 = s.bgColor || 'transparent';
+                    const c3 = s.bgColorTo || 'transparent';
+                    const stops = [c1, s.bgColorMid, c3].filter(Boolean).join(', ');
                     return { background: `linear-gradient(${s.bgDirection || 'to bottom right'}, ${stops})` };
                 }
                 return {};
