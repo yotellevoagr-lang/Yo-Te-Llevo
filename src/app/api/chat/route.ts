@@ -39,10 +39,30 @@ interface TourData {
   days?: number;
   nights?: number;
   backgroundImage?: string;
+  gallery?: { url: string; type: string }[];
   isFeatured?: boolean;
   isPublic?: boolean;
   availableSeats?: number;
   tags?: string[];
+  description?: string;
+  cancellationPolicy?: string;
+  departureTime?: string;
+  presentationTime?: string;
+}
+
+interface WeatherData {
+  city: string;
+  temp: string;
+  feelsLike: string;
+  desc: string;
+  humidity: string;
+  forecast: string;
+}
+
+interface UserContext {
+  name?: string;
+  pastDestinations?: string[];
+  upcomingDestinations?: string[];
 }
 
 interface ContactData {
@@ -139,6 +159,10 @@ async function getAllToursREST(): Promise<TourData[]> {
       }
 
       const tagsArray = fields.tags?.arrayValue?.values?.map((v: any) => v.stringValue).filter(Boolean) || [];
+      const gallery = fields.gallery?.arrayValue?.values?.slice(0, 4).map((v: any) => ({
+        url: v.mapValue?.fields?.url?.stringValue || '',
+        type: v.mapValue?.fields?.type?.stringValue || 'image'
+      })).filter((g: any) => g.url) || [];
 
       return {
         id,
@@ -149,10 +173,15 @@ async function getAllToursREST(): Promise<TourData[]> {
         days: parseInt(fields.days?.integerValue || '0') || undefined,
         nights: parseInt(fields.nights?.integerValue || '0') || undefined,
         backgroundImage: fields.backgroundImage?.stringValue || undefined,
+        gallery: gallery.length > 0 ? gallery : undefined,
         isFeatured: fields.isFeatured?.booleanValue || false,
         isPublic,
         availableSeats: parseInt(fields.availableSeats?.integerValue || '0') || undefined,
         tags: tagsArray,
+        description: fields.description?.stringValue || fields.observations?.stringValue || undefined,
+        cancellationPolicy: fields.cancellationPolicy?.stringValue || undefined,
+        departureTime: fields.departureTime?.stringValue || undefined,
+        presentationTime: fields.presentationTime?.stringValue || undefined,
       };
     }).sort((a: TourData, b: TourData) => new Date(a.date).getTime() - new Date(b.date).getTime());
   } catch {
@@ -235,6 +264,34 @@ async function getAllTours(): Promise<TourData[]> {
   return restTours.filter(t => t.isPublic === true && isTourUpcoming(t));
 }
 
+async function getWeather(city: string): Promise<WeatherData | null> {
+  try {
+    const res = await fetch(
+      `https://wttr.in/${encodeURIComponent(city)}?format=j1`,
+      { cache: 'no-store', headers: { 'Accept': 'application/json' } }
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    const current = data.current_condition?.[0];
+    if (!current) return null;
+    const desc = current.weatherDesc?.[0]?.value || 'N/A';
+    const forecastArr = (data.weather || []).slice(0, 3);
+    const forecast = forecastArr.map((w: any) => {
+      return `${w.date}: ${w.mintempC}°-${w.maxtempC}°C`;
+    }).join(' | ');
+    return {
+      city,
+      temp: `${current.temp_C}°C`,
+      feelsLike: `${current.FeelsLikeC}°C`,
+      desc,
+      humidity: `${current.humidity}%`,
+      forecast,
+    };
+  } catch {
+    return null;
+  }
+}
+
 async function getContactInfo(): Promise<ContactData | null> {
   const adminOk = initializeFirebaseAdmin();
   if (adminOk) {
@@ -244,7 +301,7 @@ async function getContactInfo(): Promise<ContactData | null> {
   return getContactInfoREST();
 }
 
-const SYSTEM_PROMPT = `Sos el asistente virtual de "YO TE LLEVO", una agencia de viajes argentina. Respondés siempre en español, con tono cordial y entusiasta.
+const SYSTEM_PROMPT = `Sos el asistente virtual de "YO TE LLEVO", una agencia de viajes argentina. Respondés siempre en español, con tono cordial y entusiasta. Sos un asistente avanzado, único e inigualable.
 
 VIAJES DISPONIBLES (fuente de verdad absoluta):
 {{TOURS_DATA}}
@@ -252,33 +309,65 @@ VIAJES DISPONIBLES (fuente de verdad absoluta):
 CONTACTO:
 {{CONTACT_DATA}}
 
-REGLA ABSOLUTA — TARJETAS DE VIAJE:
-Cada vez que mencionás o describís UNO o MÁS viajes específicos, SIEMPRE debés incluir en el JSON:
-  "action": "showTours"
-  "tourIds": [ IDs exactos de los viajes que mencionás ]
+USUARIO ACTUAL:
+{{USER_DATA}}
 
-Esto aplica SIN EXCEPCIÓN para:
-- "viajes destacados" → incluí todos los IDs marcados como DESTACADO
-- "viajes baratos" → incluí el ID del más barato
-- "viaje a X destino" → incluí el ID de ese destino
-- "mostrame todos los viajes" → incluí todos los IDs
-- Cualquier mención de 1 o más viajes en tu respuesta
+═══════════════════════════════
+REGLAS Y CAPACIDADES
+═══════════════════════════════
 
-NUNCA respondas solo con texto cuando mencionás viajes. El usuario SIEMPRE necesita ver la tarjeta con imagen y botón de reserva.
-Si piden contacto: "action": "showContact".
-Para reservas: elegir viaje → clic en Reservar → datos de pasajeros → punto de embarque → pagar seña o total.
+1. TARJETAS DE VIAJE (REGLA ABSOLUTA):
+   Cada vez que mencionás 1 o más viajes, SIEMPRE incluí:
+   "action": "showTours", "tourIds": [IDs exactos]
+   - "viajes destacados" → IDs con DESTACADO
+   - "más barato" → ID del precio mínimo
+   - "viaje a X" → ID de ese destino
+   - "todos los viajes" → todos los IDs
+   NUNCA respondas solo texto cuando mencionás viajes.
 
-RESPUESTA (SOLO JSON, sin texto extra):
+2. COMPARAR VIAJES:
+   Si el usuario pide comparar 2 viajes → "action": "showComparison", "tourIds": [id1, id2]
+   Ejemplo: "comparame Cataratas con Buenos Aires", "¿cuál es mejor X o Y?"
+
+3. CLIMA / TIEMPO:
+   Si preguntan por el clima en un destino → "action": "showWeather", "weatherDestination": "nombre exacto ciudad"
+   Ejemplo: "¿qué clima hace en Cataratas?", "¿cómo está el tiempo en Córdoba?"
+
+4. FAQ / DETALLES DEL VIAJE:
+   Si preguntan qué incluye, qué llevar, itinerario, horarios, política de cancelación →
+   Respondé con la información disponible en la descripción y datos del viaje.
+   Siempre que hables de un viaje específico, incluí también su tarjeta (showTours + tourId).
+
+5. PRESUPUESTO:
+   Si el usuario da un presupuesto → mostrá TODOS los viajes dentro de ese rango.
+   "Tengo $X" → filtrá por precio <= X → showTours con esos IDs.
+   Si ninguno entra → mostrá el más cercano al presupuesto.
+
+6. HISTORIAL PERSONALIZADO:
+   Si hay datos de usuario → Saludalo por nombre, considerá sus viajes pasados para recomendar
+   destinos nuevos. Mencioná si ya viajó a un destino que está preguntando.
+
+7. CONTACTO:
+   Si piden contacto → "action": "showContact"
+
+8. PARA RESERVAR:
+   Elegir viaje → botón Reservar → datos de pasajeros → punto de embarque → pagar seña o total.
+
+═══════════════════════════════
+FORMATO DE RESPUESTA (SOLO JSON):
+═══════════════════════════════
 {
   "message": "tu respuesta aquí",
-  "action": "none" | "showTours" | "showContact",
+  "action": "none" | "showTours" | "showContact" | "showComparison" | "showWeather",
   "tourIds": ["id1", "id2"],
+  "weatherDestination": "ciudad para consultar el clima",
   "links": [{"text": "texto", "url": "/url", "icon": "whatsapp|instagram|facebook|email|phone|map"}]
 }`;
 
 export async function POST(request: NextRequest) {
   try {
-    const { messages } = await request.json();
+    const body = await request.json();
+    const { messages, userContext }: { messages: any[]; userContext?: UserContext } = body;
 
     if (!messages || !Array.isArray(messages)) {
       return NextResponse.json({ error: 'Messages array required' }, { status: 400 });
@@ -292,13 +381,16 @@ export async function POST(request: NextRequest) {
           const dateStr = date.toLocaleDateString('es-AR', { day: '2-digit', month: 'long', year: 'numeric' });
           const price = t.currency === 'USD' ? `USD $${t.price}` : `$${t.price} ARS`;
           const extras = [
-            t.days ? `${t.days} días` : null,
-            t.nights ? `${t.nights} noches` : null,
-            t.availableSeats ? `${t.availableSeats} lugares disp.` : null,
+            t.days ? `${t.days}D` : null,
+            t.nights ? `${t.nights}N` : null,
+            t.availableSeats ? `${t.availableSeats} lugares` : null,
             t.isFeatured ? 'DESTACADO' : null,
-            t.tags && t.tags.length > 0 ? t.tags.join(', ') : null,
+            t.departureTime ? `Salida: ${t.departureTime}` : null,
+            t.tags && t.tags.length > 0 ? `Tags: ${t.tags.join(',')}` : null,
           ].filter(Boolean).join(' | ');
-          return `• ${t.destination} — ${dateStr} — ${price} — ID: ${t.id}${extras ? ` [${extras}]` : ''}`;
+          const descSnippet = t.description ? `\n  Info: ${t.description.slice(0, 120)}${t.description.length > 120 ? '...' : ''}` : '';
+          const cancelSnippet = t.cancellationPolicy ? `\n  Cancelación: ${t.cancellationPolicy.slice(0, 80)}` : '';
+          return `• ${t.destination} — ${dateStr} — ${price} — ID: ${t.id}${extras ? ` [${extras}]` : ''}${descSnippet}${cancelSnippet}`;
         }).join('\n')
       : 'No hay viajes cargados en el sistema.';
 
@@ -314,9 +406,18 @@ export async function POST(request: NextRequest) {
         ].filter(Boolean).join(' | ')
       : 'Contacto no disponible.';
 
+    const userDataStr = userContext
+      ? [
+          userContext.name ? `Nombre: ${userContext.name}` : null,
+          userContext.pastDestinations?.length ? `Ya viajó a: ${userContext.pastDestinations.join(', ')}` : null,
+          userContext.upcomingDestinations?.length ? `Tiene reservado: ${userContext.upcomingDestinations.join(', ')}` : null,
+        ].filter(Boolean).join(' | ')
+      : 'Usuario anónimo (no logueado)';
+
     const systemPrompt = SYSTEM_PROMPT
       .replace('{{TOURS_DATA}}', toursDataStr)
-      .replace('{{CONTACT_DATA}}', contactDataStr);
+      .replace('{{CONTACT_DATA}}', contactDataStr)
+      .replace('{{USER_DATA}}', userDataStr);
 
     const conversationHistory = messages.map((msg: { role: string; content: string }) => ({
       role: msg.role === 'user' ? 'user' as const : 'model' as const,
@@ -327,7 +428,7 @@ export async function POST(request: NextRequest) {
       model: 'googleai/gemini-2.0-flash',
       system: systemPrompt,
       messages: conversationHistory,
-      config: { temperature: 0.2, maxOutputTokens: 1024 },
+      config: { temperature: 0.2, maxOutputTokens: 1500 },
     });
 
     let text = response.text;
@@ -341,35 +442,35 @@ export async function POST(request: NextRequest) {
       parsed = { message: text, action: 'none' };
     }
 
+    // Obtener tours a mostrar (comparación o tarjetas individuales)
     let tours = null;
+    const isComparison = parsed.action === 'showComparison';
 
-    // Caso 1: La IA usó showTours correctamente con IDs
     if (Array.isArray(parsed.tourIds) && parsed.tourIds.length > 0) {
       tours = allTours.filter(t => parsed.tourIds.includes(t.id));
     }
 
-    // Caso 2: La IA habló de viajes pero no usó showTours ni IDs — fallback por nombre de destino
-    if ((!tours || tours.length === 0) && parsed.message) {
+    // Fallback por nombre de destino si la IA no usó tourIds
+    if ((!tours || tours.length === 0) && !isComparison && parsed.message) {
       const msgLower = parsed.message.toLowerCase();
-      // Detectar si habla de viajes destacados
       if (msgLower.includes('destacado') || msgLower.includes('featured')) {
-        const featuredTours = allTours.filter(t => t.isFeatured);
-        if (featuredTours.length > 0) tours = featuredTours;
+        const ft = allTours.filter(t => t.isFeatured);
+        if (ft.length > 0) tours = ft;
       }
-      // Detectar destinos mencionados por nombre
       if (!tours || tours.length === 0) {
-        const mentionedByName = allTours.filter(t =>
-          msgLower.includes(t.destination.toLowerCase().trim())
-        );
-        if (mentionedByName.length > 0) tours = mentionedByName;
+        const byName = allTours.filter(t => msgLower.includes(t.destination.toLowerCase().trim()));
+        if (byName.length > 0) tours = byName;
       }
-      // Si habla de "viajes" en general sin filtrar, mostrar todos
       if (!tours || tours.length === 0) {
-        const tourKeywords = ['viajes disponibles', 'todos los viajes', 'viajes que tenemos', 'nuestros viajes', 'catálogo'];
-        if (tourKeywords.some(k => msgLower.includes(k))) {
-          tours = allTours;
-        }
+        const allKeywords = ['viajes disponibles', 'todos los viajes', 'viajes que tenemos', 'nuestros viajes', 'catálogo'];
+        if (allKeywords.some(k => msgLower.includes(k))) tours = allTours;
       }
+    }
+
+    // Obtener clima si la IA lo solicitó
+    let weather = null;
+    if (parsed.action === 'showWeather' && parsed.weatherDestination) {
+      weather = await getWeather(parsed.weatherDestination);
     }
 
     let links = null;
@@ -389,6 +490,8 @@ export async function POST(request: NextRequest) {
       message: parsed.message || text,
       tours,
       links,
+      weather,
+      isComparison,
       success: true,
     });
 

@@ -12,11 +12,19 @@ import {
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Bot, User, Send, RotateCcw, MessageCircle, Calendar, MapPin, Eye, Ticket, Phone, Mail, Instagram, Facebook, Map, ExternalLink } from "lucide-react";
+import {
+  Bot, User, Send, RotateCcw, MessageCircle, Calendar, MapPin, Eye,
+  Ticket, Phone, Mail, Instagram, Facebook, Map, ExternalLink,
+  Cloud, Thermometer, Droplets, ArrowLeftRight, Image as ImageIcon,
+  DollarSign, Star, Filter, X
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { useAuth } from "@/components/auth/auth-provider";
+import { getAllFromCollection_client } from "@/lib/firestore-services";
+import type { Reservation } from "@/lib/types";
 
 const WhatsAppIcon = ({ className }: { className?: string }) => (
   <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
@@ -34,7 +42,22 @@ interface TourData {
   days?: number;
   nights?: number;
   backgroundImage?: string;
+  gallery?: { url: string; type: string }[];
   isFeatured?: boolean;
+  availableSeats?: number;
+  tags?: string[];
+  description?: string;
+  cancellationPolicy?: string;
+  departureTime?: string;
+}
+
+interface WeatherData {
+  city: string;
+  temp: string;
+  feelsLike: string;
+  desc: string;
+  humidity: string;
+  forecast: string;
 }
 
 interface LinkData {
@@ -49,6 +72,8 @@ interface Message {
   tours?: TourData[];
   links?: LinkData[];
   media?: { type: 'image' | 'video'; url: string };
+  weather?: WeatherData;
+  isComparison?: boolean;
 }
 
 const getLinkIcon = (icon?: string) => {
@@ -63,81 +88,124 @@ const getLinkIcon = (icon?: string) => {
   }
 };
 
+const WELCOME_MESSAGE = "¡Hola! 👋 Soy el asistente virtual de YO TE LLEVO.\n\nPuedo ayudarte a encontrar el viaje perfecto, comparar opciones, ver el clima en el destino, recomendarte según tu presupuesto y mucho más. ¿Por dónde empezamos?";
+
 export default function AIChatbot() {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [whatsappNumber, setWhatsappNumber] = useState<string | null>(null);
+  const [galleryOpen, setGalleryOpen] = useState<{ tourId: string; idx: number } | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
 
   const scrollToBottom = () => {
     if (scrollAreaRef.current) {
       const viewport = scrollAreaRef.current.querySelector('div[data-radix-scroll-area-viewport]');
       if (viewport) {
-        setTimeout(() => {
-          viewport.scrollTop = viewport.scrollHeight;
-        }, 100);
+        setTimeout(() => { viewport.scrollTop = viewport.scrollHeight; }, 100);
       }
     }
   };
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages, isLoading]);
+  useEffect(() => { scrollToBottom(); }, [messages, isLoading]);
 
   useEffect(() => {
     if (isOpen && messages.length === 0) {
-      setMessages([{
-        role: "assistant",
-        content: "¡Hola! 👋 Soy el asistente virtual de YO TE LLEVO.\n\n¿Qué te gustaría saber? Puedo ayudarte a encontrar el viaje perfecto, mostrarte los más baratos, los destacados, darte info de contacto y más."
-      }]);
+      setMessages([{ role: "assistant", content: WELCOME_MESSAGE }]);
     }
   }, [isOpen, messages.length]);
 
-  const sendMessage = async () => {
-    if (!input.trim() || isLoading) return;
+  // Cargar número de WhatsApp para el botón del header
+  useEffect(() => {
+    const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+    if (!projectId) return;
+    fetch(`https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/settings/general`)
+      .then(r => r.json())
+      .then(d => {
+        const num = d?.fields?.mainWhatsappNumber?.stringValue;
+        if (num) setWhatsappNumber(num.replace(/\D/g, ''));
+      }).catch(() => {});
+  }, []);
 
-    const userMessage = input.trim();
+  const buildUserContext = async () => {
+    if (authLoading || !user) return undefined;
+    try {
+      const allRes = await getAllFromCollection_client<Reservation>('reservations');
+      const myRes = allRes.filter(r =>
+        Array.isArray((r as any).passengerIds) && (r as any).passengerIds.includes(user.id)
+      );
+      const pastDest: string[] = [];
+      const upcomingDest: string[] = [];
+      const now = new Date();
+      for (const res of myRes) {
+        const trip = (res as any);
+        if (trip.destination) {
+          if (trip.tripDate && new Date(trip.tripDate?.toDate?.() || trip.tripDate) < now) {
+            pastDest.push(trip.destination);
+          } else {
+            upcomingDest.push(trip.destination);
+          }
+        }
+      }
+      return {
+        name: (user as any).name || (user as any).firstName || undefined,
+        pastDestinations: [...new Set(pastDest)],
+        upcomingDestinations: [...new Set(upcomingDest)],
+      };
+    } catch {
+      return { name: (user as any).name || (user as any).firstName || undefined };
+    }
+  };
+
+  const sendMessage = async (overrideInput?: string) => {
+    const text = (overrideInput ?? input).trim();
+    if (!text || isLoading) return;
     setInput("");
-    
-    const newMessages: Message[] = [...messages, { role: "user", content: userMessage }];
+
+    const newMessages: Message[] = [...messages, { role: "user", content: text }];
     setMessages(newMessages);
     setIsLoading(true);
 
     try {
+      const userContext = await buildUserContext();
+
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           messages: newMessages.map(m => ({
             role: m.role === 'assistant' ? 'model' : 'user',
             content: m.content
-          }))
+          })),
+          userContext,
         }),
       });
 
       const data = await response.json();
 
       if (data.success && data.message) {
-        setMessages(prev => [...prev, { 
-          role: "assistant", 
+        setMessages(prev => [...prev, {
+          role: "assistant",
           content: data.message,
           tours: data.tours || undefined,
           links: data.links || undefined,
-          media: data.media || undefined
+          media: data.media || undefined,
+          weather: data.weather || undefined,
+          isComparison: data.isComparison || false,
         }]);
       } else {
-        setMessages(prev => [...prev, { 
-          role: "assistant", 
-          content: data.error || "Lo siento, hubo un problema. Por favor, intenta de nuevo." 
+        setMessages(prev => [...prev, {
+          role: "assistant",
+          content: data.error || "Lo siento, hubo un problema. Por favor, intenta de nuevo."
         }]);
       }
-    } catch (error) {
-      console.error('Chat error:', error);
-      setMessages(prev => [...prev, { 
-        role: "assistant", 
-        content: "Lo siento, no pude procesar tu mensaje. Verifica tu conexión e intenta de nuevo." 
+    } catch {
+      setMessages(prev => [...prev, {
+        role: "assistant",
+        content: "Lo siento, no pude procesar tu mensaje. Verificá tu conexión e intenta de nuevo."
       }]);
     } finally {
       setIsLoading(false);
@@ -145,17 +213,11 @@ export default function AIChatbot() {
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   };
 
   const resetChat = () => {
-    setMessages([{
-      role: "assistant",
-      content: "¡Hola! 👋 Soy el asistente virtual de YO TE LLEVO.\n\n¿Qué te gustaría saber? Puedo ayudarte a encontrar el viaje perfecto, mostrarte los más baratos, los destacados, darte info de contacto y más."
-    }]);
+    setMessages([{ role: "assistant", content: WELCOME_MESSAGE }]);
   };
 
   const handleViewTour = (tourId: string) => {
@@ -164,43 +226,34 @@ export default function AIChatbot() {
   };
 
   const handleLinkClick = (url: string) => {
-    if (url.startsWith('/')) {
-      router.push(url);
-      setIsOpen(false);
-    } else {
-      window.open(url, '_blank');
-    }
+    if (url.startsWith('/')) { router.push(url); setIsOpen(false); }
+    else window.open(url, '_blank');
   };
-
-  const handleQuickAction = (text: string) => {
-    setInput(text);
-    setTimeout(() => sendMessage(), 50);
-  };
-
-  useEffect(() => {
-    if (input && isLoading === false) {
-      const timer = setTimeout(() => {
-        if (input) sendMessage();
-      }, 100);
-      return () => clearTimeout(timer);
-    }
-  }, []);
 
   const formatTourDate = (dateStr: string) => {
-    try {
-      const date = new Date(dateStr);
-      return format(date, "d 'de' MMMM", { locale: es });
-    } catch {
-      return dateStr;
-    }
+    try { return format(new Date(dateStr), "d 'de' MMMM", { locale: es }); }
+    catch { return dateStr; }
   };
 
-  const formatPrice = (price: number, currency: string) => {
-    if (currency === 'USD') {
-      return `USD $${price.toLocaleString()}`;
-    }
-    return `$${price.toLocaleString()}`;
+  const formatPrice = (price: number, currency: string) =>
+    currency === 'USD' ? `USD $${price.toLocaleString()}` : `$${price.toLocaleString()}`;
+
+  const openWhatsApp = () => {
+    if (!whatsappNumber) return;
+    const lastTours = messages.filter(m => m.tours?.length).slice(-1)[0]?.tours;
+    const tourMsg = lastTours?.length === 1 ? ` Me interesa el viaje a ${lastTours[0].destination}.` : '';
+    window.open(`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(`Hola! Estoy consultando desde el chat de la web.${tourMsg}`)}`, '_blank');
   };
+
+  const QUICK_FILTERS = [
+    { label: "✈️ Ver viajes", prompt: "Mostrame todos los viajes disponibles" },
+    { label: "⭐ Destacados", prompt: "Cuáles son los viajes destacados?" },
+    { label: "💰 Más baratos", prompt: "Cuál es el viaje más barato?" },
+    { label: "🔀 Comparar", prompt: "Quiero comparar dos viajes" },
+    { label: "🌤 Clima", prompt: "Qué clima hace en el destino del próximo viaje?" },
+    { label: "💳 Por presupuesto", prompt: "Tengo un presupuesto, recomendame un viaje" },
+    { label: "📞 Contacto", prompt: "Datos de contacto" },
+  ];
 
   return (
     <>
@@ -224,21 +277,36 @@ export default function AIChatbot() {
                   </AvatarFallback>
                 </Avatar>
                 <div>
-                  <SheetTitle className="text-primary-foreground">Asistente IA</SheetTitle>
+                  <SheetTitle className="text-primary-foreground">
+                    Asistente IA{user && (user as any).name ? ` · Hola, ${(user as any).name?.split(' ')[0]}!` : ''}
+                  </SheetTitle>
                   <SheetDescription className="text-primary-foreground/70 text-xs">
-                    Powered by Gemini
+                    Powered by Gemini · Comparás · Clima · Presupuesto
                   </SheetDescription>
                 </div>
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={resetChat}
-                className="text-primary-foreground hover:bg-primary-foreground/20"
-                title="Reiniciar conversación"
-              >
-                <RotateCcw className="h-4 w-4" />
-              </Button>
+              <div className="flex gap-1">
+                {whatsappNumber && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={openWhatsApp}
+                    className="text-primary-foreground hover:bg-primary-foreground/20"
+                    title="Continuar por WhatsApp"
+                  >
+                    <WhatsAppIcon className="h-4 w-4" />
+                  </Button>
+                )}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={resetChat}
+                  className="text-primary-foreground hover:bg-primary-foreground/20"
+                  title="Reiniciar conversación"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           </SheetHeader>
 
@@ -246,61 +314,112 @@ export default function AIChatbot() {
             <div className="space-y-4">
               {messages.map((message, index) => (
                 <div key={index} className="space-y-3">
-                  <div
-                    className={cn(
-                      "flex gap-3",
-                      message.role === "user" ? "flex-row-reverse" : "flex-row"
-                    )}
-                  >
-                    <Avatar className={cn(
-                      "h-8 w-8 shrink-0",
-                      message.role === "user" ? "bg-secondary" : "bg-primary"
-                    )}>
+                  {/* Burbuja del mensaje */}
+                  <div className={cn("flex gap-3", message.role === "user" ? "flex-row-reverse" : "flex-row")}>
+                    <Avatar className={cn("h-8 w-8 shrink-0", message.role === "user" ? "bg-secondary" : "bg-primary")}>
                       <AvatarFallback className="bg-transparent">
-                        {message.role === "user" ? (
-                          <User className="h-4 w-4 text-secondary-foreground" />
-                        ) : (
-                          <Bot className="h-4 w-4 text-primary-foreground" />
-                        )}
+                        {message.role === "user"
+                          ? <User className="h-4 w-4 text-secondary-foreground" />
+                          : <Bot className="h-4 w-4 text-primary-foreground" />}
                       </AvatarFallback>
                     </Avatar>
-                    <div
-                      className={cn(
-                        "rounded-lg px-3 py-2 max-w-[85%] text-sm",
-                        message.role === "user"
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-muted"
-                      )}
-                    >
+                    <div className={cn(
+                      "rounded-lg px-3 py-2 max-w-[85%] text-sm",
+                      message.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted"
+                    )}>
                       <p className="whitespace-pre-wrap">{message.content}</p>
                     </div>
                   </div>
 
+                  {/* Media */}
                   {message.media && (
                     <div className="ml-11 rounded-lg overflow-hidden border shadow-sm max-w-[280px]">
-                      {message.media.type === 'video' ? (
-                        <video src={message.media.url} controls className="w-full h-auto" />
-                      ) : (
-                        <img src={message.media.url} alt="Media del asistente" className="w-full h-auto object-cover" />
+                      {message.media.type === 'video'
+                        ? <video src={message.media.url} controls className="w-full h-auto" />
+                        : <img src={message.media.url} alt="Media" className="w-full h-auto object-cover" />}
+                    </div>
+                  )}
+
+                  {/* Clima */}
+                  {message.weather && (
+                    <div className="ml-11 rounded-lg border bg-card p-3 space-y-2 shadow-sm max-w-[300px]">
+                      <div className="flex items-center gap-2 font-semibold text-sm">
+                        <Cloud className="h-4 w-4 text-blue-500" />
+                        Clima en {message.weather.city}
+                      </div>
+                      <div className="grid grid-cols-2 gap-1.5 text-xs">
+                        <div className="flex items-center gap-1">
+                          <Thermometer className="h-3 w-3 text-orange-500" />
+                          <span>{message.weather.temp} (sens. {message.weather.feelsLike})</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Droplets className="h-3 w-3 text-blue-400" />
+                          <span>Humedad {message.weather.humidity}</span>
+                        </div>
+                        <div className="col-span-2 text-muted-foreground italic">{message.weather.desc}</div>
+                      </div>
+                      {message.weather.forecast && (
+                        <div className="text-xs text-muted-foreground border-t pt-1.5">
+                          <span className="font-medium">Pronóstico: </span>{message.weather.forecast}
+                        </div>
                       )}
                     </div>
                   )}
 
-                  {message.tours && message.tours.length > 0 && (
+                  {/* Comparación de viajes (2 columnas) */}
+                  {message.isComparison && message.tours && message.tours.length >= 2 && (
+                    <div className="ml-11 max-w-[350px]">
+                      <div className="flex items-center gap-1 text-xs font-semibold text-muted-foreground mb-2">
+                        <ArrowLeftRight className="h-3 w-3" /> Comparación
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        {message.tours.slice(0, 2).map(tour => (
+                          <div key={tour.id} className="rounded-lg border bg-card overflow-hidden shadow-sm">
+                            {tour.backgroundImage && (
+                              <div className="h-20 bg-cover bg-center" style={{ backgroundImage: `url(${tour.backgroundImage})` }} />
+                            )}
+                            <div className="p-2 space-y-1">
+                              <p className="font-semibold text-xs leading-tight line-clamp-2">{tour.destination}</p>
+                              <div className="text-xs text-muted-foreground space-y-0.5">
+                                <div className="flex items-center gap-1"><Calendar className="h-2.5 w-2.5" />{formatTourDate(tour.date)}</div>
+                                {(tour.days || tour.nights) && <div className="flex items-center gap-1"><MapPin className="h-2.5 w-2.5" />{tour.days}D/{tour.nights}N</div>}
+                                {tour.availableSeats && <div className="flex items-center gap-1"><User className="h-2.5 w-2.5" />{tour.availableSeats} lugares</div>}
+                              </div>
+                              <p className="text-xs font-bold text-primary">{formatPrice(tour.price, tour.currency)}</p>
+                              {tour.isFeatured && <span className="inline-block text-xs bg-primary/10 text-primary px-1 rounded">⭐ Dest.</span>}
+                              <div className="flex gap-1 pt-1">
+                                <Button size="sm" variant="outline" className="flex-1 text-xs h-7 px-1" onClick={() => handleViewTour(tour.id)}>
+                                  <Eye className="h-2.5 w-2.5 mr-0.5" />Ver
+                                </Button>
+                                <Button size="sm" className="flex-1 text-xs h-7 px-1" onClick={() => handleViewTour(tour.id)}>
+                                  <Ticket className="h-2.5 w-2.5 mr-0.5" />Res.
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Tarjetas de viajes normales */}
+                  {!message.isComparison && message.tours && message.tours.length > 0 && (
                     <div className="ml-11 space-y-3">
                       {message.tours.map((tour) => (
-                        <div
-                          key={tour.id}
-                          className="rounded-lg border bg-card overflow-hidden shadow-sm"
-                        >
+                        <div key={tour.id} className="rounded-lg border bg-card overflow-hidden shadow-sm">
                           {tour.backgroundImage && (
-                            <div 
+                            <div
                               className="h-24 bg-cover bg-center relative"
                               style={{ backgroundImage: `url(${tour.backgroundImage})` }}
                             >
                               {tour.isFeatured && (
-                                <span className="absolute top-2 left-2 bg-primary text-primary-foreground text-xs px-2 py-0.5 rounded-full">
-                                  ⭐ Destacado
+                                <span className="absolute top-2 left-2 bg-primary text-primary-foreground text-xs px-2 py-0.5 rounded-full flex items-center gap-1">
+                                  <Star className="h-2.5 w-2.5" /> Destacado
+                                </span>
+                              )}
+                              {tour.availableSeats !== undefined && tour.availableSeats <= 5 && tour.availableSeats > 0 && (
+                                <span className="absolute top-2 right-2 bg-destructive text-destructive-foreground text-xs px-2 py-0.5 rounded-full">
+                                  ⚠ {tour.availableSeats} lugares
                                 </span>
                               )}
                             </div>
@@ -309,36 +428,65 @@ export default function AIChatbot() {
                             <h4 className="font-semibold text-sm">{tour.destination}</h4>
                             <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
                               <span className="flex items-center gap-1">
-                                <Calendar className="h-3 w-3" />
-                                {formatTourDate(tour.date)}
+                                <Calendar className="h-3 w-3" />{formatTourDate(tour.date)}
                               </span>
                               {tour.days && tour.nights && (
                                 <span className="flex items-center gap-1">
-                                  <MapPin className="h-3 w-3" />
-                                  {tour.days}D/{tour.nights}N
+                                  <MapPin className="h-3 w-3" />{tour.days}D/{tour.nights}N
                                 </span>
                               )}
+                              {tour.availableSeats !== undefined && tour.availableSeats > 5 && (
+                                <span className="flex items-center gap-1">
+                                  <User className="h-3 w-3" />{tour.availableSeats} lugares
+                                </span>
+                              )}
+                              {tour.departureTime && (
+                                <span className="flex items-center gap-1">🕐 {tour.departureTime}</span>
+                              )}
                             </div>
-                            <p className="text-sm font-bold text-primary">
-                              {formatPrice(tour.price, tour.currency)}
-                            </p>
+
+                            {/* Descripción breve */}
+                            {tour.description && (
+                              <p className="text-xs text-muted-foreground line-clamp-2">{tour.description}</p>
+                            )}
+
+                            {/* Tags */}
+                            {tour.tags && tour.tags.length > 0 && (
+                              <div className="flex flex-wrap gap-1">
+                                {tour.tags.slice(0, 3).map(tag => (
+                                  <span key={tag} className="text-xs bg-secondary px-1.5 py-0.5 rounded-full">{tag}</span>
+                                ))}
+                              </div>
+                            )}
+
+                            <p className="text-sm font-bold text-primary">{formatPrice(tour.price, tour.currency)}</p>
+
+                            {/* Galería de fotos (primeras 3) */}
+                            {tour.gallery && tour.gallery.filter(g => g.type === 'image').length > 0 && (
+                              <div className="flex gap-1 overflow-x-auto py-0.5">
+                                {tour.gallery.filter(g => g.type === 'image').slice(0, 3).map((img, idx) => (
+                                  <a key={idx} href={img.url} target="_blank" rel="noopener noreferrer">
+                                    <div
+                                      className="h-12 w-16 rounded bg-cover bg-center border shrink-0 hover:opacity-80 transition-opacity cursor-pointer"
+                                      style={{ backgroundImage: `url(${img.url})` }}
+                                      title="Ver foto"
+                                    />
+                                  </a>
+                                ))}
+                                {tour.gallery.filter(g => g.type === 'image').length > 3 && (
+                                  <div className="h-12 w-16 rounded border shrink-0 bg-muted flex items-center justify-center text-xs text-muted-foreground">
+                                    +{tour.gallery.filter(g => g.type === 'image').length - 3}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
                             <div className="flex gap-2 pt-1">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="flex-1 text-xs h-8"
-                                onClick={() => handleViewTour(tour.id)}
-                              >
-                                <Eye className="h-3 w-3 mr-1" />
-                                Ver más
+                              <Button size="sm" variant="outline" className="flex-1 text-xs h-8" onClick={() => handleViewTour(tour.id)}>
+                                <Eye className="h-3 w-3 mr-1" />Ver más
                               </Button>
-                              <Button
-                                size="sm"
-                                className="flex-1 text-xs h-8"
-                                onClick={() => handleViewTour(tour.id)}
-                              >
-                                <Ticket className="h-3 w-3 mr-1" />
-                                Reservar
+                              <Button size="sm" className="flex-1 text-xs h-8" onClick={() => handleViewTour(tour.id)}>
+                                <Ticket className="h-3 w-3 mr-1" />Reservar
                               </Button>
                             </div>
                           </div>
@@ -347,6 +495,7 @@ export default function AIChatbot() {
                     </div>
                   )}
 
+                  {/* Links */}
                   {message.links && message.links.length > 0 && (
                     <div className="ml-11 grid grid-cols-2 gap-2 max-w-[280px]">
                       {message.links.map((link, linkIndex) => (
@@ -383,42 +532,24 @@ export default function AIChatbot() {
                 </div>
               )}
 
+              {/* Filtros rápidos — solo al inicio */}
               {messages.length === 1 && (
-                <div className="space-y-2 pt-2">
-                  <p className="text-xs text-muted-foreground text-center">Preguntame lo que quieras:</p>
+                <div className="space-y-3 pt-2">
+                  <p className="text-xs text-muted-foreground text-center flex items-center justify-center gap-1">
+                    <Filter className="h-3 w-3" /> Acciones rápidas:
+                  </p>
                   <div className="flex flex-wrap gap-2 justify-center">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="text-xs"
-                      onClick={() => { setInput("Mostrame los viajes disponibles"); setTimeout(sendMessage, 100); }}
-                    >
-                      ✈️ Ver viajes
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="text-xs"
-                      onClick={() => { setInput("¿Cuál es el viaje más barato?"); setTimeout(sendMessage, 100); }}
-                    >
-                      💰 Más barato
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="text-xs"
-                      onClick={() => { setInput("Datos de contacto"); setTimeout(sendMessage, 100); }}
-                    >
-                      📞 Contacto
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="text-xs"
-                      onClick={() => { setInput("¿Cómo puedo reservar?"); setTimeout(sendMessage, 100); }}
-                    >
-                      📝 Cómo reservar
-                    </Button>
+                    {QUICK_FILTERS.map(f => (
+                      <Button
+                        key={f.prompt}
+                        variant="outline"
+                        size="sm"
+                        className="text-xs"
+                        onClick={() => sendMessage(f.prompt)}
+                      >
+                        {f.label}
+                      </Button>
+                    ))}
                   </div>
                 </div>
               )}
@@ -426,10 +557,7 @@ export default function AIChatbot() {
           </ScrollArea>
 
           <div className="p-4 border-t bg-background">
-            <form 
-              onSubmit={(e) => { e.preventDefault(); sendMessage(); }}
-              className="flex gap-2"
-            >
+            <form onSubmit={(e) => { e.preventDefault(); sendMessage(); }} className="flex gap-2">
               <Input
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
@@ -438,11 +566,7 @@ export default function AIChatbot() {
                 disabled={isLoading}
                 className="flex-1"
               />
-              <Button
-                type="submit"
-                disabled={!input.trim() || isLoading}
-                size="icon"
-              >
+              <Button type="submit" disabled={!input.trim() || isLoading} size="icon">
                 <Send className="h-4 w-4" />
               </Button>
             </form>
