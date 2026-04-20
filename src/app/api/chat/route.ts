@@ -207,19 +207,32 @@ async function getContactInfoREST(): Promise<ContactData | null> {
   }
 }
 
+function isTourUpcoming(tour: TourData): boolean {
+  // Hora actual en Argentina (UTC-3) — inicio del día
+  const now = new Date();
+  const argentinaOffset = -3 * 60; // minutos
+  const utcMs = now.getTime() + now.getTimezoneOffset() * 60000;
+  const argNow = new Date(utcMs + argentinaOffset * 60000);
+  // Comparar solo fecha (sin hora) para incluir viajes que salen hoy
+  const todayArg = new Date(argNow.getFullYear(), argNow.getMonth(), argNow.getDate());
+  const tourDate = new Date(tour.date);
+  const tourDay = new Date(tourDate.getFullYear(), tourDate.getMonth(), tourDate.getDate());
+  return tourDay >= todayArg;
+}
+
 async function getAllTours(): Promise<TourData[]> {
   // Intenta con Admin SDK (bypasses security rules)
   const adminOk = initializeFirebaseAdmin();
   if (adminOk) {
     const adminTours = await getAllToursAdmin();
     if (adminTours.length > 0) {
-      return adminTours.filter(t => t.isPublic === true);
+      return adminTours.filter(t => t.isPublic === true && isTourUpcoming(t));
     }
   }
 
   // Fallback: REST API pública (funciona cuando las reglas permiten lectura sin auth)
   const restTours = await getAllToursREST();
-  return restTours.filter(t => t.isPublic === true);
+  return restTours.filter(t => t.isPublic === true && isTourUpcoming(t));
 }
 
 async function getContactInfo(): Promise<ContactData | null> {
