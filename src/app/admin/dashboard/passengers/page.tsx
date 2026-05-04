@@ -1,4 +1,3 @@
-
 "use client"
 import { useState, useMemo, useEffect } from "react"
 import {
@@ -74,7 +73,7 @@ export default function PassengersPage() {
   const [passengerToDelete, setPassengerToDelete] = useState<Passenger | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const { toast } = useToast();
-  
+
   const fetchData = async () => {
       const [passengersData, boardingPointsData, employeesData] = await Promise.all([
           getAllFromCollection_client<Passenger>('passengers'),
@@ -119,7 +118,7 @@ export default function PassengersPage() {
         toast({ title: "Error", description: "No se pudieron guardar los datos del pasajero.", variant: "destructive"});
     }
   }
-  
+
   const handleDeleteClick = (passenger: Passenger) => {
     setPassengerToDelete(passenger);
     setIsDeleteDialogOpen(true);
@@ -127,15 +126,15 @@ export default function PassengersPage() {
 
   const handleConfirmDelete = async () => {
     if (!passengerToDelete) return;
-    
+
     try {
         try {
             await deleteUser(passengerToDelete.id);
         } catch {
         }
-        
+
         await deleteDocument('passengers', passengerToDelete.id);
-        
+
         const employeeToDelete = employees.find(e => e.id === passengerToDelete.id);
         if (employeeToDelete) {
             await deleteDocument('employees', passengerToDelete.id);
@@ -155,7 +154,7 @@ export default function PassengersPage() {
 
   const handleFamilyNameChange = async (oldFamilyName: string, newFamilyName: string) => {
      if (!newFamilyName || oldFamilyName === newFamilyName) return;
-     
+
      const passengersToUpdate = passengers.filter(p => p.family === oldFamilyName);
      try {
         await Promise.all(
@@ -168,7 +167,7 @@ export default function PassengersPage() {
          toast({ title: "Error", description: "No se pudo actualizar el nombre de la familia.", variant: "destructive"});
      }
   }
-  
+
   const passengerCountsByDNI = useMemo(() => {
     const counts = new Map<string, number>();
     passengers.forEach(p => {
@@ -181,11 +180,20 @@ export default function PassengersPage() {
   }, [passengers, employees]);
 
   const passengersByFamily = useMemo(() => {
-    const filtered = passengers.filter(p =>
-        p.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.dni.includes(searchTerm) ||
-        (p.family && p.family.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
+    const filtered = passengers.filter(p => {
+        // --- SE AGREGA EL LOG PARA DETECTAR EL ERROR ---
+        if (!p.fullName) {
+            console.warn("Pasajero sin nombre detectado:", p);
+        }
+        // -----------------------------------------------
+
+        const term = searchTerm.toLowerCase();
+        return (
+            (p.fullName || "").toLowerCase().includes(term) ||
+            (p.dni || "").includes(searchTerm) ||
+            (p.family && p.family.toLowerCase().includes(term))
+        );
+    });
 
     return filtered.reduce((acc, p) => {
         const familyKey = p.family || 'Pasajeros Individuales';
