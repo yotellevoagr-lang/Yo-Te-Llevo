@@ -59,12 +59,21 @@ export function SearchableSelect({ options, value, onChange, placeholder, listHe
     const filteredOptions = useMemo(() => {
         if (!searchTerm && value) return options.filter(opt => opt.value !== value);
         if (!searchTerm) return options;
+
         const lowercasedTerm = searchTerm.toLowerCase();
-        return options.filter(opt => 
-            (opt.label.toLowerCase().includes(lowercasedTerm) || 
-            (opt.keywords && opt.keywords.some(kw => kw.toLowerCase().includes(lowercasedTerm)))) &&
-            opt.value !== value // Exclude already selected
-        );
+
+        return options.filter(opt => {
+            // 1. Verificación segura del label
+            const labelMatch = opt.label?.toLowerCase().includes(lowercasedTerm) ?? false;
+
+            // 2. Verificación segura de las keywords
+            const keywordsMatch = opt.keywords?.some(kw => 
+                kw && kw.toLowerCase().includes(lowercasedTerm)
+            ) ?? false;
+
+            // 3. Excluir el ya seleccionado
+            return (labelMatch || keywordsMatch) && opt.value !== value;
+        });
     }, [options, searchTerm, value]);
 
     const handleSelect = (optionValue: string, optionLabel: string) => {
