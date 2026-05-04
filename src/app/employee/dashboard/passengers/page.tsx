@@ -72,7 +72,7 @@ export default function PassengersPage() {
   const [passengerToDelete, setPassengerToDelete] = useState<Passenger | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const { toast } = useToast();
-  
+
   const fetchData = async () => {
       const [passengersData, boardingPointsData, employeesData] = await Promise.all([
           getAllFromCollection_client<Passenger>('passengers'),
@@ -117,7 +117,7 @@ export default function PassengersPage() {
         toast({ title: "Error", description: "No se pudieron guardar los datos del pasajero.", variant: "destructive"});
     }
   }
-  
+
   const handleDeleteClick = (passenger: Passenger) => {
     setPassengerToDelete(passenger);
     setIsDeleteDialogOpen(true);
@@ -125,7 +125,7 @@ export default function PassengersPage() {
 
   const handleConfirmDelete = async () => {
     if (!passengerToDelete) return;
-    
+
     try {
         await deleteDocument('passengers', passengerToDelete.id);
         await fetchData();
@@ -141,7 +141,7 @@ export default function PassengersPage() {
 
   const handleFamilyNameChange = async (oldFamilyName: string, newFamilyName: string) => {
      if (!newFamilyName || oldFamilyName === newFamilyName) return;
-     
+
      const passengersToUpdate = passengers.filter(p => p.family === oldFamilyName);
      try {
         await Promise.all(
@@ -167,11 +167,23 @@ export default function PassengersPage() {
   }, [passengers, employees]);
 
   const passengersByFamily = useMemo(() => {
-    const filtered = passengers.filter(p =>
-        p.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.dni.includes(searchTerm) ||
-        (p.family && p.family.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
+    const filtered = passengers.filter(p => {
+        // --- PROTECCIÓN CONTRA CAMPOS NULOS ---
+        if (!p.fullName || !p.dni) {
+            console.warn("Registro incompleto detectado en Firestore:", p);
+        }
+
+        const term = searchTerm.toLowerCase();
+        const fullName = (p.fullName || "").toLowerCase();
+        const dni = (p.dni || "");
+        const family = (p.family || "").toLowerCase();
+
+        return (
+            fullName.includes(term) ||
+            dni.includes(searchTerm) ||
+            family.includes(term)
+        );
+    });
 
     return filtered.reduce((acc, p) => {
         const familyKey = p.family || 'Pasajeros Individuales';
@@ -283,14 +295,14 @@ export default function PassengersPage() {
                                         return (
                                             <TableRow key={p.id}>
                                                 <TableCell className="font-medium flex items-center gap-2">
-                                                    {p.fullName}
+                                                    {p.fullName || "Sin nombre"}
                                                     {accountCount > 1 && (
                                                         <span className="text-xs font-bold text-primary bg-primary/10 rounded-full px-2">
                                                             ({accountCount})
                                                         </span>
                                                     )}
                                                 </TableCell>
-                                                <TableCell>{p.dni}</TableCell>
+                                                <TableCell>{p.dni || "N/A"}</TableCell>
                                                 <TableCell>{dobDate ? dobDate.toLocaleDateString('es-AR') : 'N/A'}</TableCell>
                                                 <TableCell>{p.phone || 'N/A'}</TableCell>
                                                 <TableCell>{boardingPoint?.name || 'N/A'}</TableCell>
