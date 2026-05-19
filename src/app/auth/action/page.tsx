@@ -1,23 +1,29 @@
-
 "use client";
 
 import { useEffect, useState, Suspense } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { applyActionCode, checkActionCode } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
-import { SiteHeader } from '@/components/site-header';
-import { SiteFooter } from '@/components/site-footer';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Logo } from '@/components/logo';
+import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Loader2, CheckCircle, AlertTriangle, PartyPopper, MailCheck } from 'lucide-react';
 import Link from 'next/link';
+import { cn } from '@/lib/utils';
 
 function ActionHandler() {
     const searchParams = useSearchParams();
-    const router = useRouter();
-    const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
-    const [message, setMessage] = useState('Procesando tu solicitud...');
+    const [status, setStatus] = useState<'loading' | 'success' | 'error' | 'already_verified'>('loading');
     const [email, setEmail] = useState<string | null>(null);
+    const [dots, setDots] = useState('.');
+
+    useEffect(() => {
+        if (status !== 'loading') return;
+        const interval = setInterval(() => {
+            setDots(d => d.length >= 3 ? '.' : d + '.');
+        }, 500);
+        return () => clearInterval(interval);
+    }, [status]);
 
     useEffect(() => {
         const mode = searchParams.get('mode');
@@ -25,100 +31,134 @@ function ActionHandler() {
 
         if (!mode || !actionCode) {
             setStatus('error');
-            setMessage('Enlace inválido o expirado. Por favor, intenta de nuevo.');
             return;
         }
 
         const handleAction = async () => {
             try {
                 const info = await checkActionCode(auth, actionCode);
+                setEmail(info.data.email || null);
                 await applyActionCode(auth, actionCode);
-                
-                // On success, redirect to login page with pre-filled email
-                router.replace(`/login?email=${encodeURIComponent(info.data.email || '')}&verified=true`);
-
+                setStatus('success');
             } catch (error: any) {
                 if (error.code === 'auth/invalid-action-code') {
-                    // This error can mean the code is invalid OR it has already been used.
-                    // If it was already used, it's a "success" for the user. We check this.
                     try {
-                        // Check the code again. If it throws but doesn't find a user, it's truly invalid.
-                        // If it finds a user, the code was likely just used.
                         const info = await checkActionCode(auth, actionCode);
-                        setEmail(info.data.email);
-                        setStatus('success');
-                        setMessage('¡Tu dirección de correo electrónico ya ha sido verificada!');
-                    } catch (finalError) {
+                        setEmail(info.data.email || null);
+                        setStatus('already_verified');
+                    } catch {
                         setStatus('error');
-                        setMessage('El enlace de verificación es inválido o ha expirado. Por favor, solicita uno nuevo o intenta iniciar sesión.');
                     }
                 } else {
                     setStatus('error');
-                    setMessage('Ocurrió un error inesperado. Por favor, intenta de nuevo.');
-                    console.error("Error handling action code:", error);
                 }
             }
         };
 
         handleAction();
-    }, [searchParams, router]);
+    }, [searchParams]);
 
-    const renderContent = () => {
-        switch (status) {
-            case 'loading':
-                return (
-                    <div className="flex flex-col items-center gap-4">
-                        <Loader2 className="w-12 h-12 animate-spin text-primary" />
-                        <p>{message}</p>
-                    </div>
-                );
-            case 'success': // This state is now a fallback for already-verified links
-                return (
-                    <div className="flex flex-col items-center gap-4 text-center">
-                        <CheckCircle className="w-16 h-16 text-green-500" />
-                        <CardTitle className="text-2xl">¡Email Verificado!</CardTitle>
-                        <CardDescription>{message}</CardDescription>
-                        <Button asChild className="mt-4">
-                            <Link href={`/login?email=${encodeURIComponent(email || '')}`}>
-                                Ir a Iniciar Sesión
-                            </Link>
-                        </Button>
-                    </div>
-                );
-            case 'error':
-                return (
-                     <div className="flex flex-col items-center gap-4 text-center">
-                        <AlertTriangle className="w-16 h-16 text-destructive" />
-                        <CardTitle className="text-2xl">Error</CardTitle>
-                        <CardDescription>{message}</CardDescription>
-                         <Button asChild className="mt-4" variant="outline">
-                            <Link href="/login">Volver a Intentar</Link>
-                        </Button>
-                    </div>
-                );
-        }
-    };
+    const loginHref = `/login${email ? `?email=${encodeURIComponent(email)}&verified=true` : '?verified=true'}`;
 
     return (
-        <div className="flex flex-col min-h-screen">
-            <SiteHeader />
-            <main className="flex-1 flex items-center justify-center">
-                <Card className="w-full max-w-md p-4 sm:p-8">
-                    <CardContent className="flex justify-center">
-                        {renderContent()}
-                    </CardContent>
-                </Card>
-            </main>
-            <SiteFooter />
+        <div className="space-y-6">
+            {status === 'loading' && (
+                <div className="flex flex-col items-center gap-6 text-center py-6">
+                    <div className="relative w-24 h-24">
+                        <div className="absolute inset-0 rounded-full bg-primary/10 animate-ping" />
+                        <div className="relative w-24 h-24 rounded-full bg-primary/10 flex items-center justify-center">
+                            <MailCheck className="w-12 h-12 text-primary" />
+                        </div>
+                    </div>
+                    <div className="space-y-1">
+                        <h2 className="text-xl font-bold">Verificando tu email{dots}</h2>
+                        <p className="text-sm text-muted-foreground">Esto solo tarda un momento.</p>
+                    </div>
+                    <Loader2 className="w-6 h-6 animate-spin text-primary/50" />
+                </div>
+            )}
+
+            {(status === 'success' || status === 'already_verified') && (
+                <div className="flex flex-col items-center gap-6 text-center py-4">
+                    <div className="w-24 h-24 rounded-full bg-green-100 flex items-center justify-center ring-8 ring-green-50">
+                        {status === 'success'
+                            ? <PartyPopper className="w-12 h-12 text-green-600" />
+                            : <CheckCircle className="w-12 h-12 text-green-600" />
+                        }
+                    </div>
+                    <div className="space-y-2">
+                        <h2 className="text-2xl font-bold text-green-700">
+                            {status === 'success' ? '¡Email Verificado!' : '¡Ya estaba verificado!'}
+                        </h2>
+                        <p className="text-muted-foreground text-sm leading-relaxed">
+                            {status === 'success'
+                                ? 'Tu cuenta está activa. Ya podés iniciar sesión y comenzar a reservar tus viajes.'
+                                : 'Tu dirección de correo electrónico ya fue verificada anteriormente.'
+                            }
+                        </p>
+                        {email && (
+                            <p className="text-xs text-muted-foreground/70 font-mono bg-muted px-3 py-1 rounded-full inline-block">
+                                {email}
+                            </p>
+                        )}
+                    </div>
+                    <Button asChild size="lg" className="w-full h-12">
+                        <Link href={loginHref}>
+                            Iniciar Sesión →
+                        </Link>
+                    </Button>
+                </div>
+            )}
+
+            {status === 'error' && (
+                <div className="flex flex-col items-center gap-6 text-center py-4">
+                    <div className="w-24 h-24 rounded-full bg-red-100 flex items-center justify-center ring-8 ring-red-50">
+                        <AlertTriangle className="w-12 h-12 text-red-500" />
+                    </div>
+                    <div className="space-y-2">
+                        <h2 className="text-2xl font-bold text-red-600">Enlace inválido</h2>
+                        <p className="text-muted-foreground text-sm leading-relaxed">
+                            El enlace de verificación es inválido o ya expiró. Por favor, solicitá uno nuevo iniciando sesión.
+                        </p>
+                    </div>
+                    <div className="flex flex-col gap-2 w-full">
+                        <Button asChild size="lg" className="w-full h-12">
+                            <Link href="/login">Ir al Login</Link>
+                        </Button>
+                        <Button asChild variant="outline" className="w-full">
+                            <Link href="/verify-email">Verificar con Código</Link>
+                        </Button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
 
-
 export default function AuthActionPage() {
     return (
-        <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><Loader2 className="w-12 h-12 animate-spin text-primary"/></div>}>
-            <ActionHandler />
-        </Suspense>
-    )
+        <div className="flex flex-col min-h-screen bg-gradient-to-br from-primary/5 via-background to-primary/10">
+            <div className="flex-1 flex items-center justify-center p-4">
+                <div className="w-full max-w-sm space-y-6">
+                    <div className="flex justify-center">
+                        <Logo />
+                    </div>
+                    <Card className="shadow-2xl border-0 bg-card/95 backdrop-blur-sm">
+                        <CardContent className="pt-6 pb-4">
+                            <Suspense fallback={
+                                <div className="flex justify-center py-8">
+                                    <Loader2 className="animate-spin w-8 h-8 text-primary" />
+                                </div>
+                            }>
+                                <ActionHandler />
+                            </Suspense>
+                        </CardContent>
+                        <CardFooter className="justify-center pb-6 pt-0">
+                            <p className="text-xs text-muted-foreground/60">YO TE LLEVO • Agencia de Viajes</p>
+                        </CardFooter>
+                    </Card>
+                </div>
+            </div>
+        </div>
+    );
 }

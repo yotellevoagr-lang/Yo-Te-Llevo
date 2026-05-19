@@ -2,7 +2,7 @@
 
 import { db, auth } from './firebase';
 import { collection, doc, getDoc, getDocs, setDoc, deleteDoc, query, where, writeBatch, addDoc, updateDoc } from 'firebase/firestore';
-import { createUserWithEmailAndPassword, sendEmailVerification, signInWithEmailAndPassword, User as FirebaseAuthUser } from 'firebase/auth';
+import { createUserWithEmailAndPassword, sendEmailVerification, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, User as FirebaseAuthUser } from 'firebase/auth';
 import type { Tour, Passenger, Reservation, Seller, Employee, CommissionSettings, GeneralSettings, ChatbotNode } from "./types";
 import { getLayoutForType } from './layouts';
 
@@ -302,9 +302,26 @@ export async function registerPassenger(formData: { username: string; firstName:
         throw new Error("Este DNI ya está registrado con una cuenta de correo electrónico. Por favor, inicia sesión.");
     }
     
-    const q = query(collection(db, "passengers"), where("dni", "==", formData.dni));
-    const querySnapshot = await getDocs(q);
+    const dniQuery = query(collection(db, "passengers"), where("dni", "==", formData.dni));
+    const querySnapshot = await getDocs(dniQuery);
     const existingPassengerDoc = querySnapshot.docs.find(doc => !doc.data().email);
+
+    // Generate unique family name
+    const baseFamilyName = `Familia ${formData.lastName}`.trim();
+    let familyName = baseFamilyName;
+    let suffix = 2;
+    while (true) {
+        const fq = query(collection(db, 'passengers'), where('family', '==', familyName));
+        const fsnap = await getDocs(fq);
+        if (fsnap.empty) break;
+        const hasConflict = fsnap.docs.some(d => {
+            const data = d.data();
+            return data.familyOwner && data.familyOwner !== existingPassengerDoc?.id;
+        });
+        if (!hasConflict) break;
+        familyName = `${baseFamilyName} ${suffix}`;
+        suffix++;
+    }
 
     let authUser: FirebaseAuthUser;
     
@@ -312,8 +329,9 @@ export async function registerPassenger(formData: { username: string; firstName:
     authUser = userCredential.user;
     
     if (existingPassengerDoc) {
-        // "Claim" existing profile
-        const finalData = {
+        const batch = writeBatch(db);
+        const newDocRef = doc(db, "passengers", authUser.uid);
+        batch.set(newDocRef, {
             ...existingPassengerDoc.data(),
             id: authUser.uid,
             fullName: `${formData.firstName} ${formData.lastName}`.trim(),
@@ -321,16 +339,12 @@ export async function registerPassenger(formData: { username: string; firstName:
             lastName: formData.lastName,
             username: formData.username,
             email: formData.email,
-        };
-        
-        const batch = writeBatch(db);
-        const newDocRef = doc(db, "passengers", authUser.uid);
-        batch.set(newDocRef, finalData);
-        batch.delete(doc(db, "passengers", existingPassengerDoc.id)); // Delete the old temp doc
+            family: existingPassengerDoc.data().family || familyName,
+            familyOwner: authUser.uid,
+        });
+        batch.delete(doc(db, "passengers", existingPassengerDoc.id));
         await batch.commit();
-
     } else {
-        // Create new user and profile from scratch
         await saveDocument('passengers', {
             id: authUser.uid,
             fullName: `${formData.firstName} ${formData.lastName}`.trim(),
@@ -339,7 +353,10 @@ export async function registerPassenger(formData: { username: string; firstName:
             dni: formData.dni,
             email: formData.email,
             username: formData.username,
-            family: `Familia ${formData.lastName}`.trim(),
+            family: familyName,
+            familyOwner: authUser.uid,
+            nationality: 'Argentina',
+            tierId: 'adult',
         }, authUser.uid);
     }
     
@@ -348,6 +365,118 @@ export async function registerPassenger(formData: { username: string; firstName:
         handleCodeInApp: true,
     };
     await sendEmailVerification(authUser, actionCodeSettings);
+
+    // Save 6-digit verification code to Firestore (valid 24h) — used by /verify-email page
+    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    await setDoc(doc(db, 'verification_codes', authUser.uid), {
+        code: verificationCode,
+        expiresAt,
+        email: formData.email,
+        createdAt: new Date(),
+    });
+}
+
+
+// --- Google OAuth ---
+
+export async function signInWithGoogle(): Promise<{
+    isNewUser: boolean;
+    firebaseUser: FirebaseAuthUser;
+    firestoreProfile: Passenger | null;
+    availableRoles: string[];
+}> {
+    const provider = new GoogleAuthProvider();
+    const result = await signInWithPopup(auth, provider);
+    const firebaseUser = result.user;
+
+    const [adminProfile, employeeProfile, passengerProfile] = await Promise.all([
+        getDocumentById<Employee>('admin', firebaseUser.uid),
+        getDocumentById<Employee>('employees', firebaseUser.uid),
+        getDocumentById<Passenger>('passengers', firebaseUser.uid),
+    ]);
+
+    const availableRoles: string[] = [];
+    if (adminProfile) availableRoles.push('admin');
+    if (employeeProfile) availableRoles.push('employee');
+    if (passengerProfile) availableRoles.push('client');
+
+    return {
+        isNewUser: availableRoles.length === 0,
+        firebaseUser,
+        firestoreProfile: passengerProfile,
+        availableRoles,
+    };
+}
+
+export async function completeGoogleRegistration(
+    firebaseUser: FirebaseAuthUser,
+    profileData: { username: string; firstName: string; lastName: string; dni: string; phone?: string; }
+): Promise<void> {
+    if (!profileData.username || !profileData.firstName || !profileData.lastName || !profileData.dni) {
+        throw new Error("Todos los campos son obligatorios.");
+    }
+
+    const isUniqueUser = await isUsernameUnique(profileData.username);
+    if (!isUniqueUser) throw new Error("El nombre de usuario ya está en uso.");
+
+    const isDniAvailable = await isDniUnique(profileData.dni);
+    if (!isDniAvailable) throw new Error("Este DNI ya está registrado con otra cuenta.");
+
+    // Generate unique family name
+    const baseFamilyName = `Familia ${profileData.lastName}`.trim();
+    let familyName = baseFamilyName;
+    let suffix = 2;
+    while (true) {
+        const fq = query(collection(db, 'passengers'), where('family', '==', familyName));
+        const fsnap = await getDocs(fq);
+        if (fsnap.empty) break;
+        const hasConflict = fsnap.docs.some(d => {
+            const data = d.data();
+            return data.familyOwner && data.familyOwner !== firebaseUser.uid;
+        });
+        if (!hasConflict) break;
+        familyName = `${baseFamilyName} ${suffix}`;
+        suffix++;
+    }
+
+    // Claim existing profile or create new
+    const dniQuery = query(collection(db, 'passengers'), where('dni', '==', profileData.dni));
+    const existingSnap = await getDocs(dniQuery);
+    const existingDoc = existingSnap.docs.find(d => !d.data().email);
+
+    if (existingDoc) {
+        const batch = writeBatch(db);
+        batch.set(doc(db, 'passengers', firebaseUser.uid), {
+            ...existingDoc.data(),
+            id: firebaseUser.uid,
+            fullName: `${profileData.firstName} ${profileData.lastName}`.trim(),
+            firstName: profileData.firstName,
+            lastName: profileData.lastName,
+            username: profileData.username,
+            email: firebaseUser.email || '',
+            phone: profileData.phone || existingDoc.data().phone || '',
+            family: existingDoc.data().family || familyName,
+            familyOwner: firebaseUser.uid,
+        });
+        batch.delete(doc(db, 'passengers', existingDoc.id));
+        await batch.commit();
+    } else {
+        await saveDocument('passengers', {
+            id: firebaseUser.uid,
+            fullName: `${profileData.firstName} ${profileData.lastName}`.trim(),
+            firstName: profileData.firstName,
+            lastName: profileData.lastName,
+            dni: profileData.dni,
+            email: firebaseUser.email || '',
+            phone: profileData.phone || '',
+            username: profileData.username,
+            family: familyName,
+            familyOwner: firebaseUser.uid,
+            nationality: 'Argentina',
+            tierId: 'adult',
+        }, firebaseUser.uid);
+    }
 }
 
 

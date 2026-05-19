@@ -15,7 +15,7 @@ import { useToast } from "@/hooks/use-toast"
 import { getTourById, savePassenger, saveReservation, getAllFromCollection_client, getDocumentById, saveDocument } from "@/lib/firestore-services"
 import type { Tour, Reservation, Passenger, Seller, CustomLayoutConfig, LayoutCategory, CreatorContext, GalleryItem, LocationVote, GeneralSettings } from "@/lib/types"
 import { DatePicker } from "@/components/ui/date-picker"
-import { ArrowLeft, CalendarIcon, ClockIcon, MapPin, PlusIcon, TicketIcon, UsersIcon, HeartIcon, ArrowRight, ShieldCheck, Trash2, Loader2, InfoIcon, Video, Edit, ChevronsUpDown, ThumbsUp, MessageSquare, Users } from "lucide-react"
+import { ArrowLeft, CalendarIcon, ClockIcon, MapPin, PlusIcon, TicketIcon, UsersIcon, HeartIcon, ArrowRight, ShieldCheck, Trash2, Loader2, InfoIcon, Video, Edit, ChevronsUpDown, ThumbsUp, MessageSquare, Users, UserPlus } from "lucide-react"
 import Link from "next/link"
 import { Checkbox } from "@/components/ui/checkbox"
 import { getDisplayUrl, cn } from "@/lib/utils"
@@ -31,6 +31,7 @@ import {
 import { useGeoAccess } from "@/hooks/use-geo-access"
 import { PassengerForm } from "@/components/admin/passenger-form"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import argentinaGeoData from '@/lib/argentina-geo.json';
 import { ScrollArea } from "@/components/ui/scroll-area"
 
@@ -213,6 +214,7 @@ type BookingPassenger = Omit<Passenger, 'id' | 'fullName' | 'dob'> & {
     isNew: boolean;
     fullName: string;
     dob?: Date | null;
+    isCompanion?: boolean;
 };
 
 const isProfileComplete = (p: Partial<Passenger> | Partial<BookingPassenger>): boolean => {
@@ -337,6 +339,8 @@ export default function BookingPage() {
     return { totalCapacity: capacity, availableSeats: capacity - occupiedSeats };
   }, [tour, reservations, layoutConfig]);
 
+  const [showPassengerTypeDialog, setShowPassengerTypeDialog] = useState(false);
+
   const addPassenger = useCallback(() => {
     if (availableSeats <= 0) {
         toast({ title: "No hay más lugares", description: "No hay asientos disponibles para este viaje.", variant: "destructive" });
@@ -346,12 +350,22 @@ export default function BookingPage() {
         toast({ title: "No hay más lugares", description: "Has alcanzado el número máximo de asientos disponibles para este viaje.", variant: "destructive" });
         return;
     }
+    if (loggedInUser) {
+        setShowPassengerTypeDialog(true);
+    } else {
+        handleAddGuestPassenger('acompanante');
+    }
+  }, [bookingPassengers.length, availableSeats, toast, loggedInUser]);
+
+  const handleAddGuestPassenger = useCallback((type: 'familiar' | 'acompanante') => {
+    setShowPassengerTypeDialog(false);
     const newGuestId = `P-GUEST-${Date.now()}`;
     setBookingPassengers(prev => [...prev, {
         id: newGuestId, isNew: true, fullName: "", dni: "",
-        dob: null, phone: "", family: "", nationality: "Argentina", tierId: 'adult'
+        dob: null, phone: "", family: "", nationality: "Argentina", tierId: 'adult',
+        isCompanion: type === 'acompanante'
     }]);
-  }, [bookingPassengers.length, availableSeats, toast]);
+  }, []);
   
   useEffect(() => {
     const sellerIdFromStorage = localStorage.getItem("ytl_employee_id");
@@ -451,11 +465,7 @@ export default function BookingPage() {
 
   const familyMembers = useMemo(() => {
     if (!loggedInUser) return [];
-    
-    const mainPassengerProfile = allPassengers.find(p => p.id === loggedInUser.id);
-    if (!mainPassengerProfile?.family) return [];
-
-    return allPassengers.filter(p => p.family === mainPassengerProfile.family && p.id !== loggedInUser.id);
+    return allPassengers.filter(p => p.familyOwner === loggedInUser.id);
   }, [loggedInUser, allPassengers]);
 
   
@@ -484,7 +494,8 @@ export default function BookingPage() {
         dob: dobDate,
         family: passenger.family,
         nationality: passenger.nationality || 'Argentina',
-        tierId: passenger.tierId || 'adult'
+        tierId: passenger.tierId || 'adult',
+        isCompanion: false
     }])
   }
 
@@ -588,7 +599,8 @@ export default function BookingPage() {
                     dni: bp.dni,
                     phone: bp.phone,
                     dob: bp.dob,
-                    family: familyName,
+                    family: bp.isCompanion ? '' : familyName,
+                    ...((!bp.isCompanion && loggedInUser) ? { familyOwner: loggedInUser.id } : {}),
                     nationality: bp.nationality,
                     tierId: bp.tierId,
                  };
@@ -732,6 +744,32 @@ export default function BookingPage() {
               hideFamilyInput={true}
           />
       )}
+      <Dialog open={showPassengerTypeDialog} onOpenChange={setShowPassengerTypeDialog}>
+          <DialogContent className="max-w-xs">
+              <DialogHeader>
+                  <DialogTitle>Añadir Pasajero</DialogTitle>
+                  <DialogDescription>¿Qué relación tiene con vos?</DialogDescription>
+              </DialogHeader>
+              <div className="grid grid-cols-2 gap-3 py-2">
+                  <button
+                      className="flex flex-col items-center gap-2 py-5 px-3 rounded-lg border-2 border-muted hover:border-primary hover:bg-primary/5 transition-colors text-center"
+                      onClick={() => handleAddGuestPassenger('familiar')}
+                  >
+                      <Users className="w-8 h-8 text-primary"/>
+                      <span className="font-semibold text-sm">Familiar</span>
+                      <span className="text-xs text-muted-foreground">Se agrega a tu grupo familiar</span>
+                  </button>
+                  <button
+                      className="flex flex-col items-center gap-2 py-5 px-3 rounded-lg border-2 border-muted hover:border-muted-foreground hover:bg-muted/50 transition-colors text-center"
+                      onClick={() => handleAddGuestPassenger('acompanante')}
+                  >
+                      <UserPlus className="w-8 h-8 text-muted-foreground"/>
+                      <span className="font-semibold text-sm">Acompañante</span>
+                      <span className="text-xs text-muted-foreground">Solo para este viaje</span>
+                  </button>
+              </div>
+          </DialogContent>
+      </Dialog>
       <SiteHeader />
       <main className="flex-1 py-12">
         <div className="container">
@@ -812,7 +850,7 @@ export default function BookingPage() {
                                     return (
                                         <div key={passenger.id} className="p-4 border rounded-lg bg-background">
                                             <div className="flex justify-between items-center mb-2">
-                                                <h3 className="font-semibold text-lg">{isMainPassenger ? 'Pasajero Principal' : 'Acompañante'}</h3>
+                                                <h3 className="font-semibold text-lg">{isMainPassenger ? 'Pasajero Principal' : (passenger.isCompanion === false ? 'Familiar' : 'Acompañante')}</h3>
                                                 {!isMainPassenger && (
                                                     <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive hover:bg-destructive/10" onClick={() => removePassenger(passenger.id)}><Trash2 className="w-4 h-4"/></Button>
                                                 )}

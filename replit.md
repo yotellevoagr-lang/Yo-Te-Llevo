@@ -42,6 +42,16 @@ The project uses Firebase configuration stored in `.env`:
 
 ## Recent Changes
 
+- 2026-05-19: Google OAuth, familyOwner, verificación de email bella, familiar vs acompañante
+  - **Google OAuth**: Botón "Continuar con Google" en `/login`. Nuevo usuario → diálogo `GoogleProfileDialog` para completar perfil (username, nombre, DNI, teléfono). Usuario existente → login directo. `signInWithGoogle()` y `completeGoogleRegistration()` en `firestore-services.ts`
+  - **familyOwner**: Nuevo campo `familyOwner?: string` en tipo `Passenger`. Al registrarse, se asigna `familyOwner = authUser.uid`. Nombre familiar único generado (ej. "Familia Godoy", "Familia Godoy 2") si hay conflicto con otro `familyOwner`
+  - **Código de verificación 6 dígitos**: Al registrarse, se genera un código aleatorio y se guarda en `verification_codes/{uid}` (expira en 24h). Nueva página `/verify-email` hermosa con campo de código. Nueva API `/api/verify-email` que valida contra Firestore y marca email verificado vía Admin SDK
+  - **Página auth/action bella**: Reescritura completa con logo, gradiente de fondo, animaciones (ping para loading, iconos de colores para éxito/error). Estado "ya verificado" diferenciado. Botones "Ir al Login" y "Verificar con Código"
+  - **Familiar vs Acompañante en booking**: Al hacer clic "Añadir Pasajero" (usuario logueado), aparece diálogo con opciones "Familiar" (→ `familyOwner = loggedInUser.id`, se guarda en grupo) o "Acompañante" (solo para este viaje). Labels actualizados en la lista. Familia ahora filtra por `p.familyOwner === loggedInUser.id`
+  - **Contraseña para usuarios Google**: En `/profile`, sección "Establecer Contraseña" visible solo si el usuario usó solo Google (`providerData.every(p => p.providerId === 'google.com')`). Usa `linkWithCredential(EmailAuthProvider.credential(...))` 
+  - **Perfil familiar corregido**: `/profile` filtra `familyMembers` por `p.familyOwner === currentUserId` (en vez de por string `family`). Cada usuario ve solo el grupo que él creó
+  - **Firestore rules**: `employees allow create` → requiere `isSignedIn()`. Colección `verification_codes` con `allow read: if false` (solo el servidor Admin puede leer)
+
 - 2026-05-19: Embarques por pasajero, IA desde WhatsApp mejorada, Analytics en tiempo real
   - **Embarques por pasajero**: En el diálogo de edición de reserva, cada pasajero muestra su punto de embarque con un selector editable debajo del nombre. Al cambiar, se guarda directamente en el perfil del pasajero (colección `passengers`), sincronizando con la sección de pasajeros
   - **Crear reserva desde WhatsApp (IA)**: Botón "Crear desde WhatsApp (IA)" en el header de reservas. IA mejorada extrae: nombre, DNI, teléfono, fecha de nacimiento, email, ciudad, pasajeros adicionales (familia), cantidad, precio, punto de embarque y observaciones. Panel de "datos esperados" al abrir el diálogo. Indicador de confianza (alta/media/baja) y campos faltantes. Soporte para múltiples pasajeros en un solo texto

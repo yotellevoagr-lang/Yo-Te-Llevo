@@ -21,7 +21,7 @@ import { LogInIcon, UserPlus, Eye, EyeOff, Loader2, ArrowLeft, Shield, MailCheck
 import { Logo } from "@/components/logo";
 import { Separator } from "@/components/ui/separator";
 import type { Passenger } from "@/lib/types";
-import { handleLogin, registerPassenger, isUsernameUnique, validatePassword, resendVerificationEmail, isDniUnique } from "@/lib/firestore-services";
+import { handleLogin, registerPassenger, isUsernameUnique, validatePassword, resendVerificationEmail, isDniUnique, signInWithGoogle, completeGoogleRegistration } from "@/lib/firestore-services";
 import {
   Dialog,
   DialogContent,
@@ -35,7 +35,7 @@ import {
 import { useAuth } from "@/components/auth/auth-provider";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
-import { signOut, sendPasswordResetEmail } from "firebase/auth";
+import { signOut, sendPasswordResetEmail, User as FirebaseAuthUser } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 
 
@@ -280,6 +280,116 @@ function PassengerRegisterForm({ onExistingUser, setActiveTab, setRegistrationSu
     )
 }
 
+const GOOGLE_ICON = (
+    <svg viewBox="0 0 24 24" className="w-5 h-5 shrink-0" aria-hidden="true">
+        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+    </svg>
+);
+
+function GoogleProfileDialog({
+    open,
+    firebaseUser,
+    onComplete,
+    onCancel,
+}: {
+    open: boolean;
+    firebaseUser: FirebaseAuthUser | null;
+    onComplete: () => void;
+    onCancel: () => void;
+}) {
+    const { toast } = useToast();
+    const [isLoading, setIsLoading] = useState(false);
+    const displayName = firebaseUser?.displayName || '';
+    const nameParts = displayName.trim().split(/\s+/);
+    const suggestedFirst = nameParts[0] || '';
+    const suggestedLast = nameParts.slice(1).join(' ') || '';
+    const suggestedUsername = displayName.toLowerCase().replace(/\s+/g, '.').replace(/[^a-z0-9.]/g, '') || '';
+
+    const [formData, setFormData] = useState({
+        username: suggestedUsername,
+        firstName: suggestedFirst,
+        lastName: suggestedLast,
+        dni: '',
+        phone: '',
+    });
+    const [errors, setErrors] = useState({ username: '', dni: '' });
+
+    const handleChange = (field: keyof typeof formData, value: string) => {
+        setFormData(prev => ({ ...prev, [field]: value }));
+        if (field === 'username' || field === 'dni') setErrors(prev => ({ ...prev, [field]: '' }));
+    };
+
+    const handleSubmit = async () => {
+        if (!formData.username || !formData.firstName || !formData.lastName || !formData.dni) {
+            toast({ title: "Completá todos los campos requeridos.", variant: "destructive" });
+            return;
+        }
+        if (!firebaseUser) return;
+        setIsLoading(true);
+        try {
+            await completeGoogleRegistration(firebaseUser, formData);
+            onComplete();
+        } catch (error: any) {
+            if (error.message?.includes('usuario')) {
+                setErrors(prev => ({ ...prev, username: error.message }));
+            } else if (error.message?.includes('DNI')) {
+                setErrors(prev => ({ ...prev, dni: error.message }));
+            } else {
+                toast({ title: "Error", description: error.message, variant: "destructive" });
+            }
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={(v) => { if (!v && !isLoading) onCancel(); }}>
+            <DialogContent className="max-w-sm">
+                <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">{GOOGLE_ICON} Completar Perfil</DialogTitle>
+                    <DialogDescription>Necesitamos algunos datos adicionales para crear tu cuenta.</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-3 py-2">
+                    <div className="space-y-1">
+                        <Label>Nombre de usuario *</Label>
+                        <Input value={formData.username} onChange={e => handleChange('username', e.target.value.toLowerCase().replace(/[^a-z0-9._]/g, ''))} placeholder="tu.nombre" className={cn(errors.username && "border-destructive")} disabled={isLoading}/>
+                        {errors.username && <p className="text-xs text-destructive">{errors.username}</p>}
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                            <Label>Nombre *</Label>
+                            <Input value={formData.firstName} onChange={e => handleChange('firstName', e.target.value)} disabled={isLoading}/>
+                        </div>
+                        <div className="space-y-1">
+                            <Label>Apellido *</Label>
+                            <Input value={formData.lastName} onChange={e => handleChange('lastName', e.target.value)} disabled={isLoading}/>
+                        </div>
+                    </div>
+                    <div className="space-y-1">
+                        <Label>DNI *</Label>
+                        <Input value={formData.dni} onChange={e => handleChange('dni', e.target.value.replace(/\D/g, ''))} placeholder="Número de documento" className={cn(errors.dni && "border-destructive")} disabled={isLoading}/>
+                        {errors.dni && <p className="text-xs text-destructive">{errors.dni}</p>}
+                    </div>
+                    <div className="space-y-1">
+                        <Label>Teléfono <span className="text-muted-foreground text-xs">(opcional)</span></Label>
+                        <Input value={formData.phone} onChange={e => handleChange('phone', e.target.value)} placeholder="+54 9 ..." disabled={isLoading}/>
+                    </div>
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={onCancel} disabled={isLoading}>Cancelar</Button>
+                    <Button onClick={handleSubmit} disabled={isLoading}>
+                        {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                        Crear Cuenta
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
 function ForgotPasswordDialog() {
     const { toast } = useToast();
     const [email, setEmail] = useState("");
@@ -326,15 +436,55 @@ function ForgotPasswordDialog() {
 function AuthPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { toast } = useToast();
+  const { login: authLogin } = useAuth();
   
   const defaultTab = searchParams.get('verified') ? 'login' : (searchParams.get('mode') || 'login');
   const [activeTab, setActiveTab] = useState(defaultTab);
   const [prefillIdentifier, setPrefillIdentifier] = useState(searchParams.get('email') || '');
   const [registrationSuccess, setRegistrationSuccess] = useState(false);
-
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [googleProfileOpen, setGoogleProfileOpen] = useState(false);
+  const [pendingGoogleUser, setPendingGoogleUser] = useState<FirebaseAuthUser | null>(null);
 
   const handleExistingUser = (email: string) => {
     setPrefillIdentifier(email);
+  };
+
+  const handleGoogleSignIn = async () => {
+    setGoogleLoading(true);
+    try {
+      const { isNewUser, firebaseUser, firestoreProfile, availableRoles } = await signInWithGoogle();
+      if (isNewUser || !firestoreProfile) {
+        setPendingGoogleUser(firebaseUser);
+        setGoogleProfileOpen(true);
+      } else {
+        authLogin(firestoreProfile, firebaseUser, availableRoles as any[]);
+        toast({ title: "¡Bienvenido/a!", description: "Iniciaste sesión con Google." });
+        if (availableRoles.includes('admin')) router.push('/admin/dashboard');
+        else if (availableRoles.includes('employee')) router.push('/employee/dashboard');
+        else router.push('/');
+      }
+    } catch (error: any) {
+      if (error.code !== 'auth/popup-closed-by-user' && error.code !== 'auth/cancelled-popup-request') {
+        toast({ title: "Error con Google", description: "No se pudo iniciar sesión con Google. Intentá de nuevo.", variant: "destructive" });
+      }
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
+  const handleGoogleProfileComplete = () => {
+    setGoogleProfileOpen(false);
+    setPendingGoogleUser(null);
+    toast({ title: "¡Cuenta creada!", description: "¡Bienvenido/a a YO TE LLEVO!" });
+    router.push('/');
+  };
+
+  const handleGoogleProfileCancel = async () => {
+    setGoogleProfileOpen(false);
+    await signOut(auth);
+    setPendingGoogleUser(null);
   };
   
   if (registrationSuccess) {
@@ -368,6 +518,13 @@ function AuthPageContent() {
   }
 
   return (
+    <>
+    <GoogleProfileDialog
+        open={googleProfileOpen}
+        firebaseUser={pendingGoogleUser}
+        onComplete={handleGoogleProfileComplete}
+        onCancel={handleGoogleProfileCancel}
+    />
     <Dialog>
     <div className="flex flex-col items-center justify-center min-h-screen bg-muted/40 p-4">
        <div className="w-full max-w-sm">
@@ -384,6 +541,21 @@ function AuthPageContent() {
                     <CardDescription>Ingresa a tu cuenta o regístrate para la mejor experiencia.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                    <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full h-11 gap-2 font-medium"
+                        onClick={handleGoogleSignIn}
+                        disabled={googleLoading}
+                    >
+                        {googleLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : GOOGLE_ICON}
+                        Continuar con Google
+                    </Button>
+                    <div className="relative flex items-center gap-2">
+                        <div className="flex-1 border-t border-muted-foreground/20"/>
+                        <span className="text-xs text-muted-foreground uppercase px-1">O</span>
+                        <div className="flex-1 border-t border-muted-foreground/20"/>
+                    </div>
                     <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                         <TabsList className="grid w-full grid-cols-2">
                            <TabsTrigger value="login">Iniciar Sesión</TabsTrigger>
@@ -409,6 +581,7 @@ function AuthPageContent() {
     </div>
     <ForgotPasswordDialog />
     </Dialog>
+    </>
   );
 }
 

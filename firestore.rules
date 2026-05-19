@@ -83,7 +83,7 @@ service cloud.firestore {
 
     match /employees/{employeeId} {
       allow read: if true;
-      allow create: if true;
+      allow create: if isSignedIn();
       allow update: if isOwner(employeeId) || isAdmin();
       allow delete: if isAdmin();
     }
@@ -225,6 +225,16 @@ service cloud.firestore {
       allow read: if isAdminOrEmployee();
       allow create: if true;
       allow update, delete: if isAdmin();
+    }
+
+    // ==========================================
+    // VERIFICACIÓN DE EMAIL (códigos 6 dígitos)
+    // ==========================================
+
+    match /verification_codes/{uid} {
+      allow read: if false;
+      allow create, update: if true;
+      allow delete: if isAdmin();
     }
   }
 }

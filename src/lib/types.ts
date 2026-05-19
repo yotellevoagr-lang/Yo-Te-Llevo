@@ -294,6 +294,7 @@ export interface Passenger {
   dob?: Date | null;
   phone?: string;
   family?: string;
+  familyOwner?: string;
   nationality: string;
   tierId: string;
   boardingPointId?: string;

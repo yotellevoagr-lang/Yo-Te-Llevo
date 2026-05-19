@@ -13,7 +13,8 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import type { Passenger } from "@/lib/types";
 import { isUsernameUnique, savePassenger, deleteDocument, getAllFromCollection_client } from "@/lib/firestore-services";
-import { Loader2, UserCircle, Save, Users, Trash2, Edit, MapPin } from "lucide-react";
+import { Loader2, UserCircle, Save, Users, Trash2, Edit, MapPin, KeyRound, Eye, EyeOff } from "lucide-react";
+import { linkWithCredential, EmailAuthProvider, GoogleAuthProvider } from "firebase/auth";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -41,6 +42,9 @@ export default function ProfilePage() {
     const [isSaving, setIsSaving] = useState(false);
     const [isFetching, setIsFetching] = useState(true);
     const [editingMember, setEditingMember] = useState<Passenger | null>(null);
+    const [passwordForm, setPasswordForm] = useState({ password: '', confirm: '', show: false });
+    const [isLinkingPassword, setIsLinkingPassword] = useState(false);
+    const isGoogleOnlyUser = (firebaseUser?.providerData || []).every(p => p.providerId === 'google.com') && (firebaseUser?.providerData || []).length > 0;
 
     const fetchAllData = async (currentUserId: string) => {
         setIsFetching(true);
@@ -68,12 +72,9 @@ export default function ProfilePage() {
                 addressNumber: currentUserData.addressNumber || '',
             });
 
-            if (currentUserData.family) {
-                const members = allPassengers.filter(p => p.family === currentUserData.family && p.id !== currentUserData.id);
-                setFamilyMembers(members);
-            } else {
-                setFamilyMembers([]);
-            }
+            // Show only family members that THIS user owns (familyOwner === myId)
+            const myMembers = allPassengers.filter(p => p.familyOwner === currentUserId && p.id !== currentUserId);
+            setFamilyMembers(myMembers);
         } else {
             toast({ title: "Error de perfil", description: "No pudimos encontrar tu perfil. Por favor, contacta a soporte.", variant: "destructive"});
             router.replace('/login');
@@ -138,6 +139,33 @@ export default function ProfilePage() {
             setIsSaving(false);
         }
     }
+
+    const handleLinkPassword = async () => {
+        if (!firebaseUser) return;
+        if (passwordForm.password.length < 8) {
+            toast({ title: "Contraseña muy corta", description: "Debe tener al menos 8 caracteres.", variant: "destructive" });
+            return;
+        }
+        if (passwordForm.password !== passwordForm.confirm) {
+            toast({ title: "Las contraseñas no coinciden", variant: "destructive" });
+            return;
+        }
+        setIsLinkingPassword(true);
+        try {
+            const credential = EmailAuthProvider.credential(firebaseUser.email!, passwordForm.password);
+            await linkWithCredential(firebaseUser, credential);
+            toast({ title: "¡Contraseña establecida!", description: "Ahora podés iniciar sesión con email y contraseña también." });
+            setPasswordForm({ password: '', confirm: '', show: false });
+        } catch (error: any) {
+            if (error.code === 'auth/provider-already-linked') {
+                toast({ title: "Ya tenés contraseña configurada", description: "Usá 'Olvidé mi contraseña' para cambiarla." });
+            } else {
+                toast({ title: "Error", description: "No se pudo establecer la contraseña.", variant: "destructive" });
+            }
+        } finally {
+            setIsLinkingPassword(false);
+        }
+    };
     
     const handleEditMember = (member: Passenger) => {
         setEditingMember(member);
@@ -204,6 +232,31 @@ export default function ProfilePage() {
                                     </div>
                                 </CardContent>
                             </Card>
+
+                            {isGoogleOnlyUser && (
+                                <Card className="shadow-lg border-primary/30">
+                                    <CardHeader><div className="flex items-center gap-4"><KeyRound className="w-10 h-10 text-primary"/><div><CardTitle className="text-2xl">Establecer Contraseña</CardTitle><CardDescription>Iniciaste sesión con Google. Agregá una contraseña para ingresar también con email.</CardDescription></div></div></CardHeader>
+                                    <CardContent className="space-y-4">
+                                        <div className="space-y-2">
+                                            <Label>Nueva Contraseña</Label>
+                                            <div className="relative">
+                                                <Input type={passwordForm.show ? "text" : "password"} placeholder="Mínimo 8 caracteres" value={passwordForm.password} onChange={e => setPasswordForm(p => ({...p, password: e.target.value}))} className="pr-10" />
+                                                <button type="button" onClick={() => setPasswordForm(p => ({...p, show: !p.show}))} className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground">
+                                                    {passwordForm.show ? <EyeOff className="w-4 h-4"/> : <Eye className="w-4 h-4"/>}
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label>Confirmar Contraseña</Label>
+                                            <Input type={passwordForm.show ? "text" : "password"} placeholder="Repetí la contraseña" value={passwordForm.confirm} onChange={e => setPasswordForm(p => ({...p, confirm: e.target.value}))} />
+                                        </div>
+                                        <Button onClick={handleLinkPassword} disabled={isLinkingPassword || !passwordForm.password} className="w-full">
+                                            {isLinkingPassword ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <KeyRound className="mr-2 h-4 w-4"/>}
+                                            Establecer Contraseña
+                                        </Button>
+                                    </CardContent>
+                                </Card>
+                            )}
 
                             <Card className="shadow-lg">
                                 <CardHeader><div className="flex items-center gap-4"><Users className="w-10 h-10 text-primary"/><div><CardTitle className="text-2xl">Mi Grupo Familiar</CardTitle><CardDescription>Gestiona los integrantes de tu grupo.</CardDescription></div></div></CardHeader>
