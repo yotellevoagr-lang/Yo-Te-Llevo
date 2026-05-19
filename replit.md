@@ -41,6 +41,14 @@ The project uses Firebase configuration stored in `.env`:
 - `FIREBASE_SERVICE_ACCOUNT_KEY` - For server-side Firebase Admin
 
 ## Recent Changes
+
+- 2026-05-19: Embarques por pasajero, IA desde WhatsApp mejorada, Analytics en tiempo real
+  - **Embarques por pasajero**: En el diálogo de edición de reserva, cada pasajero muestra su punto de embarque con un selector editable debajo del nombre. Al cambiar, se guarda directamente en el perfil del pasajero (colección `passengers`), sincronizando con la sección de pasajeros
+  - **Crear reserva desde WhatsApp (IA)**: Botón "Crear desde WhatsApp (IA)" en el header de reservas. IA mejorada extrae: nombre, DNI, teléfono, fecha de nacimiento, email, ciudad, pasajeros adicionales (familia), cantidad, precio, punto de embarque y observaciones. Panel de "datos esperados" al abrir el diálogo. Indicador de confianza (alta/media/baja) y campos faltantes. Soporte para múltiples pasajeros en un solo texto
+  - **Analítica en tiempo real**: Nueva sección "Analítica" en el panel admin con usuarios activos en tiempo real (presencia Firestore con pulso cada 90s), vistas de hoy, vistas 7 días, top páginas con barra de progreso, historial de actividad reciente. Tracking automático de presencia y page views en toda la app vía `PageTracker` component
+  - **Firestore rules**: Agregadas colecciones `tickets`, `presence` y `page_views` con permisos correctos. Reglas deployadas a Firebase
+
+
 - 2026-04-19: Sistema completo de Facturación Electrónica ARCA
   - Servicio `src/lib/arca-service.ts`: firma PKCS#7 con node-forge (WSAA), llamadas SOAP a WSFE, parseo XML de respuestas, caché de token en memoria
   - 4 rutas API: `/api/arca/auth`, `/api/arca/invoice`, `/api/arca/last-voucher`, `/api/arca/test-connection`

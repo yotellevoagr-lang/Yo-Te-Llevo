@@ -24,7 +24,8 @@ import {
   ThumbsUp,
   MessageCircle,
   Gift,
-  ReceiptText
+  ReceiptText,
+  Activity,
 } from "lucide-react";
 import type { GeneralSettings } from "@/lib/types";
 import { getDocumentById } from "@/lib/firestore-services";
@@ -93,6 +94,7 @@ export default function DashboardLayout({
     { href: "/admin/dashboard/receipts", label: t('admin_nav.receipts'), icon: Receipt },
     { href: "/admin/dashboard/reports", label: t('admin_nav.reports'), icon: BarChart3 },
     { href: "/admin/dashboard/calendar", label: t('admin_nav.calendar'), icon: Calendar },
+    { href: "/admin/dashboard/analytics", label: "Analítica", icon: Activity },
     { href: "/admin/dashboard/settings", label: t('admin_nav.settings'), icon: Settings },
   ];
 

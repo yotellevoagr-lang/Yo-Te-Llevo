@@ -14,6 +14,7 @@ import { getDocumentById } from '@/lib/firestore-services';
 import type { GeneralSettings } from '@/lib/types';
 import { getDisplayUrl } from '@/lib/utils';
 import { NotificationPermission } from '@/components/notification-permission';
+import { PageTracker } from '@/components/page-tracker';
 
 const lato = Lato({
   subsets: ['latin'],
@@ -66,6 +67,7 @@ export default function RootLayout({
             <AuthProvider>
               <DynamicTheme />
               <FirebaseMessaging />
+              <PageTracker />
               {children}
               <FixedActionButtons />
               <NotificationPermission />

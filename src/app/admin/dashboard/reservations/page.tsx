@@ -46,11 +46,12 @@ import {
 } from "@/components/ui/select"
 import { SearchableSelect } from "@/components/searchable-select"
 import { SeatSelector } from "@/components/booking/seat-selector"
-import { MoreHorizontal, CheckCircle, Clock, Trash2, Armchair, Bus, Plane, Ship, Edit, UserPlus, CreditCard, Users, Info, Calendar, MapPin, DollarSign, Home, Tag, ShieldCheck, Utensils, BedDouble, PercentSquare, Check, ChevronsUpDown, BadgePercent, Search, Star } from "lucide-react"
+import { MoreHorizontal, CheckCircle, Clock, Trash2, Armchair, Bus, Plane, Ship, Edit, UserPlus, CreditCard, Users, Info, Calendar, MapPin, DollarSign, Home, Tag, ShieldCheck, Utensils, BedDouble, PercentSquare, Check, ChevronsUpDown, BadgePercent, Search, Star, Wand2 } from "lucide-react"
 import type { Tour, Reservation, LayoutCategory, LayoutItemType, Seller, PaymentStatus, Passenger, BoardingPoint, Pension, RoomType, TransportUnit, PaymentMethod, Installment, Transaction, CustomLayoutConfig } from "@/lib/types"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { AddReservationForm } from "@/components/admin/add-reservation-form"
+import { ReservationFromTextImporter } from "@/components/admin/reservation-from-text-importer"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Separator } from "@/components/ui/separator"
 import { cn, generateDisplayID } from "@/lib/utils"
@@ -149,6 +150,7 @@ export default function ReservationsPage() {
   const [addingReservation, setAddingReservation] = useState<AddReservationState>({ isOpen: false, tour: null });
   const [assignTierState, setAssignTierState] = useState<AssignTierState>({ isOpen: false, reservationId: null });
   const [isNewPassengerFormOpen, setIsNewPassengerFormOpen] = useState(false);
+  const [isTextImporterOpen, setIsTextImporterOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const { toast } = useToast();
 
@@ -517,6 +519,22 @@ export default function ReservationsPage() {
       });
   };
 
+  const handleUpdatePassengerBoardingPoint = async (passengerId: string, boardingPointId: string) => {
+    const passenger = passengers.find(p => p.id === passengerId);
+    if (!passenger) return;
+    const updatedPassenger: Passenger = {
+      ...passenger,
+      boardingPointId: boardingPointId === 'none' ? undefined : boardingPointId,
+    };
+    try {
+      await savePassenger(updatedPassenger, passengerId);
+      setPassengers(prev => prev.map(p => p.id === passengerId ? updatedPassenger : p));
+      toast({ title: "Embarque actualizado", description: `Punto de embarque de ${passenger.fullName} actualizado.` });
+    } catch {
+      toast({ title: "Error", description: "No se pudo actualizar el embarque.", variant: "destructive" });
+    }
+  };
+
   const handleNewPassengerCreatedAndAdded = async (passengerData: Passenger) => {
       try {
           const newPassengerId = await savePassenger(passengerData, passengerData.id);
@@ -599,22 +617,41 @@ export default function ReservationsPage() {
                 <CardContent className="space-y-3">
                     <div className="space-y-2">
                         {reservationPassengers.map((p, index) => (
-                            <div key={p.id} className="flex items-center justify-between p-2 bg-secondary/50 rounded-md">
-                                <div className="flex items-center gap-2">
-                                    {index === 0 ? (
-                                        <Star className="w-4 h-4 text-amber-500 fill-amber-400" />
-                                    ) : (
-                                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleSetPrincipal(p.id)} title="Hacer principal">
-                                            <Star className="w-4 h-4 text-muted-foreground hover:text-amber-500"/>
-                                        </Button>
-                                    )}
-                                    <p className="font-medium text-sm">
-                                        {p.fullName} <span className="text-xs text-muted-foreground">({p.dni})</span>
-                                    </p>
+                            <div key={p.id} className="p-2 bg-secondary/50 rounded-md space-y-2">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        {index === 0 ? (
+                                            <Star className="w-4 h-4 text-amber-500 fill-amber-400" />
+                                        ) : (
+                                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleSetPrincipal(p.id)} title="Hacer principal">
+                                                <Star className="w-4 h-4 text-muted-foreground hover:text-amber-500"/>
+                                            </Button>
+                                        )}
+                                        <p className="font-medium text-sm">
+                                            {p.fullName} <span className="text-xs text-muted-foreground">({p.dni})</span>
+                                        </p>
+                                    </div>
+                                    <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => handleRemovePassengerFromReservation(p.id)}>
+                                        <Trash2 className="w-4 h-4"/>
+                                    </Button>
                                 </div>
-                                <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => handleRemovePassengerFromReservation(p.id)}>
-                                    <Trash2 className="w-4 h-4"/>
-                                </Button>
+                                <div className="flex items-center gap-2 pl-6">
+                                    <MapPin className="w-3 h-3 text-muted-foreground shrink-0" />
+                                    <Select
+                                        value={p.boardingPointId || 'none'}
+                                        onValueChange={(val) => handleUpdatePassengerBoardingPoint(p.id, val)}
+                                    >
+                                        <SelectTrigger className="h-7 text-xs">
+                                            <SelectValue placeholder="Sin embarque asignado" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="none">Sin embarque asignado</SelectItem>
+                                            {boardingPoints.map(bp => (
+                                                <SelectItem key={bp.id} value={bp.id}>{bp.name}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
                             </div>
                         ))}
                     </div>
@@ -928,6 +965,12 @@ export default function ReservationsPage() {
         boardingPoints={boardingPoints}
     />
 
+    <ReservationFromTextImporter
+        isOpen={isTextImporterOpen}
+        onOpenChange={setIsTextImporterOpen}
+        onReservationCreated={fetchData}
+    />
+
     <Dialog open={editingReservation.isOpen} onOpenChange={(open) => setEditingReservation({ isOpen: open, reservation: open ? editingReservation.reservation : null, originalReservation: open ? editingReservation.originalReservation : null })}>
       <DialogContent onOpenAutoFocus={(e) => e.preventDefault()} className="max-w-4xl flex flex-col max-h-[90vh]">
         <DialogHeader>
@@ -968,11 +1011,17 @@ export default function ReservationsPage() {
 
 
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold">Gestión de Reservas</h2>
-        <p className="text-muted-foreground">
-          Visualiza las reservas, asigna asientos y gestiona los estados.
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-bold">Gestión de Reservas</h2>
+          <p className="text-muted-foreground">
+            Visualiza las reservas, asigna asientos y gestiona los estados.
+          </p>
+        </div>
+        <Button variant="outline" onClick={() => setIsTextImporterOpen(true)} className="shrink-0">
+          <Wand2 className="mr-2 h-4 w-4" />
+          Crear desde WhatsApp (IA)
+        </Button>
       </div>
       <Card>
         <CardHeader>

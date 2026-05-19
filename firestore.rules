@@ -115,6 +115,16 @@ service cloud.firestore {
     }
 
     // ==========================================
+    // TICKETS
+    // ==========================================
+
+    match /tickets/{ticketId} {
+      allow read: if isAdminOrEmployee() || isPassenger();
+      allow create: if isAdminOrEmployee();
+      allow update, delete: if isAdminOrEmployee();
+    }
+
+    // ==========================================
     // FINANCIAL (solo Admin)
     // ==========================================
 
@@ -197,6 +207,24 @@ service cloud.firestore {
 
     match /invoices/{invoiceId} {
       allow read, write: if isAdmin();
+    }
+
+    // ==========================================
+    // ANALYTICS & PRESENCE (nuevo)
+    // ==========================================
+
+    // Presencia: cualquiera puede escribir su sesión, admin/employee puede leer todas
+    match /presence/{sessionId} {
+      allow read: if isAdminOrEmployee();
+      allow create, update: if true;
+      allow delete: if isAdminOrEmployee();
+    }
+
+    // Vistas de página: cualquiera puede registrar una vista, solo admin/employee puede leerlas
+    match /page_views/{viewId} {
+      allow read: if isAdminOrEmployee();
+      allow create: if true;
+      allow update, delete: if isAdmin();
     }
   }
 }
