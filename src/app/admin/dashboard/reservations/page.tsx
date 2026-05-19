@@ -635,23 +635,25 @@ export default function ReservationsPage() {
                                         <Trash2 className="w-4 h-4"/>
                                     </Button>
                                 </div>
-                                <div className="flex items-center gap-2 pl-6">
-                                    <MapPin className="w-3 h-3 text-muted-foreground shrink-0" />
-                                    <Select
-                                        value={p.boardingPointId || 'none'}
-                                        onValueChange={(val) => handleUpdatePassengerBoardingPoint(p.id, val)}
-                                    >
-                                        <SelectTrigger className="h-7 text-xs">
-                                            <SelectValue placeholder="Sin embarque asignado" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="none">Sin embarque asignado</SelectItem>
-                                            {boardingPoints.map(bp => (
-                                                <SelectItem key={bp.id} value={bp.id}>{bp.name}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
+                                {!reservation.boardingPointId && (
+                                    <div className="flex items-center gap-2 pl-6">
+                                        <MapPin className="w-3 h-3 text-muted-foreground shrink-0" />
+                                        <Select
+                                            value={p.boardingPointId || 'none'}
+                                            onValueChange={(val) => handleUpdatePassengerBoardingPoint(p.id, val)}
+                                        >
+                                            <SelectTrigger className="h-7 text-xs">
+                                                <SelectValue placeholder="Sin embarque asignado" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="none">Sin embarque asignado</SelectItem>
+                                                {boardingPoints.map(bp => (
+                                                    <SelectItem key={bp.id} value={bp.id}>{bp.name}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                )}
                             </div>
                         ))}
                     </div>

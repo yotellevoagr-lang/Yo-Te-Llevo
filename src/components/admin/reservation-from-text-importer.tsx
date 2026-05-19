@@ -69,7 +69,11 @@ export function ReservationFromTextImporter({ isOpen, onOpenChange, onReservatio
                     getAllFromCollection<Tour>('tours'),
                     getAllFromCollection_client<BoardingPoint>('boarding_points'),
                 ]);
-                const activeTours = toursData.filter(t => new Date(t.date) >= new Date());
+                const now = new Date();
+                const activeTours = toursData.filter(t => {
+                    const d = (t.date as any)?.toDate ? (t.date as any).toDate() : new Date(t.date as any);
+                    return d >= now;
+                });
                 setTours(activeTours);
                 setBoardingPoints(bpData);
             };
