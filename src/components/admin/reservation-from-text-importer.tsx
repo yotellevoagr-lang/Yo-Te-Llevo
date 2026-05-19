@@ -276,11 +276,14 @@ export function ReservationFromTextImporter({ isOpen, onOpenChange, onReservatio
                         <Select value={selectedTripId} onValueChange={setSelectedTripId}>
                             <SelectTrigger id="trip-select"><SelectValue placeholder="Elegir viaje..." /></SelectTrigger>
                             <SelectContent>
-                                {tours.map(tour => (
-                                    <SelectItem key={tour.id} value={tour.id}>
-                                        {tour.destination} — {new Date(tour.date).toLocaleDateString('es-AR')}
-                                    </SelectItem>
-                                ))}
+                                {tours.map(tour => {
+                                    const d = (tour.date as any)?.toDate ? (tour.date as any).toDate() : new Date(tour.date as any);
+                                    return (
+                                        <SelectItem key={tour.id} value={tour.id}>
+                                            {tour.destination} — {d instanceof Date && !isNaN(d.getTime()) ? d.toLocaleDateString('es-AR') : 'Sin fecha'}
+                                        </SelectItem>
+                                    );
+                                })}
                             </SelectContent>
                         </Select>
                     </div>

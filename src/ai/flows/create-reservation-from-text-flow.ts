@@ -49,6 +49,7 @@ export async function processReservationText(input: ReservationFromTextInput): P
 
 const prompt = ai.definePrompt({
   name: 'createReservationFromTextPrompt',
+  model: 'googleai/gemini-2.0-flash',
   input: {schema: ReservationFromTextInputSchema},
   output: {schema: ProcessedReservationOutputSchema},
   prompt: `Eres un asistente experto en carga de datos para una agencia de viajes argentina llamada "YO TE LLEVO". 
