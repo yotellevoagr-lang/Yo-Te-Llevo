@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import type { Passenger } from "@/lib/types";
 import { isUsernameUnique, savePassenger, deleteDocument, getAllFromCollection_client } from "@/lib/firestore-services";
-import { Loader2, UserCircle, Save, Users, Trash2, Edit, MapPin, KeyRound, Eye, EyeOff } from "lucide-react";
+import { Loader2, UserCircle, Save, Users, Trash2, Edit, MapPin, KeyRound, Eye, EyeOff, UserPlus } from "lucide-react";
 import { linkWithCredential, EmailAuthProvider, GoogleAuthProvider } from "firebase/auth";
 import {
   AlertDialog,
@@ -42,6 +42,7 @@ export default function ProfilePage() {
     const [isSaving, setIsSaving] = useState(false);
     const [isFetching, setIsFetching] = useState(true);
     const [editingMember, setEditingMember] = useState<Passenger | null>(null);
+    const [isAddingMember, setIsAddingMember] = useState(false);
     const [passwordForm, setPasswordForm] = useState({ password: '', confirm: '', show: false });
     const [isLinkingPassword, setIsLinkingPassword] = useState(false);
     const isGoogleOnlyUser = (firebaseUser?.providerData || []).every(p => p.providerId === 'google.com') && (firebaseUser?.providerData || []).length > 0;
@@ -183,6 +184,22 @@ export default function ProfilePage() {
         }
     }
 
+    const handleAddMember = async (newMember: Passenger) => {
+        if (!user || !passenger) return;
+        try {
+            await savePassenger({
+                ...newMember,
+                familyOwner: user.id,
+                family: passenger.family || `Familia ${passenger.fullName?.split(' ').pop() || ''}`.trim(),
+            });
+            await fetchAllData(user.id);
+            setIsAddingMember(false);
+            toast({ title: "Familiar agregado", description: `${newMember.fullName} fue agregado a tu grupo.` });
+        } catch (error) {
+            toast({ title: "Error", description: "No se pudo agregar el familiar.", variant: "destructive" });
+        }
+    }
+
     if (loading || isFetching) {
         return <div className="flex items-center justify-center min-h-screen"><Loader2 className="w-12 h-12 animate-spin text-primary"/></div>;
     }
@@ -202,6 +219,15 @@ export default function ProfilePage() {
                     hideBoardingPoint={true}
                 />
             )}
+            <PassengerForm
+                isOpen={isAddingMember}
+                onOpenChange={setIsAddingMember}
+                onSave={handleAddMember}
+                passenger={null}
+                prefilledFamily={passenger?.family}
+                hideBoardingPoint={true}
+                hideFamilyInput={true}
+            />
             <SiteHeader />
             <main className="flex-1 py-12 md:py-16">
                 <div className="container max-w-6xl space-y-8">
@@ -259,12 +285,29 @@ export default function ProfilePage() {
                             )}
 
                             <Card className="shadow-lg">
-                                <CardHeader><div className="flex items-center gap-4"><Users className="w-10 h-10 text-primary"/><div><CardTitle className="text-2xl">Mi Grupo Familiar</CardTitle><CardDescription>Gestiona los integrantes de tu grupo.</CardDescription></div></div></CardHeader>
-                                <CardContent className="space-y-4">
+                                <CardHeader>
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-4">
+                                            <Users className="w-10 h-10 text-primary"/>
+                                            <div>
+                                                <CardTitle className="text-2xl">Mi Grupo Familiar</CardTitle>
+                                                <CardDescription>Gestiona los integrantes de tu grupo.</CardDescription>
+                                            </div>
+                                        </div>
+                                        <Button variant="outline" size="sm" onClick={() => setIsAddingMember(true)} disabled={isSaving}>
+                                            <UserPlus className="w-4 h-4 mr-2"/>
+                                            Agregar
+                                        </Button>
+                                    </div>
+                                </CardHeader>
+                                <CardContent className="space-y-3">
                                 {familyMembers.length > 0 ? (
                                     familyMembers.map(member => (
                                         <div key={member.id} className="flex items-center justify-between p-3 border rounded-lg bg-muted/50">
-                                            <div><p className="font-medium">{member.fullName}</p><p className="text-sm text-muted-foreground">DNI: {member.dni}</p></div>
+                                            <div>
+                                                <p className="font-medium">{member.fullName}</p>
+                                                <p className="text-sm text-muted-foreground">DNI: {member.dni}{member.phone ? ` · ${member.phone}` : ''}</p>
+                                            </div>
                                             <div className="flex items-center gap-1">
                                                 <Button variant="ghost" size="icon" onClick={() => handleEditMember(member)} disabled={isSaving}><Edit className="w-4 h-4"/></Button>
                                                 <AlertDialog><AlertDialogTrigger asChild><Button variant="ghost" size="icon" disabled={isSaving}><Trash2 className="w-4 h-4 text-destructive"/></Button></AlertDialogTrigger><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>¿Estás seguro?</AlertDialogTitle><AlertDialogDescription>Esta acción eliminará a {member.fullName} permanentemente. No se puede deshacer.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={() => handleRemoveMember(member.id)} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
@@ -272,7 +315,13 @@ export default function ProfilePage() {
                                         </div>
                                     ))
                                 ) : (
-                                    <p className="text-center text-muted-foreground p-4">No hay otros integrantes en tu grupo.</p>
+                                    <div className="text-center py-6">
+                                        <Users className="w-10 h-10 mx-auto text-muted-foreground/40 mb-2"/>
+                                        <p className="text-muted-foreground text-sm">No hay otros integrantes en tu grupo.</p>
+                                        <Button variant="link" size="sm" onClick={() => setIsAddingMember(true)} className="mt-1">
+                                            + Agregar el primero
+                                        </Button>
+                                    </div>
                                 )}
                                 </CardContent>
                             </Card>
