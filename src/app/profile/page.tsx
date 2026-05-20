@@ -30,7 +30,7 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { PassengerForm } from "@/components/admin/passenger-form";
 
 export default function ProfilePage() {
-    const { user, loading, userRole } = useAuth();
+    const { user, loading, userRole, firebaseUser } = useAuth();
     const router = useRouter();
     const { toast } = useToast();
     const [passenger, setPassenger] = useState<Passenger | null>(null);
