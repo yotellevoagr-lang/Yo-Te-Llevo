@@ -90,6 +90,11 @@ export const TravelTicket = React.forwardRef<HTMLDivElement, TravelTicketProps>(
   
   const reservationPassengers = (reservation.passengerIds || []).map(id => allPassengers.find(p => p.id === id)).filter(Boolean) as Passenger[];
 
+  // Coordinator: use direct field first, then fall back to first transport unit with a coordinator
+  const unitWithCoordinator = tour?.transportUnits?.find(u => u.coordinator);
+  const coordinatorName = tour?.coordinator || unitWithCoordinator?.coordinator;
+  const coordinatorPhone = tour?.coordinatorPhone || unitWithCoordinator?.coordinatorPhone;
+
   const assignedLocations = [
     ...(reservation.assignedSeats || []).map(s => s.seatId),
     ...(reservation.assignedCabins || []).map(c => c.cabinId)
@@ -192,8 +197,8 @@ export const TravelTicket = React.forwardRef<HTMLDivElement, TravelTicketProps>(
                     <InfoRow label="Nombre" value="YO TE LLEVO" />
                  </InfoSection>
                  <InfoSection title="Coordinador/a" icon={UserSquare}>
-                    <InfoRow label="Nombre" value={tour?.coordinator || "N/A"} />
-                    <InfoRow label="Teléfono" value={tour?.coordinatorPhone || "N/A"} />
+                    <InfoRow label="Nombre" value={coordinatorName || "N/A"} />
+                    <InfoRow label="Teléfono" value={coordinatorPhone || "N/A"} />
                  </InfoSection>
                   <InfoSection title="Vendedor/a" icon={UserCircle}>
                     <InfoRow label="Nombre" value={seller?.name} />
