@@ -112,25 +112,38 @@ export default function TicketsAdminPage() {
 
 
   const ticketsByTrip = useMemo(() => {
-    // Sin filtro de fechas - mostrar todos los tickets
-    const filtered = selectedTripId === "all" 
-      ? allTickets 
-      : allTickets.filter(ticket => ticket.tripId === selectedTripId);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const upcomingTripIds = new Set(
+      tours
+        .filter(t => {
+          const d = t.date instanceof Date ? t.date : new Date(t.date as any);
+          return d >= today;
+        })
+        .map(t => t.id)
+    );
+
+    const filtered = (selectedTripId === "all"
+      ? allTickets.filter(ticket => upcomingTripIds.has(ticket.tripId))
+      : allTickets.filter(ticket => ticket.tripId === selectedTripId));
 
     return filtered.reduce((acc, ticket) => {
       const { tripId } = ticket;
-      if (!acc[tripId]) {
-        acc[tripId] = [];
-      }
+      if (!acc[tripId]) acc[tripId] = [];
       acc[tripId].push(ticket);
       return acc;
     }, {} as Record<string, Ticket[]>);
-  }, [allTickets, selectedTripId]);
+  }, [allTickets, selectedTripId, tours]);
   
   const toursWithTickets = useMemo(() => {
-      // Sin filtro de fechas - mostrar todos los viajes con tickets
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
       const tripIdsWithTickets = new Set(allTickets.map(t => t.tripId));
-      return tours.filter(t => tripIdsWithTickets.has(t.id));
+      return tours.filter(t => {
+          if (!tripIdsWithTickets.has(t.id)) return false;
+          const tourDate = t.date instanceof Date ? t.date : new Date(t.date as any);
+          return tourDate >= today;
+      });
   }, [allTickets, tours]);
 
   const handleDownload = async (ticket: Ticket) => {
