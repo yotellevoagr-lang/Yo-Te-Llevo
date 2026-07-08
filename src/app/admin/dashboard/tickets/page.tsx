@@ -103,7 +103,7 @@ export default function TicketsAdminPage() {
             passengerDni: mainPassenger?.dni || "N/A",
             qrCodeUrl: `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(JSON.stringify(qrData))}`,
             reservation: res,
-            boardingPointId: res.boardingPointId,
+            boardingPointId: res.boardingPointId || mainPassenger?.boardingPointId,
         };
     }).filter((t): t is Ticket => t !== null);
     setAllTickets(generatedTickets);
