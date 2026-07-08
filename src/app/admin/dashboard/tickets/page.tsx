@@ -122,7 +122,10 @@ export default function TicketsAdminPage() {
       if (!upcomingTripIds.has(ticket.tripId)) return false;
       if (!q) return true;
       const tour = tours.find(t => t.id === ticket.tripId);
-      return tour?.destination.toLowerCase().includes(q);
+      return (
+        tour?.destination.toLowerCase().includes(q) ||
+        ticket.passengerName.toLowerCase().includes(q)
+      );
     });
 
     return filtered.reduce((acc, ticket) => {
