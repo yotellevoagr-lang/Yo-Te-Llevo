@@ -7,23 +7,16 @@ import {
   CardContent,
 } from "@/components/ui/card"
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion"
-import { Download, TicketCheck, User, Plane, Printer } from "lucide-react"
+import { Download, TicketCheck, User, Search } from "lucide-react"
 import { TravelTicket } from "@/components/admin/travel-ticket"
 import type { Tour, Ticket, Seller, Reservation, Passenger, BoardingPoint, Pension } from "@/lib/types"
-import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { toPng } from 'html-to-image';
 import jsPDF from 'jspdf';
 import { useToast } from "@/hooks/use-toast"
@@ -38,10 +31,11 @@ export default function TicketsAdminPage() {
   const [boardingPoints, setBoardingPoints] = useState<BoardingPoint[]>([]);
   const [pensions, setPensions] = useState<Pension[]>([]);
   const [allTickets, setAllTickets] = useState<Ticket[]>([]);
-  const [selectedTripId, setSelectedTripId] = useState<string>("all");
-  const ticketRefs = useRef<Record<string, HTMLDivElement | null>>({});
-  
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [openTripIds, setOpenTripIds] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const ticketRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const initializedRef = useRef(false);
 
   const fetchData = async () => {
       try {
@@ -123,9 +117,13 @@ export default function TicketsAdminPage() {
         .map(t => t.id)
     );
 
-    const filtered = (selectedTripId === "all"
-      ? allTickets.filter(ticket => upcomingTripIds.has(ticket.tripId))
-      : allTickets.filter(ticket => ticket.tripId === selectedTripId));
+    const q = searchQuery.trim().toLowerCase();
+    const filtered = allTickets.filter(ticket => {
+      if (!upcomingTripIds.has(ticket.tripId)) return false;
+      if (!q) return true;
+      const tour = tours.find(t => t.id === ticket.tripId);
+      return tour?.destination.toLowerCase().includes(q);
+    });
 
     return filtered.reduce((acc, ticket) => {
       const { tripId } = ticket;
@@ -133,18 +131,15 @@ export default function TicketsAdminPage() {
       acc[tripId].push(ticket);
       return acc;
     }, {} as Record<string, Ticket[]>);
-  }, [allTickets, selectedTripId, tours]);
-  
-  const toursWithTickets = useMemo(() => {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const tripIdsWithTickets = new Set(allTickets.map(t => t.tripId));
-      return tours.filter(t => {
-          if (!tripIdsWithTickets.has(t.id)) return false;
-          const tourDate = t.date instanceof Date ? t.date : new Date(t.date as any);
-          return tourDate >= today;
-      });
-  }, [allTickets, tours]);
+  }, [allTickets, searchQuery, tours]);
+
+  useEffect(() => {
+    const keys = Object.keys(ticketsByTrip);
+    if (!initializedRef.current && keys.length > 0) {
+      setOpenTripIds(keys);
+      initializedRef.current = true;
+    }
+  }, [ticketsByTrip]);
 
   const handleDownload = async (ticket: Ticket) => {
     const uniqueTicketId = `${ticket.id}-${ticket.passengerId}`;
@@ -201,19 +196,16 @@ export default function TicketsAdminPage() {
       </div>
 
        <Card>
-        <CardContent className="pt-6 flex items-center gap-4">
-            <Label htmlFor="trip-filter" className="text-nowrap">Filtrar por viaje:</Label>
-            <Select onValueChange={setSelectedTripId} value={selectedTripId}>
-                <SelectTrigger id="trip-filter" className="w-[300px]">
-                    <SelectValue placeholder="Seleccionar viaje" />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem value="all">Todos los viajes</SelectItem>
-                    {toursWithTickets.map(tour => (
-                        <SelectItem key={tour.id} value={tour.id}>{tour.destination}</SelectItem>
-                    ))}
-                </SelectContent>
-            </Select>
+        <CardContent className="pt-6">
+            <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                    placeholder="Buscar viaje por destino..."
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    className="pl-9"
+                />
+            </div>
         </CardContent>
        </Card>
 
@@ -234,7 +226,7 @@ export default function TicketsAdminPage() {
             </CardContent>
         </Card>
       ) : (
-        <Accordion type="multiple" className="w-full space-y-4" defaultValue={Object.keys(ticketsByTrip)}>
+        <Accordion type="multiple" className="w-full space-y-4" value={openTripIds} onValueChange={setOpenTripIds}>
          {Object.entries(ticketsByTrip).map(([tripId, tripTickets]) => {
             const tour = tours.find(t => t.id === tripId);
             if (!tour) return null;
