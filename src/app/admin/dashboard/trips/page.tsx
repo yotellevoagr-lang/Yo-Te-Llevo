@@ -95,7 +95,35 @@ export default function TripsPage() {
     }
   }, [globalTextType, generalSettings]);
 
-  const activeTours = useMemo(() => tours.filter(tour => tour.date && new Date(tour.date) >= new Date()), [tours]);
+  const [filterMode, setFilterMode] = useState<'active' | 'all' | 'past'>('active');
+
+  const activeTours = useMemo(() => {
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
+    return tours.filter(tour => {
+      if (!tour.date) return filterMode === 'all';
+      const tourDate = (tour.date as any)?.toDate ? (tour.date as any).toDate() : new Date(tour.date);
+      const isUpcoming = tourDate >= startOfToday;
+      if (filterMode === 'active') return isUpcoming;
+      if (filterMode === 'past') return !isUpcoming;
+      return true; // 'all'
+    });
+  }, [tours, filterMode]);
+
+  const counts = useMemo(() => {
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    let active = 0;
+    let past = 0;
+    tours.forEach(tour => {
+      if (!tour.date) return;
+      const tourDate = (tour.date as any)?.toDate ? (tour.date as any).toDate() : new Date(tour.date);
+      if (tourDate >= startOfToday) active++;
+      else past++;
+    });
+    return { active, past, total: tours.length };
+  }, [tours]);
   
   const getOccupiedCount = (tourId: string) => {
     return reservations
@@ -313,6 +341,31 @@ export default function TripsPage() {
             </Button>
         </div>
       </div>
+
+      <div className="flex items-center gap-2">
+        <Button
+          variant={filterMode === 'active' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setFilterMode('active')}
+        >
+          Próximos ({counts.active})
+        </Button>
+        <Button
+          variant={filterMode === 'all' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setFilterMode('all')}
+        >
+          Todos ({counts.total})
+        </Button>
+        <Button
+          variant={filterMode === 'past' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setFilterMode('past')}
+        >
+          Pasados ({counts.past})
+        </Button>
+      </div>
+
       <Card>
         <CardContent className="pt-6">
           <div className="w-full overflow-x-auto">
@@ -336,7 +389,11 @@ export default function TripsPage() {
                 {activeTours.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={10} className="h-24 text-center">
-                      No hay viajes activos.
+                      {filterMode === 'active'
+                        ? 'No hay viajes próximos.'
+                        : filterMode === 'past'
+                        ? 'No hay viajes pasados.'
+                        : 'No hay viajes registrados.'}
                     </TableCell>
                   </TableRow>
                 ) : activeTours.map((tour) => {

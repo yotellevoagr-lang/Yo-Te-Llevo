@@ -15,7 +15,6 @@ import type { GeneralSettings } from '@/lib/types';
 import { getDisplayUrl } from '@/lib/utils';
 import { NotificationPermission } from '@/components/notification-permission';
 import { PageTracker } from '@/components/page-tracker';
-import { PwaOfflineManager } from '@/components/pwa-offline-manager';
 
 const lato = Lato({
   subsets: ['latin'],
@@ -80,7 +79,6 @@ export default function RootLayout({
               <DynamicTheme />
               <FirebaseMessaging />
               <PageTracker />
-              <PwaOfflineManager />
               {children}
               <FixedActionButtons />
               <NotificationPermission />

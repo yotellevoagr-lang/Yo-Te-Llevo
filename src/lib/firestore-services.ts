@@ -90,6 +90,45 @@ function deserializeFromCache(obj: any): any {
     return obj;
 }
 
+function pruneOldCaches(): void {
+    if (!isBrowser()) return;
+    try {
+        const toRemove: string[] = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith(DOC_CACHE_PREFIX)) {
+                toRemove.push(key);
+            }
+        }
+        for (const k of toRemove) {
+            localStorage.removeItem(k);
+        }
+    } catch {}
+}
+
+function mergeWithOfflineQueue<T extends { id: string }>(collectionName: string, items: T[]): T[] {
+    const queue = getOfflineQueue().filter(q => q.collectionName === collectionName);
+    if (!queue || queue.length === 0) return items;
+
+    const itemMap = new Map<string, T>();
+    for (const item of items) {
+        itemMap.set(item.id, item);
+    }
+    for (const qItem of queue) {
+        if (qItem.action === 'save' && qItem.data) {
+            const existing = itemMap.get(qItem.docId) || ({} as T);
+            itemMap.set(qItem.docId, {
+                ...existing,
+                ...deserializeFromCache(qItem.data),
+                id: qItem.docId,
+            });
+        } else if (qItem.action === 'delete') {
+            itemMap.delete(qItem.docId);
+        }
+    }
+    return Array.from(itemMap.values());
+}
+
 function getCachedCollection<T extends { id: string }>(collectionName: string): T[] | null {
     if (!isBrowser()) return null;
     try {
@@ -105,26 +144,20 @@ function getCachedCollection<T extends { id: string }>(collectionName: string): 
 function setCachedCollection<T extends { id: string }>(collectionName: string, items: T[]): void {
     if (!isBrowser()) return;
     try {
-        // Also merge any pending offline mutations for this collection so we never overwrite unsynced local changes
-        const queue = getOfflineQueue().filter(q => q.collectionName === collectionName);
-        const itemMap = new Map<string, T>();
-        for (const item of items) {
-            itemMap.set(item.id, item);
-        }
-        for (const qItem of queue) {
-            if (qItem.action === 'save' && qItem.data) {
-                const existing = itemMap.get(qItem.docId) || ({} as T);
-                itemMap.set(qItem.docId, {
-                    ...existing,
-                    ...deserializeFromCache(qItem.data),
-                    id: qItem.docId,
-                });
-            } else if (qItem.action === 'delete') {
-                itemMap.delete(qItem.docId);
+        const merged = mergeWithOfflineQueue(collectionName, items);
+        try {
+            localStorage.setItem(`${COL_CACHE_PREFIX}${collectionName}`, JSON.stringify(serializeForCache(merged)));
+        } catch (err: any) {
+            // QuotaExceededError handling: prune duplicate doc-level caches and retry once
+            pruneOldCaches();
+            try {
+                localStorage.setItem(`${COL_CACHE_PREFIX}${collectionName}`, JSON.stringify(serializeForCache(merged)));
+            } catch {
+                // If it still exceeds quota, remove this collection cache so it does not leave a stale partial list
+                localStorage.removeItem(`${COL_CACHE_PREFIX}${collectionName}`);
+                console.warn(`[OfflineCache] Collection ${collectionName} exceeds localStorage quota; live memory data will be used.`);
             }
         }
-        const merged = Array.from(itemMap.values());
-        localStorage.setItem(`${COL_CACHE_PREFIX}${collectionName}`, JSON.stringify(serializeForCache(merged)));
     } catch (e) {
         console.warn(`[OfflineCache] Could not cache collection ${collectionName}:`, e);
     }
@@ -170,7 +203,10 @@ function upsertCachedDoc(collectionName: string, id: string, data: any): void {
         setCachedDoc(collectionName, id, mergedDoc);
 
         const col = getCachedCollection<any>(collectionName);
-        if (col) {
+        // CRITICAL FIX: Only update the collection cache if the collection was already cached!
+        // Never overwrite ytl_cache_col_ with a 1-item array if the collection was not in cache,
+        // because that causes all other items in the collection to disappear!
+        if (col && Array.isArray(col) && col.length > 0) {
             const idx = col.findIndex((item: any) => item.id === id);
             let updatedCol: any[];
             if (idx >= 0) {
@@ -179,9 +215,16 @@ function upsertCachedDoc(collectionName: string, id: string, data: any): void {
             } else {
                 updatedCol = [...col, mergedDoc];
             }
-            localStorage.setItem(`${COL_CACHE_PREFIX}${collectionName}`, JSON.stringify(serializeForCache(updatedCol)));
-        } else {
-            localStorage.setItem(`${COL_CACHE_PREFIX}${collectionName}`, JSON.stringify(serializeForCache([mergedDoc])));
+            try {
+                localStorage.setItem(`${COL_CACHE_PREFIX}${collectionName}`, JSON.stringify(serializeForCache(updatedCol)));
+            } catch {
+                pruneOldCaches();
+                try {
+                    localStorage.setItem(`${COL_CACHE_PREFIX}${collectionName}`, JSON.stringify(serializeForCache(updatedCol)));
+                } catch {
+                    localStorage.removeItem(`${COL_CACHE_PREFIX}${collectionName}`);
+                }
+            }
         }
     } catch (e) {
         console.warn(`[OfflineCache] Failed to upsert local doc ${collectionName}/${id}:`, e);
@@ -462,17 +505,18 @@ export async function getAllFromCollection<T extends { id: string }>(collectionN
 
     const fetchPromise = getDocs(collection(db, collectionName)).then(querySnapshot => {
         const items = querySnapshot.docs.map(d => ({ id: d.id, ...d.data() } as T));
-        setCachedCollection(collectionName, items);
-        return getCachedCollection<T>(collectionName) || items;
+        const merged = mergeWithOfflineQueue(collectionName, items);
+        setCachedCollection(collectionName, merged);
+        return merged;
     });
 
     // Keep background cache update safe from unhandled rejections
     fetchPromise.catch(() => {});
 
-    const timeoutMs = cached ? 7000 : 15000;
+    const timeoutMs = cached && cached.length > 0 ? 5000 : 15000;
     const result = await raceTimeout(fetchPromise, timeoutMs);
     if (result === TIMEOUT_SYMBOL) {
-        return getCachedCollection<T>(collectionName) || [];
+        return cached || [];
     }
     return result;
 }
@@ -495,15 +539,15 @@ export async function getDocumentById<T>(collectionName: string, id: string): Pr
             setCachedDoc(collectionName, id, data);
             return data;
         }
-        return getCachedDoc<T>(collectionName, id);
+        return null;
     });
 
     fetchPromise.catch(() => {});
 
-    const timeoutMs = cached ? 7000 : 15000;
+    const timeoutMs = cached ? 5000 : 15000;
     const result = await raceTimeout(fetchPromise, timeoutMs);
     if (result === TIMEOUT_SYMBOL) {
-        return getCachedDoc<T>(collectionName, id);
+        return cached;
     }
     return result;
 }

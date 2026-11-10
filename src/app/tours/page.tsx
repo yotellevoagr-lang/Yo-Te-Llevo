@@ -58,8 +58,15 @@ export default function ToursPage() {
     fetchData();
     fetchExchangeRate();
   }, []);
-  
-  const activeTours = useMemo(() => tours.filter(tour => tour.isPublic && new Date(tour.date) >= new Date()), [tours]);
+  const activeTours = useMemo(() => {
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    return tours.filter(tour => {
+      if (!tour.isPublic || !tour.date) return false;
+      const tourDate = (tour.date as any)?.toDate ? (tour.date as any).toDate() : new Date(tour.date);
+      return tourDate >= startOfToday;
+    });
+  }, [tours]);
 
   useEffect(() => {
     const usedTags = new Set(activeTours.flatMap(tour => tour.tags || []));

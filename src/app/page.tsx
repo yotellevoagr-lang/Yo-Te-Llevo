@@ -111,7 +111,13 @@ export default function Home() {
 
   const activeTours = useMemo(() => {
     if (!tours.length) return [];
-    return tours.filter(tour => tour.isPublic && tour.date && new Date(tour.date) >= new Date());
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    return tours.filter(tour => {
+      if (!tour.isPublic || !tour.date) return false;
+      const tourDate = (tour.date as any)?.toDate ? (tour.date as any).toDate() : new Date(tour.date);
+      return tourDate >= startOfToday;
+    });
   }, [tours]);
   
   const featuredTours = useMemo(() => {
