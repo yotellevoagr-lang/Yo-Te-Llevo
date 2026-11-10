@@ -22,22 +22,21 @@ export function PageTracker() {
       trackPageView(pathname, userId, role);
       // Firebase Analytics logEvent (appears in Firebase console dashboard)
       if (typeof window !== 'undefined') {
-        import('firebase/analytics').then(({ logEvent, getAnalytics }) => {
-          import('@/lib/firebase').then(({ app }) => {
-            import('firebase/analytics').then(({ isSupported }) => {
-              isSupported().then(supported => {
-                if (supported && process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID) {
-                  try {
-                    const analyticsInstance = getAnalytics(app);
-                    logEvent(analyticsInstance, 'page_view', {
-                      page_path: pathname,
-                      page_title: document.title,
-                    });
-                  } catch {}
-                }
-              }).catch(() => {});
-            });
-          });
+        import('@/lib/firebase').then(({ app, hasValidFirebaseConfig }) => {
+          if (!hasValidFirebaseConfig) return;
+          import('firebase/analytics').then(({ logEvent, getAnalytics, isSupported }) => {
+            isSupported().then(supported => {
+              if (supported && process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID) {
+                try {
+                  const analyticsInstance = getAnalytics(app);
+                  logEvent(analyticsInstance, 'page_view', {
+                    page_path: pathname,
+                    page_title: document.title,
+                  });
+                } catch {}
+              }
+            }).catch(() => {});
+          }).catch(() => {});
         }).catch(() => {});
       }
     }

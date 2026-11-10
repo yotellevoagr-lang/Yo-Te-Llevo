@@ -4,11 +4,11 @@
 
 import Link from "next/link"
 import React from "react"
-import { Logo } from "./logo"
+import { Logo } from "@/components/logo"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { MenuIcon, LogInIcon, UserPlus, UserCircle, LogOut, Settings, LayoutDashboard, Shuffle, Gift } from "lucide-react"
-import { useAuth } from "./auth/auth-provider"
+import { useAuth } from "@/components/auth/auth-provider"
 import { useRouter } from "next/navigation"
 import {
   DropdownMenu,
@@ -18,7 +18,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ThemeToggle } from "./theme-toggle"
 import { LanguageToggle } from "./language-toggle"
 import { useTranslation } from "react-i18next"

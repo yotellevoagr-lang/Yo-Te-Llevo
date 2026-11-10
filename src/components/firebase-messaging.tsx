@@ -1,25 +1,29 @@
 
 "use client"
 import { useEffect } from "react";
-import { getMessaging, onMessage } from "firebase/messaging";
+import { onMessage } from "firebase/messaging";
 import { useToast } from "@/hooks/use-toast";
-import { app } from "@/lib/firebase";
+import { messaging } from "@/lib/firebase";
 
 export function FirebaseMessaging() {
   const { toast } = useToast();
 
   useEffect(() => {
+    if (!messaging) return;
     if (typeof window !== "undefined" && "serviceWorker" in navigator) {
-      const messaging = getMessaging(app);
-      const unsubscribe = onMessage(messaging, (payload) => {
-        toast({
-          title: payload.notification?.title,
-          description: payload.notification?.body,
+      try {
+        const unsubscribe = onMessage(messaging, (payload) => {
+          toast({
+            title: payload.notification?.title,
+            description: payload.notification?.body,
+          });
         });
-      });
-      return () => {
-        unsubscribe(); 
-      };
+        return () => {
+          unsubscribe(); 
+        };
+      } catch (err) {
+        console.warn("[FirebaseMessaging] onMessage error:", err);
+      }
     }
   }, [toast]);
 

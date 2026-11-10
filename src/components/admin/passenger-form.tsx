@@ -19,8 +19,6 @@ import type { Passenger, BoardingPoint } from "@/lib/types"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
 import { SearchableSelect } from "../searchable-select"
 import { savePassenger, getAllFromCollection_client } from "@/lib/firestore-services"
-import { query, collection, where, getDocs } from "firebase/firestore"
-import { db } from "@/lib/firebase"
 
 
 interface PassengerFormProps {
@@ -63,11 +61,12 @@ export function PassengerForm({
 
   const isDniUnique = async (dni: string, currentPassengerId?: string): Promise<boolean> => {
     if (!dni) return true; // Don't validate empty DNI
-    const q = query(collection(db, "passengers"), where("dni", "==", dni));
-    const querySnapshot = await getDocs(q);
-    if (querySnapshot.empty) return true;
-    // If a document is found, it's only "unique" if it's the same user we are editing
-    return querySnapshot.docs.every(doc => doc.id === currentPassengerId);
+    const sourceList = allPassengers.length > 0
+      ? allPassengers
+      : await getAllFromCollection_client<Passenger>("passengers");
+    const matching = sourceList.filter(p => p.dni === dni);
+    if (matching.length === 0) return true;
+    return matching.every(p => p.id === currentPassengerId);
   };
 
 

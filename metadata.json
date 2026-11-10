@@ -1,0 +1,8 @@
+{
+  "name": "Yo Te Llevo",
+  "description": "Plataforma de viajes y turismo para gestión de reservas, excursiones, tickets y administración.",
+  "permissions": [],
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

@@ -1,17 +1,7 @@
 import type {NextConfig} from 'next';
-const withPWA = require('next-pwa')({
-  dest: 'public',
-  register: true,
-  skipWaiting: true,
-  fallbacks: {
-    document: '/offline',
-  },
-  disable: process.env.NODE_ENV === 'development',
-});
-
 
 const nextConfig: NextConfig = {
-  // Required for Next.js 16 with webpack plugins (like next-pwa)
+  output: 'standalone',
   turbopack: {},
   typescript: {
     ignoreBuildErrors: true,
@@ -38,16 +28,14 @@ const nextConfig: NextConfig = {
     ],
   },
   allowedDevOrigins: [
-    '4037448f-bf7c-4193-a086-7712433a96e0-00-cpu7smc8rxb4.worf.replit.dev',
-    'worf.replit.dev',
-    'kirk.replit.dev',
-    'picard.replit.dev', 
-    'spock.replit.dev',
-    'repl.co',
-    'replit.dev',
+    '*.run.app',
+    '*.us.west2.run.app',
+    '*.us-west2.run.app',
+    'ais-dev-bdislxxyovvumvun56bapj-675664137550.us-west2.run.app',
+    'ais-pre-bdislxxyovvumvun56bapj-675664137550.us-west2.run.app',
     'localhost',
     '127.0.0.1',
   ],
 };
 
-export default withPWA(nextConfig);
+export default nextConfig;

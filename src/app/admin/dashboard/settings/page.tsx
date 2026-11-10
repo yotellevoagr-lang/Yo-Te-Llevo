@@ -35,10 +35,8 @@ import { getDisplayUrl } from "@/lib/utils"
 import { GeoSettingsCard } from "@/components/admin/settings/geo-settings-card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Separator } from "@/components/ui/separator"
-import { arrayRemove, writeBatch, doc } from "firebase/firestore"
 import { Textarea } from "@/components/ui/textarea"
 import { RichTextEditor } from "@/components/rich-text-editor"
-import { db } from "@/lib/firebase"
 import { uploadFileToStorage, deleteFileFromStorage, isStorageUrl } from "@/lib/storage-service"
 
 const fileToDataUrl = (file: File): Promise<string> => {
@@ -755,27 +753,22 @@ export default function SettingsPage() {
     const handleSaveBoardingPoints = async () => {
         setIsSaving('boarding');
         try {
-            const batch = writeBatch(db);
             const currentPointsMap = new Map(boardingPoints.map(p => [p.id, p]));
             
             for (const initialPoint of initialBoardingPoints) {
                 if (!currentPointsMap.has(initialPoint.id)) {
-                    const docRef = doc(db, 'boarding_points', initialPoint.id);
-                    batch.delete(docRef);
+                    await deleteDocument('boarding_points', initialPoint.id);
                 }
             }
 
             for (const point of boardingPoints) {
                 if (point.name.trim()) {
-                    const docRef = doc(db, 'boarding_points', point.id);
-                    batch.set(docRef, { name: point.name });
+                    await saveDocument('boarding_points', { name: point.name }, point.id);
                 } else {
-                    const docRef = doc(db, 'boarding_points', point.id);
-                    batch.delete(docRef);
+                    await deleteDocument('boarding_points', point.id);
                 }
             }
 
-            await batch.commit();
             await fetchData();
             toast({ title: "Puntos de embarque guardados." });
         } catch (error) {
@@ -891,18 +884,14 @@ export default function SettingsPage() {
 
             if (deletedTags.length > 0) {
                 const allTours = await getAllFromCollection_client<Tour>('tours');
-                const batch = writeBatch(db);
 
-                allTours.forEach(tour => {
+                for (const tour of allTours) {
                     const tourHasDeletedTag = tour.tags?.some(tag => deletedTags.includes(tag));
                     if (tourHasDeletedTag) {
-                        const tourRef = doc(db, 'tours', tour.id);
-                        batch.update(tourRef, {
-                            tags: arrayRemove(...deletedTags)
-                        });
+                        const updatedTourTags = (tour.tags || []).filter(tag => !deletedTags.includes(tag));
+                        await saveDocument('tours', { ...tour, tags: updatedTourTags }, tour.id);
                     }
-                });
-                await batch.commit();
+                }
                 toast({ title: "Viajes actualizados", description: `Se eliminó la etiqueta de ${deletedTags.length} viaje(s).`});
             }
 

@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/dialog"
 import { useAuth } from "@/components/auth/auth-provider"
 import { getAllFromCollection, getDocumentById, deleteDocument, saveDocument } from "@/lib/firestore-services"
+import { getDisplayUrl } from "@/lib/utils"
 
 
 const MapSelector = dynamic(

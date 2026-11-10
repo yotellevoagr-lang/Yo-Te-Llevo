@@ -18,6 +18,7 @@ export function NotificationPermission() {
     // We need a slight delay to ensure Notification.permission is available and not 'default' from a previous interaction in the same session
     const timer = setTimeout(() => {
         if (typeof window !== 'undefined' && 'Notification' in window) {
+            if (!messaging) return;
             const permissionStatus = Notification.permission;
             const dismissed = sessionStorage.getItem('notification_prompt_dismissed');
             if (permissionStatus === 'default' && !dismissed) {
