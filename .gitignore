@@ -42,3 +42,9 @@ secrets.json
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Lockfiles & App Hosting build artifacts
+bun.lock
+bun.lockb
+/.apphosting/
+next.config.original.*

@@ -1,10 +1,13 @@
+"use client"
+
+import { useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import type { Tour } from "@/lib/types"
 import { CalendarIcon, ArrowRight, Star } from "lucide-react"
-import { getDisplayUrl } from "@/lib/utils"
+import { getDisplayUrl, CURATED_TRAVEL_FALLBACKS } from "@/lib/utils"
 
 interface TourCardProps {
   tour: Tour
@@ -13,6 +16,7 @@ interface TourCardProps {
 
 export function TourCard({ tour, canPurchase = true }: TourCardProps) {
   const imageUrl = tour.backgroundImage || "https://placehold.co/400x300.png"
+  const [src, setSrc] = useState(() => getDisplayUrl(imageUrl))
   const currencySymbol = tour.currency === 'USD' ? 'U$S' : '$'
 
   return (
@@ -21,12 +25,13 @@ export function TourCard({ tour, canPurchase = true }: TourCardProps) {
         <Link href={`/booking/${tour.id}`} prefetch={false} className="block cursor-pointer">
           <div className="relative overflow-hidden">
             <Image
-              src={getDisplayUrl(imageUrl)}
+              src={src}
               alt={`Imagen de ${tour.destination}`}
               width={400}
               height={300}
               className="object-cover w-full h-56 transition-transform duration-500 group-hover:scale-105"
               data-ai-hint="travel destination"
+              onError={() => setSrc(CURATED_TRAVEL_FALLBACKS[0])}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
 

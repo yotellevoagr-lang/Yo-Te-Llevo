@@ -9,7 +9,7 @@ const firebaseConfig = {
   apiKey: "AIzaSyD_XNPVSVrIT8yUOlt9jbk-BK9i5EYDrFo",
   authDomain: "yo-te-llevo-1021c.firebaseapp.com",
   projectId: "yo-te-llevo-1021c",
-  storageBucket: "yo-te-llevo-1021c.appspot.com",
+  storageBucket: "yo-te-llevo-1021c.firebasestorage.app",
   messagingSenderId: "757700586305",
   appId: "1:757700586305:web:2ed893413499c39fc50fc0"
 };

@@ -121,7 +121,20 @@ export default function AIChatbot() {
 
   // Cargar número de WhatsApp para el botón del header
   useEffect(() => {
-    const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+    try {
+      const cachedGeneral = localStorage.getItem("ytl_general_settings");
+      if (cachedGeneral) {
+        const parsed = JSON.parse(cachedGeneral);
+        if (parsed?.mainWhatsappNumber) {
+          setWhatsappNumber(String(parsed.mainWhatsappNumber).replace(/\D/g, ''));
+          return;
+        }
+      }
+    } catch {
+      // ignore
+    }
+    if (typeof navigator !== 'undefined' && !navigator.onLine) return;
+    const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'yo-te-llevo-1021c';
     if (!projectId) return;
     fetch(`https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/settings/general`)
       .then(r => r.json())
@@ -168,6 +181,18 @@ export default function AIChatbot() {
 
     const newMessages: Message[] = [...messages, { role: "user", content: text }];
     setMessages(newMessages);
+
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      setMessages(prev => [
+        ...prev,
+        {
+          role: "assistant",
+          content: "En este momento estás sin conexión a internet y el asistente virtual requiere conexión para responder.\n\nMientras tanto, podés ver los viajes ya cargados y realizar tus reservas con normalidad; se sincronizarán automáticamente cuando vuelva la conexión.",
+        },
+      ]);
+      return;
+    }
+
     setIsLoading(true);
 
     try {

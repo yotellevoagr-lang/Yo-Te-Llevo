@@ -12,6 +12,7 @@ const withPWA = require('next-pwa')({
 
 const nextConfig: NextConfig = {
   output: 'standalone',
+  transpilePackages: ['react-i18next'],
   // Required for Next.js 16 with webpack plugins (like next-pwa)
   turbopack: {},
   typescript: {

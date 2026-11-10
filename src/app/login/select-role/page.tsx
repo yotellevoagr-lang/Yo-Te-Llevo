@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Loader2, User, UserCog, Building, ArrowRight, ShieldQuestion } from 'lucide-react';
@@ -20,7 +20,6 @@ const roleDetails: Record<UserRole, { icon: React.ElementType, label: string }> 
 
 export default function SelectRolePage() {
     const router = useRouter();
-    const searchParams = useSearchParams();
     const { login, loading } = useAuth();
     const [profilesToSelect, setProfilesToSelect] = useState<ProfileToSelect[]>([]);
     const [isLoading, setIsLoading] = useState(true);

@@ -62,7 +62,7 @@ export function InstallPwaButton() {
     setInstallPrompt(null);
   };
 
-  if (!isClient || !installPrompt || !isMobile || isStandalone) {
+  if (!isClient || !installPrompt || isStandalone) {
     return null;
   }
 

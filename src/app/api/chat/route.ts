@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
 import { initializeApp, getApps, cert, App } from 'firebase-admin/app';
 import { getFirestore, Firestore } from 'firebase-admin/firestore';
+import { getDisplayUrl } from '@/lib/utils';
 
 export const runtime = 'nodejs';
 
@@ -126,8 +127,8 @@ async function getAllToursAdmin(): Promise<TourData[]> {
         currency: data.currency || 'ARS',
         days: data.days || undefined,
         nights: data.nights || undefined,
-        backgroundImage: data.backgroundImage || undefined,
-        gallery: gallery && gallery.length > 0 ? gallery : undefined,
+        backgroundImage: data.backgroundImage ? getDisplayUrl(data.backgroundImage) : undefined,
+        gallery: gallery && gallery.length > 0 ? gallery.map((g: any) => ({ ...g, url: getDisplayUrl(g.url) })) : undefined,
         isFeatured: data.isFeatured || false,
         isPublic: data.isPublic === true,
         availableSeats: data.availableSeats || undefined,
@@ -146,7 +147,7 @@ async function getAllToursAdmin(): Promise<TourData[]> {
 
 async function getAllToursREST(): Promise<TourData[]> {
   try {
-    const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+    const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'yo-te-llevo-1021c';
     if (!projectId) return [];
 
     const baseUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/tours?pageSize=300`;
@@ -201,8 +202,8 @@ async function getAllToursREST(): Promise<TourData[]> {
         currency: fields.currency?.stringValue || 'ARS',
         days: parseInt(fields.days?.integerValue || '0') || undefined,
         nights: parseInt(fields.nights?.integerValue || '0') || undefined,
-        backgroundImage: fields.backgroundImage?.stringValue || undefined,
-        gallery: gallery.length > 0 ? gallery : undefined,
+        backgroundImage: fields.backgroundImage?.stringValue ? getDisplayUrl(fields.backgroundImage.stringValue) : undefined,
+        gallery: gallery.length > 0 ? gallery.map((g: any) => ({ ...g, url: getDisplayUrl(g.url) })) : undefined,
         isFeatured: fields.isFeatured?.booleanValue || false,
         isPublic,
         availableSeats: parseInt(fields.availableSeats?.integerValue || '0') || undefined,
@@ -242,7 +243,7 @@ async function getContactInfoAdmin(): Promise<ContactData | null> {
 
 async function getContactInfoREST(): Promise<ContactData | null> {
   try {
-    const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+    const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'yo-te-llevo-1021c';
     if (!projectId) return null;
     const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/settings/general`;
     const res = await fetch(url, { cache: 'no-store' });
