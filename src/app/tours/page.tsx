@@ -36,22 +36,14 @@ export default function ToursPage() {
 
     const fetchExchangeRate = async () => {
         try {
-            const cachedRate = localStorage.getItem('ytl_exchange_rate');
-            if (cachedRate) {
-                setExchangeRate(Number(cachedRate) || 1000);
-            }
-            if (typeof navigator !== 'undefined' && !navigator.onLine) {
-                if (!cachedRate) setExchangeRate(1000);
-                return;
-            }
             const response = await fetch('https://dolarapi.com/v1/dolares/blue');
             const data = await response.json();
             if (data && data.venta) {
                 setExchangeRate(data.venta);
-                localStorage.setItem('ytl_exchange_rate', String(data.venta));
             }
-        } catch {
-            setExchangeRate(prev => prev || 1000);
+        } catch (error) {
+            console.error("Failed to fetch exchange rate:", error);
+            setExchangeRate(1000); 
         }
     };
     

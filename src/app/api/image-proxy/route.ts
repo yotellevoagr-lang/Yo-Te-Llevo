@@ -1,13 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { isDelinquentStorageUrl, getDeterministicFallbackImage } from '@/lib/utils';
 
 const ALLOWED_HOSTS = [
     'firebasestorage.googleapis.com',
-    'firebasestorage.app',
     'storage.googleapis.com',
     'lh3.googleusercontent.com',
     'placehold.co',
-    'images.unsplash.com',
 ];
 
 function isAllowedUrl(url: string): boolean {
@@ -28,19 +25,15 @@ export async function GET(req: NextRequest) {
         return new NextResponse('URL no proporcionada', { status: 400 });
     }
 
-    // Intercept delinquent Firebase Storage URLs immediately
-    const targetUrl = isDelinquentStorageUrl(imageUrl) ? getDeterministicFallbackImage(imageUrl) : imageUrl;
-
-    if (!isAllowedUrl(targetUrl)) {
+    if (!isAllowedUrl(imageUrl)) {
         return new NextResponse('URL no permitida', { status: 403 });
     }
 
     try {
-        let response = await fetch(targetUrl);
+        const response = await fetch(imageUrl);
 
         if (!response.ok) {
-            const fallbackUrl = getDeterministicFallbackImage(imageUrl);
-            response = await fetch(fallbackUrl);
+            return new NextResponse('No se pudo obtener el recurso', { status: response.status });
         }
 
         const contentType = response.headers.get('content-type') || 'image/png';

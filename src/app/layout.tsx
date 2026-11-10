@@ -15,7 +15,6 @@ import type { GeneralSettings } from '@/lib/types';
 import { getDisplayUrl } from '@/lib/utils';
 import { NotificationPermission } from '@/components/notification-permission';
 import { PageTracker } from '@/components/page-tracker';
-import { PwaOfflineManager } from '@/components/pwa-offline-manager';
 
 const lato = Lato({
   subsets: ['latin'],
@@ -36,15 +35,8 @@ const defaultTitle = 'Yo Te Llevo';
 const defaultDescription = 'Plataforma de viajes y turismo para gestión de reservas, excursiones, tickets y administración.';
 
 export async function generateMetadata(): Promise<Metadata> {
-  let pwaIconUrl = '/favicon.ico';
-  try {
-    const settings = await getDocumentById<GeneralSettings>('settings', 'general');
-    if (settings?.pwaIconUrl) {
-      pwaIconUrl = getDisplayUrl(settings.pwaIconUrl);
-    }
-  } catch {
-    // Fallback to static favicon when offline
-  }
+  const settings = await getDocumentById<GeneralSettings>('settings', 'general');
+  const pwaIconUrl = settings?.pwaIconUrl ? getDisplayUrl(settings.pwaIconUrl) : '/favicon.ico';
 
   return {
     title: defaultTitle,
@@ -80,7 +72,6 @@ export default function RootLayout({
               <DynamicTheme />
               <FirebaseMessaging />
               <PageTracker />
-              <PwaOfflineManager />
               {children}
               <FixedActionButtons />
               <NotificationPermission />

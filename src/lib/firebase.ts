@@ -5,13 +5,13 @@ import { getStorage } from "firebase/storage";
 import { getMessaging } from "firebase/messaging";
 import { getAnalytics, isSupported, Analytics } from "firebase/analytics";
 
-export const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "AIzaSyD_XNPVSVrIT8yUOlt9jbk-BK9i5EYDrFo",
+const firebaseConfig = {
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "AIzaSyDummyKeyForBuildEnv1234567890",
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "yo-te-llevo-1021c.firebaseapp.com",
   projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "yo-te-llevo-1021c",
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "yo-te-llevo-1021c.firebasestorage.app",
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "757700586305",
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "1:757700586305:web:2ed893413499c39fc50fc0",
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "yo-te-llevo-1021c.appspot.com",
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "1234567890",
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "1:1234567890:web:abcdef123456",
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
@@ -66,9 +66,9 @@ try {
 }
 
 export const hasValidFirebaseConfig = Boolean(
-  firebaseConfig.apiKey &&
-  !firebaseConfig.apiKey.includes('Dummy') &&
-  firebaseConfig.projectId
+  process.env.NEXT_PUBLIC_FIREBASE_API_KEY &&
+  !process.env.NEXT_PUBLIC_FIREBASE_API_KEY.includes('Dummy') &&
+  process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID
 );
 
 let messaging: any = null;

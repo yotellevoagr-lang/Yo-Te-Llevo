@@ -39,18 +39,6 @@ export const useGeoAccess = () => {
     
     const checkAccess = async () => {
       hasCheckedRef.current = true;
-
-      if (typeof window !== 'undefined') {
-        const cachedStatus = localStorage.getItem('ytl_geo_status');
-        if (!window.navigator.onLine) {
-          setStatus(cachedStatus === 'denied' ? 'denied' : 'allowed');
-          return;
-        }
-        if (cachedStatus === 'allowed') {
-          setStatus('allowed');
-          return;
-        }
-      }
       
       try {
         const [general, geo] = await Promise.all([
@@ -62,7 +50,6 @@ export const useGeoAccess = () => {
         if (geo) setGeoSettings(geo);
         
         if (!geo) {
-          localStorage.setItem('ytl_geo_status', 'allowed');
           setStatus("allowed");
           return;
         }
@@ -71,9 +58,7 @@ export const useGeoAccess = () => {
         if (userAsPassenger?.province && userAsPassenger?.city) {
           const isAllowed = allowedCities.includes(userAsPassenger.city.toLowerCase());
           setManualLocation({ province: userAsPassenger.province, city: userAsPassenger.city });
-          const nextStatus = isAllowed ? "allowed" : "denied";
-          localStorage.setItem('ytl_geo_status', nextStatus);
-          setStatus(nextStatus);
+          setStatus(isAllowed ? "allowed" : "denied");
           return;
         }
         
@@ -88,11 +73,6 @@ export const useGeoAccess = () => {
   }, [authLoading, user]);
 
   const checkBrowserPermission = useCallback(async () => {
-    if (typeof window !== 'undefined' && !window.navigator.onLine) {
-      setStatus("allowed");
-      return;
-    }
-
     let settings = geoSettings;
     if (!settings) {
       try {
@@ -120,9 +100,7 @@ export const useGeoAccess = () => {
             settings!.latitude,
             settings!.longitude
           );
-          const nextStatus = distance <= settings!.radiusKm ? "allowed" : "denied";
-          localStorage.setItem('ytl_geo_status', nextStatus);
-          setStatus(nextStatus);
+          setStatus(distance <= settings!.radiusKm ? "allowed" : "denied");
         },
         () => {
           setStatus("prompting"); 
@@ -146,11 +124,9 @@ export const useGeoAccess = () => {
         }
     }
     
-    const nextStatus = isAllowed ? "allowed" : "denied";
-    localStorage.setItem('ytl_geo_status', nextStatus);
     setTimeout(() => {
-        setStatus(nextStatus);
-    }, 300);
+        setStatus(isAllowed ? "allowed" : "denied");
+    }, 500);
   }, [user]);
 
   return { status, mainWhatsappNumber, manualLocation, checkBrowserPermission, checkManualLocation };

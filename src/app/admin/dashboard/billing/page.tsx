@@ -17,7 +17,9 @@ import {
     Loader2, Wifi, WifiOff, FileText, Building2, Hash, Calendar,
     User, DollarSign, RefreshCw, AlertTriangle, Info
 } from "lucide-react";
-import { getDocumentById, saveDocument, getAllFromCollection_client } from "@/lib/firestore-services";
+import { getDocumentById, saveDocument } from "@/lib/firestore-services";
+import { addDoc, collection, orderBy, query, getDocs, limit } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 import type { ArcaSettings, ArcaInvoice } from "@/lib/types";
 import {
     VOUCHER_TYPES, DOC_TYPES, IVA_CONDITIONS, IVA_RATES,
@@ -249,11 +251,9 @@ export default function BillingPage() {
     const loadInvoices = useCallback(async () => {
         setLoadingInvoices(true);
         try {
-            const allInvoices = await getAllFromCollection_client<ArcaInvoice & { id: string }>('invoices');
-            const sorted = [...allInvoices]
-                .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')))
-                .slice(0, 100);
-            setInvoices(sorted);
+            const q = query(collection(db, 'invoices'), orderBy('createdAt', 'desc'), limit(100));
+            const snap = await getDocs(q);
+            setInvoices(snap.docs.map(d => ({ id: d.id, ...d.data() }) as ArcaInvoice));
         } catch {
             setInvoices([]);
         }
@@ -379,7 +379,7 @@ export default function BillingPage() {
                 createdAt: new Date().toISOString(),
             };
 
-            await saveDocument('invoices', invoiceData);
+            await addDoc(collection(db, 'invoices'), invoiceData);
 
             toast({
                 title: "✅ Factura emitida correctamente",

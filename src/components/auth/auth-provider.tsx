@@ -63,23 +63,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const loadInitialData = useCallback(async () => {
-    try {
-      const cachedSettingsRaw = localStorage.getItem("ytl_general_settings");
-      if (cachedSettingsRaw) {
-        const parsed = JSON.parse(cachedSettingsRaw) as GeneralSettings;
-        if (parsed?.logoUrl) setLogoUrl(parsed.logoUrl);
-      }
-    } catch {
-      // ignore invalid JSON
-    }
-
-    if (typeof navigator !== 'undefined' && navigator.onLine) {
-      await seedInitialAdmin();
-    }
+    await seedInitialAdmin();
     const settings = await getDocumentById<GeneralSettings>('settings', 'general');
     if (settings) {
-      setLogoUrl(settings.logoUrl || null);
-      localStorage.setItem("ytl_general_settings", JSON.stringify(settings));
+        setLogoUrl(settings.logoUrl || null);
+        localStorage.setItem("ytl_general_settings", JSON.stringify(settings));
     }
   }, []);
 
@@ -92,7 +80,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const primaryRole = roles.includes('admin') ? 'admin' : roles.includes('employee') ? 'employee' : 'client';
     localStorage.setItem('ytl_auth_role', primaryRole);
     localStorage.setItem('ytl_user_id', loggedInUser.id);
-    localStorage.setItem('ytl_user_profile', JSON.stringify(loggedInUser));
     
     setFirebaseUser(fbUser);
     setUser(loggedInUser);
@@ -109,62 +96,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('ytl_available_roles');
     localStorage.removeItem("ytl_general_settings");
     localStorage.removeItem("ytl_user_id");
-    localStorage.removeItem("ytl_user_profile");
   }, []);
 
   useEffect(() => {
     loadInitialData();
 
-    const restoreCachedProfile = (): boolean => {
-      try {
-        const role = localStorage.getItem('ytl_auth_role') as UserRole;
-        const userId = localStorage.getItem('ytl_user_id');
-        const profileStr = localStorage.getItem('ytl_user_profile');
-        if (role && userId && profileStr) {
-          const parsedUser = JSON.parse(profileStr) as Passenger | Employee;
-          const rolesStr = localStorage.getItem('ytl_available_roles');
-          const allRoles = rolesStr ? JSON.parse(rolesStr) : [role];
-          setUser(parsedUser);
-          setAvailableRoles(allRoles);
-          setUserRole(role);
-          return true;
-        }
-      } catch {
-        // ignore parse errors
-      }
-      return false;
-    };
-
     const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
       setLoading(true);
-      const isCurrentlyOffline = typeof navigator !== 'undefined' && !navigator.onLine;
-
       if (fbUser && fbUser.emailVerified) {
         setFirebaseUser(fbUser);
         const role = localStorage.getItem('ytl_auth_role') as UserRole;
         const userId = localStorage.getItem('ytl_user_id');
 
         if (role && userId) {
-          let userData: Passenger | Employee | null = null;
-          if (role === 'admin') userData = await getDocumentById<Employee>('admin', userId);
-          else if (role === 'employee') userData = await getDocumentById<Employee>('employees', userId);
-          else if (role === 'client') userData = await getDocumentById<Passenger>('passengers', userId);
-          
-          if (userData) {
-            const rolesStr = localStorage.getItem('ytl_available_roles');
-            const allRoles = rolesStr ? JSON.parse(rolesStr) : (role ? [role] : []);
-            localStorage.setItem('ytl_user_profile', JSON.stringify(userData));
-            setUser(userData);
-            setAvailableRoles(allRoles);
-            setUserRole(role);
-          } else if (!restoreCachedProfile()) {
-            if (!isCurrentlyOffline) {
+            let userData = null;
+            if (role === 'admin') userData = await getDocumentById<Employee>('admin', userId);
+            else if (role === 'employee') userData = await getDocumentById<Employee>('employees', userId);
+            else if (role === 'client') userData = await getDocumentById<Passenger>('passengers', userId);
+            
+            if (userData) {
+              const rolesStr = localStorage.getItem('ytl_available_roles');
+              const allRoles = rolesStr ? JSON.parse(rolesStr) : (role ? [role] : []);
+              setUser(userData);
+              setAvailableRoles(allRoles);
+              setUserRole(role);
+            } else {
               clearSession();
             }
-          }
         }
-      } else if (isCurrentlyOffline && restoreCachedProfile()) {
-        // Keep cached session active when offline so Admin & Employee panels work without internet
       } else {
         clearSession();
       }
