@@ -101,6 +101,10 @@
     "typescript": "^5"
   },
   "overrides": {
+    "react": "$react",
+    "react-dom": "$react-dom",
+    "jspdf": "$jspdf",
+    "firebase": "$firebase",
     "node-forge": "^1.4.3",
     "dompurify": "^3.4.17",
     "tar": "^7.5.22",
